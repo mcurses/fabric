@@ -2,10 +2,7 @@
 
 Round 1's questions are answered or replaced; the answers are in `05-decisions.md`. What is still open:
 
-**Q1. Vocabulary.** Fabric gets its own words, not Unity's (D1). Needed: the design (working name *template*), one
-placement of it (*instance*), its offset/rotation/mirror (*placement*), a hand-kept setting (*override*), the editing
-area (*edit cell*), publishing (*Commit*). Block Versions' words (module, dev cell, Commit) are known to both players
-and are candidates too. Max and Seppi to propose; the docs are renamed in one pass.
+**Q1. Vocabulary.** Settled: the working names stay (`05-decisions.md` D18).
 
 **Q2. Duplicate instance** (D5, tentative): keep it, given that free placement already places a template anywhere?
 Duplicate would also copy the source instance's overrides, which free placement does not.

@@ -3,8 +3,7 @@
 ## What it is
 
 A Factorio 2.1 mod for **reusable designs that stay linked to their placements**, in the spirit of Unity's prefabs
-(the idea, not the vocabulary: Fabric gets its own words, `05-decisions.md` D1; *template* and *instance* are working
-names). A player authors a **template** in an editing area, places it many times through Fabric's interface, and when the template
+(the idea, not Unity's vocabulary; Fabric's own words are fixed in `05-decisions.md` D18). A player authors a **template** in an editing area, places it many times through Fabric's interface, and when the template
 changes, every **instance** is updated by ghosts and deconstruction orders, so robots do the work. Each instance keeps
 what belongs to it alone: its overrides (a station's requests set by hand), pieces removed on purpose, and its
 placement (offset, rotation, mirror).

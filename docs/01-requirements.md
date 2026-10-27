@@ -2,8 +2,7 @@
 
 What the mod must do, not how. `[BV n]` points at requirement n in the old repo's
 `block-versioning/docs/refactor/01-requirements.md`, where the history and the version that introduced it are. `[new]`
-marks what Fabric adds. Wording uses the working names *template*, *instance*, *edit cell* (`05-decisions.md` D1: Fabric gets its own
-vocabulary, still open).
+marks what Fabric adds. Wording follows the vocabulary in `05-decisions.md` D18.
 
 ## R1 Source of truth
 

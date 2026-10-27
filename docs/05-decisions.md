@@ -14,7 +14,7 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 
 | # | Decision | Who | State |
 |---|---|---|---|
-| D1 | Fabric gets **its own vocabulary**, not Unity's words (Max: the Unity terms were only used because everyone knows them). **Template** (the design) and **instance** (one placement) are working names until the vocabulary is chosen; Unity-specific terms (prefab, transform override, variant, unpack) are not used in the mod. | Max | direction final, words open (Q1) |
+| D1 | Fabric gets **its own vocabulary**, not Unity's words (Max: the Unity terms were only used because everyone knows them). **Template** (the design) and **instance** (one placement) are working names until the vocabulary is chosen; Unity-specific terms (prefab, transform override, variant, unpack) are not used in the mod. | Max | direction final |
 | D2 | Fabric is a **new mod**, not a new major version of `block-versions`. | Seppi | final |
 | D3 | **Ordinary copy/paste never links.** The mod never inspects pasted blueprints to guess whether a template was copied. Instances come only from Fabric's own interface. | Max | final |
 | D4 | The interface offers **free placement**: pick a template, place it where you want (like holding a blueprint), and it becomes an instance with its own **placement** (offset, rotation, mirror; Max's comparison: Unity's transform override). Placing at the template's default spot is the special case with no offset. | Max | final |
@@ -40,3 +40,9 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 - Round 1 draft: an instance with all pieces removed by hand stays until someone clicks Remove. Overturned by D13.
 - Round 1 draft: a hand change lasts only until the template changes that piece; only `#instance` combinators keep
   their settings. Overturned by D10.
+
+## Round 3 (2026-10-27): vocabulary
+
+| # | Decision | Who | State |
+|---|---|---|---|
+| D18 | The working names become the vocabulary: **template**, **instance**, **placement** (offset, rotation, mirror), **component** (a template inside a template), **override**, **removed piece**, **edit cell**, **Commit**, **Unlink**; plus **block**, **version**, **panel**, **Build now**. Settles D1 and Q1. | Max (template/instance proposed by Seppi) | final |

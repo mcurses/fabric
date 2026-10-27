@@ -5,8 +5,8 @@ many times, and every placement follows the design when it changes, while keepin
 Block Versions (old repo `mcurses/factorio`, folder `block-versioning/`), whose lessons are the starting point.
 
 **Status: design only, nothing implemented.** These docs will be reviewed several times before any code is written.
-Current state: round 2 (Seppi's review and Max's answers applied). *Template* and *instance* are working names; Fabric
-gets its own vocabulary (`05-decisions.md` D1, `03-open-questions.md` Q1).
+Current state: round 2 (Seppi's review and Max's answers applied). The vocabulary is fixed
+(`05-decisions.md` D18): template, instance, placement, component, override, removed piece, edit cell, Commit, Unlink.
 
 | Doc | What it holds |
 |---|---|

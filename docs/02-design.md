@@ -3,7 +3,7 @@
 Starts from Block Versions' from-scratch design (old repo `block-versioning/docs/refactor/03-fresh-design.md`, "design
 A") with the corrections of its adversarial review (`06`) and plan v2 (`07`). Round 2 applies the decisions in
 `05-decisions.md` (Seppi's review and Max's answers): instances come only from Fabric's interface, with free placement;
-hand changes become overrides automatically; editing contexts are flat. Words are working names (D1).
+hand changes become overrides automatically; editing contexts are flat. Vocabulary as fixed in D18.
 
 The short version:
 
