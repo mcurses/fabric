@@ -29,7 +29,7 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 | D13 | **Removal**: deliberately removing some pieces keeps the instance and records the removals, even if one piece remains. Deliberately removing **all** pieces removes the instance entry automatically. Destruction (biters, trains) is not deliberate removal; zero remaining pieces alone never removes an instance. | Seppi, Max | final |
 | D14 | **Order in a list**: the top of the list wins, like a stack where the top lies on top. (The first draft and Block Versions said "later wins"; same idea, the list is shown the other way round.) | Max | final |
 | D15 | Order **across blocks** gets its own view: the block in the middle, every neighbour it really overlaps with, and a list of the instances that actually overlap, top wins. | Max | direction agreed, details open |
-| D16 | Seppi builds a **frontend prototype** before the interaction is fixed (instance list, highlighting an instance's pieces, possibly a dedicated selection cursor for instances). | Seppi | agreed |
+| D16 | Seppi builds a **frontend prototype** before the interaction is fixed (instance list, highlighting an instance's pieces, possibly a dedicated selection cursor for instances). | Seppi | agreed; Max: the selection cursor is "amazing", fully agrees |
 | D17 | bplib: left to technical investigation. With D3 the mod no longer has to recognise player pastes, so bplib's main use is gone; it may still help the free-placement tool (spike S3). | Seppi, Max | open |
 
 ### Overturned by round 2
