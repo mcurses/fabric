@@ -1,0 +1,9 @@
+{
+  "name": "fabric-spike",
+  "version": "0.0.1",
+  "title": "Fabric spikes (test only)",
+  "author": "mcurses",
+  "description": "Throwaway helpers for Fabric's design spikes. Never on the live server.",
+  "factorio_version": "2.1",
+  "dependencies": ["base >= 2.1.7", "0-things", "cybersyn2"]
+}
