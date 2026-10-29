@@ -233,6 +233,8 @@ instances costs one lamp per instance.
 
 ## 8. Spikes before implementation
 
+S1, S2 and S4 ran on 2026-10-29; results and recommendations in `06-spike-results.md`. S3 is Seppi's.
+
 | Spike | Question | Where |
 |---|---|---|
 | S1 | Whole-entity protection vs per-setting merge (§4.2): can settings be compared and merged reliably for the entity types we use, Cybersyn 2 combinators included, without ever resetting a protected value? | Standalone headless prototype (D11) |
