@@ -19,8 +19,8 @@ players, one force, one live save. Designed for that first, shipped through the 
 
 ## The main workflow
 
-1. The map is a grid of city blocks. Each block has a **panel**: the instances placed in it, top of the list wins
-   (`05-decisions.md` D14), with add, remove, reorder, counts for repeated templates, Build now.
+1. The map is a grid of city blocks. Each block has a **panel**: the instances placed in it, last in the list wins,
+   newest at the bottom (`05-decisions.md` D19), with add, remove, reorder, counts for repeated templates, Build now.
 2. **Placing**: choose a template in the panel; either at its default spot in the block, or **freely**, like holding a
    blueprint: wherever it lands (shifted, rotated, mirrored) it becomes an instance with that transform (D4).
 3. A template is edited in its own **edit cell** and published with **Commit**. Every instance follows, also through

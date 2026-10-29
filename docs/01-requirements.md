@@ -29,7 +29,7 @@ marks what Fabric adds. Wording follows the vocabulary in `05-decisions.md` D18.
 
 ## R3 Instances placed by the mod (block panel)
 
-11. Per block: add, remove, reorder (top of the list wins, D14), count for repeated templates, Build now, Clear items, Restore removed.
+11. Per block: add, remove, reorder (last in the list wins, newest at the bottom, D19), count for repeated templates, Build now, Clear items, Restore removed.
     [BV 22, 31, 32, 53-55, 66]
 12. Grid origin per surface, auto-detected, settable. [BV 23]
 13. An update pastes only pieces whose content changed; unchanged pieces keep running state. [BV 25; ruling]
@@ -92,7 +92,7 @@ marks what Fabric adds. Wording follows the vocabulary in `05-decisions.md` D18.
 40. An instance is visible as one: the panel lists it, selecting it highlights its pieces; a piece can be traced to
     its instance, template and version. Seppi's frontend prototype decides the interaction (D16). [new]
 40a. A view for priority across blocks: the block, its neighbours it really overlaps with, and the overlapping instances
-    in one list, top wins. [new, D15]
+    in one list, last wins. [new, D15, D19]
 
 ## R8 Non-functional
 

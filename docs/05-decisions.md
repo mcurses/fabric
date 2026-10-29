@@ -27,8 +27,8 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 | D11 | Protected settings stay **in place** during an update: never reset and reapplied. Whole-entity protection vs per-setting merging is decided by a headless prototype; Seppi leans to whole-entity for predictability. | Seppi | open, spike S1 |
 | D12 | An upstream deletion removes the piece even if it carries an override. | Seppi | tentative, needs play-testing |
 | D13 | **Removal**: deliberately removing some pieces keeps the instance and records the removals, even if one piece remains. Deliberately removing **all** pieces removes the instance entry automatically. Destruction (biters, trains) is not deliberate removal; zero remaining pieces alone never removes an instance. | Seppi, Max | final |
-| D14 | **Order in a list**: the top of the list wins, like a stack where the top lies on top. (The first draft and Block Versions said "later wins"; same idea, the list is shown the other way round.) | Max | final |
-| D15 | Order **across blocks** gets its own view: the block in the middle, every neighbour it really overlaps with, and a list of the instances that actually overlap, top wins. | Max | direction agreed, details open |
+| D14 | ~~Order in a list: the top of the list wins, like a stack.~~ Overturned by D19. | Max | overturned |
+| D15 | Order **across blocks** gets its own view: the block in the middle, every neighbour it really overlaps with, and a list of the instances that actually overlap, ordered as in D19. | Max | direction agreed, details open |
 | D16 | Seppi builds a **frontend prototype** before the interaction is fixed (instance list, highlighting an instance's pieces, possibly a dedicated selection cursor for instances). | Seppi | agreed; Max: the selection cursor is "amazing", fully agrees |
 | D17 | bplib: left to technical investigation. With D3 the mod no longer has to recognise player pastes, so bplib's main use is gone; it may still help the free-placement tool (spike S3). | Seppi, Max | open |
 
@@ -46,3 +46,9 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 | # | Decision | Who | State |
 |---|---|---|---|
 | D18 | The working names become the vocabulary: **template**, **instance**, **placement** (offset, rotation, mirror), **component** (a template inside a template), **override**, **removed piece**, **edit cell**, **Commit**, **Unlink**; plus **block**, **version**, **panel**, **Build now**. Settles D1 and Q1. | Max (template/instance proposed by Seppi) | final |
+
+## Round 4 (2026-10-29): list order
+
+| # | Decision | Who | State |
+|---|---|---|---|
+| D19 | **Order in a list: newest at the bottom, the last entry wins** (a sequence of steps applied in order). A new instance is added at the bottom. One shared display for both players, no per-player setting. Replaces D14. | Max, taking Seppi's model | final |

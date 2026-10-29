@@ -12,7 +12,7 @@ The short version:
 - An **instance** is one template placed under one **placement** (offset, rotation, mirror) in one city block, with its
   own overrides and removed pieces. It is a stored record.
 - A **block** (or an **edit cell**, which is a block whose panel edits a template) holds an ordered list of instances;
-  top of the list wins.
+  last in the list wins.
 - Every action edits intent, then one **reconcile** per block compares applied and desired state, only at the spots that
   may have changed, and touches only those entities.
 - Hand changes to settings are noticed and stored as overrides; an update never resets and reapplies them.
@@ -55,7 +55,7 @@ storage.claims[surface][chunk]  = { [spot] = {instance_id, ...} }  -- who wants 
 storage.prov[unit_number]       = { instance_id, piece_path }      -- edit cells only (§3)
 ```
 
-`order[1]` is the top of the list and wins (D14). Rotated and mirrored piece tables are cached per
+`order` runs from first to last; the last entry wins and new instances are appended (D19). Rotated and mirrored piece tables are cached per
 `(version_id, rot, mirror, profile)` and read from the engine on a hidden work surface: the engine rotates and flips
 blueprints itself, so the mod never computes rail geometry (LEARNINGS §5). A version whose pieces do not all land under
 a mirror is marked "cannot be mirrored" (D7, spike S2).
@@ -67,7 +67,7 @@ a mirror is marked "cannot be mirrored" (D7, spike S2).
    overrides, removed pieces and hand changes not yet recorded.
 3. A version referenced by any `applied` is never garbage-collected.
 4. Piece ids are stable; a moved piece is a new piece id.
-5. Rank: own block over spill from neighbours (until D15's cross-block order exists), then list position (top wins),
+5. Rank: own block over spill from neighbours (until D15's cross-block order exists), then list position (last wins),
    then within an instance: own pieces over its components, components in their template's list order.
 6. Nothing that affects game state lives outside `storage`.
 7. The mod removes only what an `applied` tree says it placed; never an area scan.
@@ -83,7 +83,7 @@ blocks it affects; a queue in `storage` drains them by piece budget.
 
 | Command | Edit | Scope |
 |---|---|---|
-| `place(block, template, placement or slot)` | new instance at the top of the list | that block |
+| `place(block, template, placement or slot)` | new instance at the end of the list | that block |
 | `set_placement(instance, placement)` | move, turn, mirror | that block (and the old one if the anchor changes block) |
 | `duplicate(instance, placement)` | new instance with the same template, overrides copied (D5, tentative) | that block |
 | `remove(instance)` | drop instance | its block |
@@ -210,14 +210,14 @@ down, with R to turn and the flip keys to mirror, becomes the instance's placeme
 ### 6.2 Panels
 
 One view model, one renderer, one component set for block panels and edit-cell panels, with a profile table for the
-deliberate differences (design A §4). Rows: instances, top wins (D14), with placement, count, overrides, removed pieces.
+deliberate differences (design A §4). Rows: instances, last wins (D19), with placement, count, overrides, removed pieces.
 Selecting an instance highlights its pieces. Seppi builds a frontend prototype before the interaction is fixed (D16):
 instance list, highlighting, possibly a dedicated selection cursor that picks the instance under the mouse.
 
 ### 6.3 Priority across blocks (D15)
 
 A separate view: the block in the middle, its eight neighbours, and a list of only those instances that actually overlap
-across the block edges; top wins. Until it exists, the soft-spill rule (§2.5) applies.
+across the block edges; last wins. Until it exists, the soft-spill rule (§2.5) applies.
 
 ---
 
@@ -250,7 +250,7 @@ Fabric replaces `block-versions` (D2). Fabric reads Block Versions' state (its r
 into a shadow that changes nothing; a read-only shadow check prints per block what the first reconcile would change;
 Max approves; then Block Versions stops acting and Fabric's reconcile goes live, with per-feature switches for rollback.
 `#instance` combinators become overrides; pieces missing in the world become removals; Block Versions' "later wins"
-order is turned upside down for "top wins".
+order carries over unchanged (D19).
 
 ---
 
