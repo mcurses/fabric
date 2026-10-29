@@ -8,8 +8,7 @@ the current value; removed-object overrides (our removed pieces); a dedicated ed
 per placement (our placement: offset, rotation, mirror); unpacking (our Unlink). Unity's variants and its "apply
 override back to the source" are not in the first version.
 
-What does not carry over directly: Unity overrides are per property; whether ours are per entity or per setting is spike
-S1. Unity applies overrides from the scene back to the asset; we do not support editing a
+What does not carry over directly: Unity overrides are per property; ours cover the whole entity (D20). Unity applies overrides from the scene back to the asset; we do not support editing a
 template from an instance in the field (Commit only from the edit cell). Unity instances live in a scene hierarchy; ours
 are entities on a shared map that two players and robots change all the time, so "what the world looks like" is never
 the authority: the applied record is.

@@ -24,8 +24,8 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 | D8 | **Nesting propagates on Commit**: a component's Commit reaches every template that contains it and all their instances, with no extra Commit of the containing templates. Uncommitted work in a containing template's edit cell is never published by that. | Seppi, Max | final |
 | D9 | **Editing contexts are flat**: a template's edit view (the panel of its edit cell) lists its direct components as whole units, not their insides. Components are placed there the same way as in the world, including free placement. Internally composition stays recursive. | Seppi, Max | final |
 | D10 | **Overrides first**, parameters later. Changing a placed piece by hand (a request combinator set to 40k iron) records an override automatically, on world instances and on components inside a template. The most local value wins. Clearing an override shows the **current** inherited value, not an old snapshot. | Seppi | final in intent; mechanism after spike S1 |
-| D11 | Protected settings stay **in place** during an update: never reset and reapplied. Whole-entity protection vs per-setting merging is decided by a headless prototype; Seppi leans to whole-entity for predictability. | Seppi | open, spike S1 |
-| D12 | An upstream deletion removes the piece even if it carries an override. | Seppi | tentative, needs play-testing |
+| D11 | Protected settings stay **in place** during an update: never reset and reapplied. Whole-entity protection vs per-setting merging is decided by a headless prototype; Seppi leans to whole-entity for predictability. | Seppi | final; rule settled by D20 |
+| D12 | An upstream deletion removes the piece even if it carries an override. | Seppi | final, confirmed by D21 |
 | D13 | **Removal**: deliberately removing some pieces keeps the instance and records the removals, even if one piece remains. Deliberately removing **all** pieces removes the instance entry automatically. Destruction (biters, trains) is not deliberate removal; zero remaining pieces alone never removes an instance. | Seppi, Max | final |
 | D14 | ~~Order in a list: the top of the list wins, like a stack.~~ Overturned by D19. | Max | overturned |
 | D15 | Order **across blocks** gets its own view: the block in the middle, every neighbour it really overlaps with, and a list of the instances that actually overlap, ordered as in D19. | Max | direction agreed, details open |
@@ -52,3 +52,11 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 | # | Decision | Who | State |
 |---|---|---|---|
 | D19 | **Order in a list: newest at the bottom, the last entry wins** (a sequence of steps applied in order). A new instance is added at the bottom. One shared display for both players, no per-player setting. Replaces D14. | Max, taking Seppi's model | final |
+
+## Round 5 (2026-10-29): overrides and mirroring after the spikes
+
+| # | Decision | Who | State |
+|---|---|---|---|
+| D20 | **Overrides cover the whole entity.** A piece with any hand change keeps all its settings through updates; a template change to that piece does not arrive until the override is cleared. Chosen over the per-setting merge that spike S1 showed to be workable. Settles Q3. | Max | final |
+| D21 | **What the template does to an overridden piece**: a **move** changes only its position, the overridden settings are kept; a **replacement** keeps the overridden settings where they apply (an upgrade, or any new entity that has the same setting); a **delete** deletes the piece and its override (D12). Settles Q4. | Max | final |
+| D22 | **Mirroring signals and train stops comes later.** The first version mirrors templates without rail signals, chain signals and train stops; a template with them says it cannot be mirrored. Moving them to the other side of the track is for a later version. Settles Q7. | Max | final |

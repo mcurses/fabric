@@ -7,7 +7,8 @@ the live server. Harness and code: `spikes/` (`server.sh start`, `rcon.py`, the 
 ## S1 Overrides: whole entity or per setting
 
 **Result: per-setting merge works for every case tried, and the entity is never rebuilt or reset.** Recommendation:
-per-setting merge, not whole-entity protection (decision D11 is still Seppi's and Max's).
+per-setting merge, not whole-entity protection. **Decided otherwise: overrides cover the whole entity (D20).** The
+detection and the traps below apply either way.
 
 Method: the world entity's settings are read as a one-entity blueprint table (through 0-things, so Cybersyn 2 settings
 come along). With the old template version T1, the new one T2 and the world W, each setting is merged: where W differs
@@ -89,6 +90,6 @@ skip it until the panel is built; a cheap fallback is to re-check an entity's se
 
 | Spike | Recommendation | Needs |
 |---|---|---|
-| S1 | Per-setting merge (D11) | Seppi and Max to confirm; a list of runtime-owned settings |
-| S2 | Mirror templates without signals and train stops; others say why not (D7) | Max: is moving signals and stops worth it later? |
+| S1 | Per-setting merge (D11). **Decided otherwise: whole entity (D20)** | A list of runtime-owned settings |
+| S2 | Mirror templates without signals and train stops; others say why not (D7). **Agreed (D22)** | Moving signals and stops: a later version |
 | S4 | Detect overrides at update time; events only for a live panel badge | A 3-minute in-game check when the panel exists |

@@ -160,24 +160,28 @@ settings, not position: moving a piece by hand is remove plus a plain entity.
 
 ### 4.2 Updates keep overrides in place
 
-An update never resets a protected piece and reapplies the override (D11). Two candidate rules, decided by spike S1:
+An update never resets a protected piece and reapplies the override (D11). An override covers the **whole entity**
+(D20): a piece with any override is left untouched by updates that change its settings; only a clear, or an upstream
+move, replacement or deletion (§4.4), changes it. A template change to an overridden piece does not arrive; the panel
+shows that the template has a newer value for it, so a player can clear the override to take it. (Spike S1 showed a
+per-setting merge works too; it was not chosen, for predictability.)
 
-- **Whole-entity protection** (Seppi's lean): a piece with any override is left untouched by updates that change its
-  settings; only an upstream deletion (D12) or a clear removes the protection. Predictable, but a template change to
-  another setting of the same entity does not arrive.
-- **Per-setting merge**: the reconcile computes the new settings as "template's new value, with the instance's
-  overridden settings on top" and changes the entity only if that result differs from what stands there. The template's
-  other changes arrive; it needs a reliable field-by-field model of each entity type's settings (filters, circuit
-  conditions, combinator programs, Cybersyn 2 data), which is where it can break.
+Detection does not need events (S1, S4): at update time a piece whose settings differ from what the last applied
+version put there carries a hand change. Settings that the game or other mods write at runtime (Cybersyn 2's
+wagon-control combinators) must be excluded, or every such piece would become overridden.
 
 ### 4.3 Clearing
 
 `clear_override` drops the record and plans a change to the template's **current** value for that piece.
 
-### 4.4 Upstream deletion
+### 4.4 Upstream move, replacement, deletion (D12, D21)
 
-A piece the template deletes is removed even if it has an override (D12, tentative); the override goes with it and the
-panel says so.
+- **Move**: the template moves the piece. The entity is rebuilt at the new spot with its overridden settings; the
+  override stays.
+- **Replacement**: the template puts another entity on the piece's spot (an upgrade, or a different entity). The
+  overridden settings are written to the new entity where it has the same setting; settings it does not have are
+  dropped, and the panel says so.
+- **Deletion**: the piece is removed with its override; the panel says so.
 
 ---
 
@@ -233,7 +237,7 @@ instances costs one lamp per instance.
 
 ## 8. Spikes before implementation
 
-S1, S2 and S4 ran on 2026-10-29; results and recommendations in `06-spike-results.md`. S3 is Seppi's.
+S1, S2 and S4 ran on 2026-10-29; results and recommendations in `06-spike-results.md`, decisions D20-D22. S3 is Seppi's.
 
 | Spike | Question | Where |
 |---|---|---|

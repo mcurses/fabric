@@ -50,8 +50,8 @@ marks what Fabric adds. Wording follows the vocabulary in `05-decisions.md` D18.
 21. Duplicate instance: a linked copy of an existing instance, placed like a free placement. (tentative, D5)
 22. Each instance belongs to one city block (the block holding its anchor) and may reach beyond it. Instances outside
     the city-block grid are out of scope for the first version. (D6)
-23. Mirroring is offered where the template's pieces allow it; a template whose pieces cannot be mirrored (rails,
-    possibly others) says so instead of building something wrong. (D7, spike S2)
+23. Mirroring is offered for templates without rail signals, chain signals and train stops; a template with them says
+    it cannot be mirrored instead of building something wrong. Moving them across the track comes later. (D7, D22)
 24. A player can **unlink** an instance: its entities stay, the mod forgets them.
 25. Deliberately removing some pieces keeps the instance and records the removals, even if one piece remains;
     deliberately removing all pieces removes the instance entry. Destruction (biters, trains) never counts as
@@ -77,9 +77,11 @@ marks what Fabric adds. Wording follows the vocabulary in `05-decisions.md` D18.
     that instance automatically; no marker is needed. It survives every Commit. Overrides also exist on components
     inside a template. The most local value wins. [new, D10; replaces BV 49-52]
 34. Clearing an override shows the template's **current** value, not an old snapshot. [new, D10]
-34a. Protected settings stay in place during an update; they are never reset and reapplied. Whether protection covers
-    the whole entity or single settings is decided by spike S1. [new, D11]
-34b. A piece the template deletes upstream is removed even if it carries an override. [tentative, D12]
+34a. Protected settings stay in place during an update; they are never reset and reapplied. An override covers the
+    whole entity: a template change to an overridden piece arrives only after the override is cleared. [new, D11, D20]
+34b. When the template changes an overridden piece: a move changes only its position and keeps the override; a
+    replacement keeps the overridden settings where they apply (upgrade, same setting on the new entity); a deletion
+    removes the piece with its override. [new, D12, D21]
 35. A piece a player removed on purpose stays removed through updates; Restore removed brings it back on request.
     [ruling 0.4.25; plan v2 decision 1]
 36. Upgraded pieces (a turbo belt on a belt spot) count as the template's piece. [plan v2 D14]

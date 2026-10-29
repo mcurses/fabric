@@ -46,7 +46,7 @@ players, one force, one live save. Designed for that first, shipped through the 
 ## Scope of the first version (proposal)
 
 In: templates with versions; edit cells and Commit; block panel; default and free placement with offset and rotation;
-mirroring if spike S2 allows; nesting with propagation on Commit; automatic overrides; removal rules (D13); slots,
+mirroring of templates without signals and train stops (D22); nesting with propagation on Commit; automatic overrides; removal rules (D13); slots,
 repeats; map variants (infinity chests out on planets); Cybersyn 2 settings surviving paste and capture; migration from
 Block Versions.
 
