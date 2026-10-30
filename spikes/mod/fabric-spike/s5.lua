@@ -298,8 +298,10 @@ APPROACHES.P1_things = function(s, ar)
   local v, d = by_ids(s, ar, function(e)
     local id = thing_of(e)
     return (id and by_thing[id]) or by_unit(e)
-  end, function(e) local _, tag = thing_of(e); return local_id(s, tag) end,
-  function(pid) return storage.s5_cut and storage.s5_cut[global_id(s, pid)] end)
+  end, function(e)
+    local id, tag = thing_of(e)
+    if id and tag and storage.s5_valid and storage.s5_valid[id] == tag then return local_id(s, tag) end
+  end)
   return block_unclear(s, ar, v, d)
 end
 
@@ -567,8 +569,13 @@ function S.on_tags_changed(ev)
 end
 
 -- Cut provenance: a piece put into a blueprint and marked for removal in the same tick was cut; a piece only put into
--- a blueprint was copied. Only a cut lets a later carrier of its id count as the moved piece without asking.
+-- a blueprint was copied. Every extraction gets a number, written into the blueprint itself (tag XTAG). Only a pasted
+-- piece whose blueprint carries the number of its piece's latest, uncancelled cut counts as the moved piece; an older
+-- copy, or a cut that was cancelled, does not.
+local XTAG = "fabric_x"
 function S.on_extract(ev)
+  storage.s5_nonce = (storage.s5_nonce or 0) + 1
+  local nonce = storage.s5_nonce
   local n = remote.call(COOP, "get_num_entries", ev.blueprint_key) or 0
   for i = 1, n do
     local entry = remote.call(COOP, "get_entry", ev.blueprint_key, i)
@@ -577,10 +584,9 @@ function S.on_extract(ev)
       local _, tid = remote.call("things", "get_thing_id", e)
       local gid = tid and storage.s5_map and storage.s5_map[tid]
       if gid then
+        remote.call(COOP, "set_tag", ev.blueprint_key, i, XTAG, nonce)
         storage.s5_extracted = storage.s5_extracted or {}
-        storage.s5_extracted[gid] = game.tick
-        storage.s5_cut = storage.s5_cut or {}
-        storage.s5_cut[gid] = nil
+        storage.s5_extracted[gid] = { tick = game.tick, nonce = nonce }
         storage.s5_extract_log = storage.s5_extract_log or {}
         table.insert(storage.s5_extract_log, { gid = gid, what = "extracted", tick = game.tick })
       end
@@ -594,10 +600,19 @@ function S.on_marked_for_deconstruction(ev)
   local _, tid = remote.call("things", "get_thing_id", e)
   local gid = tid and storage.s5_map and storage.s5_map[tid]
   if not gid then return end
-  local same_tick = storage.s5_extracted and storage.s5_extracted[gid] == game.tick
-  if same_tick then storage.s5_cut = storage.s5_cut or {}; storage.s5_cut[gid] = true end
+  local x = storage.s5_extracted and storage.s5_extracted[gid]
+  local same_tick = x and x.tick == game.tick
+  if same_tick then storage.s5_cut = storage.s5_cut or {}; storage.s5_cut[gid] = x.nonce end
   storage.s5_extract_log = storage.s5_extract_log or {}
   table.insert(storage.s5_extract_log, { gid = gid, what = "marked for removal" .. (same_tick and " (same tick: cut)" or ""), tick = game.tick })
+end
+
+function S.on_cancelled_deconstruction(ev)
+  local e = ev.entity
+  if not (e and e.valid) then return end
+  local _, tid = remote.call("things", "get_thing_id", e)
+  local gid = tid and storage.s5_map and storage.s5_map[tid]
+  if gid and storage.s5_cut then storage.s5_cut[gid] = nil end
 end
 
 -- A new Thing that arrives carrying a piece id while that piece's own entity still stands (and is not about to be
@@ -614,7 +629,15 @@ function S.on_initialized(ev)
   if alive then
     remote.call("things", "remove_tag", ev.id, TAG)
     storage.s5_copies = (storage.s5_copies or 0) + 1
+    return
   end
+  -- Original gone: a valid move only if this paste comes from the piece's latest uncancelled cut.
+  local e = ev.entity
+  local nonce = e and e.valid and e.type == "entity-ghost" and e.tags and e.tags[XTAG]
+  storage.s5_valid = storage.s5_valid or {}
+  storage.s5_valid[ev.id] = (nonce and storage.s5_cut and storage.s5_cut[claim] == nonce) and claim or nil
+  storage.s5_claim_log = storage.s5_claim_log or {}
+  table.insert(storage.s5_claim_log, { thing = ev.id, claim = claim, nonce = nonce or false, cut = storage.s5_cut and storage.s5_cut[claim] or false })
 end
 
 -- 15/16. Seppi's sequence: blueprint of A pasted over B (0-things gives B A's tags), then B cut and pasted elsewhere,
@@ -736,6 +759,44 @@ SC.delayed_copy_after_delete = { i = 22,
   },
   truth = function(i) return { at = { [at(i, 10.5, 4.5)] = "new" }, deleted = { [22] = true }, intent_unclear = true } end }
 
+-- 23. A cut that is cancelled (the original stays), later the original is deleted and the kept blueprint pasted.
+SC.cancelled_cut_then_delete = { i = 23,
+  setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 23 } }) end,
+  steps = {
+    function(n, b, ar)
+      local s = st(n)
+      s.bp = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } })
+      find_unit(ar, s.pieces[23].unit).order_deconstruction("player")
+    end,
+    function(n, b, ar) find_unit(ar, st(n).pieces[23].unit).cancel_deconstruction("player") end,
+    function(n, b, ar) find_unit(ar, st(n).pieces[23].unit).destroy({ raise_destroy = true }) end,
+    function(n, b) paste(st(n).bp, { b[1] + 10.5, b[2] + 4.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+  },
+  truth = function(i) return { at = { [at(i, 10.5, 4.5)] = "new" }, deleted = { [23] = true }, intent_unclear = true } end }
+
+-- 24. An old copy, then a later cut of the same piece; only the old copy is pasted.
+SC.old_copy_after_cut = { i = 24,
+  setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 24 } }) end,
+  steps = {
+    function(n, b) st(n).old = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b) st(n).bp = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b) paste(st(n).old, { b[1] + 10.5, b[2] + 4.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+  },
+  truth = function(i) return { at = { [at(i, 10.5, 4.5)] = "new" }, deleted = { [24] = true }, intent_unclear = true } end }
+
+-- 25. The same, but the blueprint of the later cut is pasted: a real move.
+SC.cut_after_old_copy = { i = 25,
+  setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 25 } }) end,
+  steps = {
+    function(n, b) st(n).old = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b) st(n).bp = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b) paste(st(n).bp, { b[1] + 10.5, b[2] + 4.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+  },
+  truth = function(i) return { at = { [at(i, 10.5, 4.5)] = 25 }, deleted = {} } end }
+
 function S.setup(name)
   local sc = SC[name]
   clear(area(sc.i))
@@ -815,7 +876,7 @@ end
 
 -- Leak check: what a carrier does to the entity's real behaviour.
 function S.leak()
-  local b = { 2000, 1000 }
+  local b = { 3000, 1000 }
   clear({ { b[1], b[2] }, { b[1] + 10, b[2] + 10 } })
   local r = mk("requester-chest", 2.5, 2.5, nil, b)
   r.get_requester_point().get_section(1).set_slot(1, { value = { type = "item", name = "copper-plate", quality = "normal" }, min = 50 })

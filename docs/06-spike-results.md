@@ -171,7 +171,9 @@ player answers. Nothing unclear is published as a deletion.
   3. **A carried id counts as a move only with proof of a cut**: the piece was put into a blueprint and marked for
      removal in the same tick. Seppi's agent found the case that needs this, by running the suite on Seppi's machine:
      copy while the original stands, delete the original, paste the kept blueprint later. It looks exactly like a cut
-     and paste and passed silently for a move. Without the proof, Commit asks. A blueprint skips entities already
+     and paste and passed silently for a move. Without the proof, Commit asks. The proof belongs to one blueprint:
+     every extraction gets a number written into the blueprint itself, and only a paste carrying the number of the
+     piece's latest, uncancelled cut counts (a cancelled cut, or an older copy pasted after a later cut, is asked). A blueprint skips entities already
      marked for removal, so the game's own cut must take the blueprint first and mark right after; that this happens
      in the same tick for a real player's cut is the first thing the in-game check must confirm.
 - **P2, Fabric's own operations only**: nothing travels through blueprints. Fabric's move tool (teleport; rebuild and
@@ -179,7 +181,7 @@ player answers. Nothing unclear is published as a deletion.
   that removes a piece is asked at Commit. Fabric still needs 0-things' cooperative blueprinting for Cybersyn 2
   settings, so P2 avoids the identity dependency, not the mod.
 
-`spikes/s5.sh` runs 21 scenarios on a fresh map, saves and reloads it, grades again, and fails if either prototype is
+`spikes/s5.sh` runs 24 scenarios on a fresh map, saves and reloads it, grades again, and fails if either prototype is
 silently wrong anywhere. Result: **no silent errors in either prototype, grades identical after reload.**
 
 | Scenario | P1 0-things | P2 own operations |
@@ -204,16 +206,19 @@ silently wrong anywhere. Result: **no silent errors in either prototype, grades 
 | Cut and pasted through a plain blueprint (no ids travel) | ask | ask |
 | Copied, then the original deleted | ask | ask |
 | Copied, original deleted, the kept blueprint pasted later (Seppi's case) | ask | ask |
+| A cut cancelled, later the original deleted and the kept blueprint pasted | ask | ask |
+| An old copy, a later cut of the same piece, the old copy pasted | ask | ask |
+| The same, but the later cut's blueprint pasted | ok | ask |
 | Control: overlap sequence with P1's repair switched off | ask (the cut proof catches it) | ask |
 
 Supported scope, failure modes, uncertainty:
 
-- **P1** answers hand cut and paste, partial pastes, swaps and repeated components without asking; it asks 7 times
-  in 20, each time where intent really is unclear or no id can travel. Failure modes: it depends on 0-things'
+- **P1** answers hand cut and paste, partial pastes, swaps and repeated components without asking; it asks 9 times
+  in 23, each time where intent really is unclear or no id can travel. Failure modes: it depends on 0-things'
   internal behaviour (tag replacement on overlap and settings paste, copies as new Things, creation events), which a
   0-things update can change; the suite is the guard. Unverified: that a player's real cut takes the blueprint and marks the originals in the same
   tick (if not, every hand cut and paste is asked, as in P2), settings paste, undo and redo, the upgrade planner.
-- **P2** never depends on anything travelling; it asks 15 times in 20, i.e. after every hand cut and paste. Its
+- **P2** never depends on anything travelling; it asks 18 times in 23, i.e. after every hand cut and paste. Its
   supported scope is: move, swap and replace through Fabric's tools; copy; delete. Unverified: undo and redo (an
   undone deletion is a new entity, so Commit would ask), the upgrade planner.
 - Both: the player operations above need the in-game check (`spikes/README.md`).
@@ -244,4 +249,4 @@ Commit. Copy always makes a new piece.
 | S1 | Per-setting merge (D11). **Decided otherwise: whole entity (D20)** | A list of runtime-owned settings |
 | S2 | Mirror templates without signals and train stops; others say why not (D7). **Agreed (D22)** | Moving signals and stops: a later version |
 | S4 | Detect overrides at update time; events only for a live panel badge | A 3-minute in-game check when the panel exists |
-| S5 | Two prototypes, both without silent errors: P1 (0-things helper, asks 7 of 20) and P2 (own operations only, asks 15 of 20); Commit blocks on anything unclear | Seppi and Max to choose; the in-game check (cut tool, undo, redo, upgrade planner, settings paste) |
+| S5 | Two prototypes, both without silent errors: P1 (0-things helper, asks 9 of 23) and P2 (own operations only, asks 18 of 23); Commit blocks on anything unclear | Seppi and Max to choose; the in-game check (cut tool, undo, redo, upgrade planner, settings paste) |
