@@ -66,7 +66,8 @@ a mirror is marked "cannot be mirrored" (D7, spike S2).
 2. After reconcile, each instance's `applied` equals its resolved desired state; the world differs from it only by
    overrides, removed pieces and hand changes not yet recorded.
 3. A version referenced by any `applied` is never garbage-collected.
-4. Piece ids are stable; a moved piece is a new piece id.
+4. Piece ids are stable. A piece moved or replaced in an edit cell keeps its id only when Commit can tell it is the
+   same piece (§3.1); otherwise it is a deletion plus a new piece.
 5. Rank: own block over spill from neighbours (until D15's cross-block order exists), then list position (last wins),
    then within an instance: own pieces over its components, components in their template's list order.
 6. Nothing that affects game state lives outside `storage`.
@@ -145,6 +146,25 @@ With D3 there is no linking by paste, so identity tags never have to travel thro
 Commit, step by step: capture the cell with 0-things; classify by provenance (own / component / context); own pieces keep
 their piece ids, new ones get fresh ids; components come from the cell's instance list; write the library record;
 publish (§2.2). Commit guard from plan v2: warn before capturing something ambiguous.
+
+### 3.1 Moves and replacements in an edit cell (proposed, spike S5)
+
+D21 keeps an override when the template moves or replaces its piece, so Commit must know that a piece at a new spot,
+or a new entity on an old spot, is the old piece. Seppi's point (2026-10-30): with provenance by `unit_number` alone, a
+move is a lost piece plus new own work, and the override would be dropped. Proposed, never guessing silently:
+
+1. **Moves that keep the entity** keep its `unit_number`, so provenance follows and the piece id stays. Candidates: a
+   move tool in the edit cell that teleports the entity, if the engine allows it for the entity types we use.
+2. **Replacements on the same spot**: a new entity standing exactly where a piece was removed, of a compatible kind
+   (an upgrade, or a type that shares settings, such as requester to buffer chest), takes over the piece id.
+3. **Rebuilt by hand elsewhere** (removed at A, an entity of the same name without provenance at B): Commit lists
+   these as possible moves and the player confirms each one. Ambiguous cases (two identical combinators, a swap, a
+   move plus a copy) are always asked, never matched by the mod.
+4. Whatever is not confirmed is a deletion plus a new piece: the override goes, and the instance's panel says so (D12).
+
+Spike S5 (Seppi's proposal) checks this: whether teleport keeps identity for the entity types we use; same-spot
+replacement (upgrade, requester to buffer); and the ambiguous cases (identical combinators, swap, move plus copy,
+delete and rebuild on the same spot, collisions).
 
 ---
 
@@ -244,6 +264,7 @@ S1, S2 and S4 ran on 2026-10-29; results and recommendations in `06-spike-result
 | S1 | Whole-entity protection vs per-setting merge (§4.2): can settings be compared and merged reliably for the entity types we use, Cybersyn 2 combinators included, without ever resetting a protected value? | Standalone headless prototype (D11) |
 | S2 | Mirroring: which entities the engine mirrors correctly in a blueprint (rails, curved and elevated rails, inserters, Cybersyn 2 combinators, fluid boxes), and what "cannot be mirrored" should mean | Headless server, scripted |
 | S3 | Free placement: cursor blueprint vs selection tool with drawn preview (§6.1); include whether bplib is worth a dependency for it | Headless server plus a quick in-game look |
+| S5 | Piece identity across moves and replacements in an edit cell (§3.1): teleport, same-spot replacement, ambiguous cases | Headless server, scripted (proposed by Seppi, not started) |
 | S4 | Recording hand changes: which events fire for which settings changes, including 0-things/Cybersyn 2 and settings pasted with Shift+click | Headless server, scripted |
 
 ---

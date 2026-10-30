@@ -23,5 +23,8 @@ later version (D22).
 **Q8. Where an instance belongs when it is moved** across a block edge by changing its placement: does it change block
 (its anchor decides) or stay with the block it was placed in?
 
+**Q10. How Commit recognises a moved or replaced piece** (D21 needs it): proposal in `02-design.md` §3.1 (keep the
+entity where possible, same-spot replacement, otherwise the player confirms); spike S5 to settle it.
+
 **Q9. Scope of the first version**: `00-brief.md` lists a proposal. Anything to add or drop before a plan with phases
 and estimates is written?
