@@ -300,7 +300,8 @@ APPROACHES.P1_things = function(s, ar)
     return (id and by_thing[id]) or by_unit(e)
   end, function(e)
     local id, tag = thing_of(e)
-    if id and tag and storage.s5_valid and storage.s5_valid[id] == tag then return local_id(s, tag) end
+    if id and tag and storage.s5_valid and storage.s5_valid[id] == tag
+      and #storage.s5_cut_uses[storage.s5_valid_use[id]] == 1 then return local_id(s, tag) end
   end)
   return block_unclear(s, ar, v, d)
 end
@@ -635,7 +636,18 @@ function S.on_initialized(ev)
   local e = ev.entity
   local nonce = e and e.valid and e.type == "entity-ghost" and e.tags and e.tags[XTAG]
   storage.s5_valid = storage.s5_valid or {}
-  storage.s5_valid[ev.id] = (nonce and storage.s5_cut and storage.s5_cut[claim] == nonce) and claim or nil
+  local from_cut = nonce and storage.s5_cut and storage.s5_cut[claim] == nonce
+  storage.s5_valid[ev.id] = from_cut and claim or nil
+  if from_cut then
+    -- A cut proves a move only if its blueprint is pasted once; every Thing it ever produced is remembered, so a
+    -- second paste (at once, or after the first result was deleted) makes all of them unprovable.
+    storage.s5_cut_uses = storage.s5_cut_uses or {}
+    local k = claim .. ":" .. nonce
+    storage.s5_cut_uses[k] = storage.s5_cut_uses[k] or {}
+    table.insert(storage.s5_cut_uses[k], ev.id)
+    storage.s5_valid_use = storage.s5_valid_use or {}
+    storage.s5_valid_use[ev.id] = k
+  end
   storage.s5_claim_log = storage.s5_claim_log or {}
   table.insert(storage.s5_claim_log, { thing = ev.id, claim = claim, nonce = nonce or false, cut = storage.s5_cut and storage.s5_cut[claim] or false })
 end
@@ -796,6 +808,19 @@ SC.cut_after_old_copy = { i = 25,
     function(n, b, ar) revive_all(ar) end,
   },
   truth = function(i) return { at = { [at(i, 10.5, 4.5)] = 25 }, deleted = {} } end }
+
+-- 26. A cut pasted, the pasted piece deleted, the same cut blueprint pasted again.
+SC.cut_replay_after_delete = { i = 26,
+  setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 26 } }) end,
+  steps = {
+    function(n, b) st(n).bp = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b) paste(st(n).bp, { b[1] + 10.5, b[2] + 4.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+    function(n, b, ar) for _, e in pairs(entities(ar)) do e.destroy({ raise_destroy = true }) end end,
+    function(n, b) paste(st(n).bp, { b[1] + 14.5, b[2] + 4.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+  },
+  truth = function(i) return { at = { [at(i, 14.5, 4.5)] = "ask" }, deleted = {}, intent_unclear = true } end }
 
 function S.setup(name)
   local sc = SC[name]
