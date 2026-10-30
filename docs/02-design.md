@@ -147,7 +147,7 @@ Commit, step by step: capture the cell with 0-things; classify by provenance (ow
 their piece ids, new ones get fresh ids; components come from the cell's instance list; write the library record;
 publish (§2.2). Commit guard from plan v2: warn before capturing something ambiguous.
 
-### 3.1 Moves and replacements in an edit cell (proposed, spike S5)
+### 3.1 Moves and replacements in an edit cell (proposed; spike S5 ran, recommendation in `06-spike-results.md`)
 
 D21 keeps an override when the template moves or replaces its piece, so Commit must know that a piece at a new spot,
 or a new entity on an old spot, is the old piece. Seppi's point (2026-10-30): with provenance by `unit_number` alone, a
@@ -162,9 +162,10 @@ move is a lost piece plus new own work, and the override would be dropped. Propo
    move plus a copy) are always asked, never matched by the mod.
 4. Whatever is not confirmed is a deletion plus a new piece: the override goes, and the instance's panel says so (D12).
 
-Spike S5 (Seppi's proposal) checks this: whether teleport keeps identity for the entity types we use; same-spot
-replacement (upgrade, requester to buffer); and the ambiguous cases (identical combinators, swap, move plus copy,
-delete and rebuild on the same spot, collisions).
+Spike S5 refined this (`06-spike-results.md`): each piece in an edit cell also carries its piece id as a 0-things tag,
+which follows cut and paste; Fabric's move tool teleports (belts, undergrounds, splitters and rails are rebuilt and
+logged instead); Fabric's replace tool logs the replacement. Point 4 changes with Seppi's rule: nothing unclear is
+published as a deletion by default; Commit is blocked until the player answers (map, or delete plus new).
 
 ---
 
@@ -257,14 +258,14 @@ instances costs one lamp per instance.
 
 ## 8. Spikes before implementation
 
-S1, S2 and S4 ran on 2026-10-29; results and recommendations in `06-spike-results.md`, decisions D20-D22. S3 is Seppi's.
+S1, S2 and S4 ran on 2026-10-29, S5 on 2026-10-30; results and recommendations in `06-spike-results.md`, decisions D20-D22. S3 is Seppi's.
 
 | Spike | Question | Where |
 |---|---|---|
 | S1 | Whole-entity protection vs per-setting merge (§4.2): can settings be compared and merged reliably for the entity types we use, Cybersyn 2 combinators included, without ever resetting a protected value? | Standalone headless prototype (D11) |
 | S2 | Mirroring: which entities the engine mirrors correctly in a blueprint (rails, curved and elevated rails, inserters, Cybersyn 2 combinators, fluid boxes), and what "cannot be mirrored" should mean | Headless server, scripted |
 | S3 | Free placement: cursor blueprint vs selection tool with drawn preview (§6.1); include whether bplib is worth a dependency for it | Headless server plus a quick in-game look |
-| S5 | Piece identity across moves and replacements in an edit cell (§3.1): teleport, same-spot replacement, ambiguous cases | Headless server, scripted (proposed by Seppi, not started) |
+| S5 | Piece identity across moves and replacements in an edit cell (§3.1): teleport, same-spot replacement, ambiguous cases | Headless server, scripted; ran 2026-10-30 |
 | S4 | Recording hand changes: which events fire for which settings changes, including 0-things/Cybersyn 2 and settings pasted with Shift+click | Headless server, scripted |
 
 ---

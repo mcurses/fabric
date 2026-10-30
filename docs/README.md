@@ -16,7 +16,7 @@ Current state: round 2 (Seppi's review and Max's answers applied). The vocabular
 | `03-open-questions.md` | What is still open after round 2 |
 | `04-prior-art.md` | Unity prefabs, Block Versions, bplib, 0-things: what we take from each |
 | `05-decisions.md` | Decision log per review round, with who decided and what was overturned |
-| `06-spike-results.md` | Results of the override, mirroring and event spikes (S1, S2, S4) |
+| `06-spike-results.md` | Results of the override, mirroring, event and piece identity spikes (S1, S2, S4, S5) |
 
 Reading order for a reviewer: 00, 05, 03, then 02; 01 and 04 as reference.
 

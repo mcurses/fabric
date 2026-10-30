@@ -1,4 +1,4 @@
-# 06 Spike results (2026-10-29)
+# 06 Spike results (2026-10-29, S5 2026-10-30)
 
 Spikes S1, S2 and S4 from `02-design.md` §8, agreed with Seppi (S3, free placement, is his, in the frontend prototype).
 All ran on a local headless Factorio 2.1.23 with Space Age, Cybersyn 2 0.5.1 and 0-things 0.6.7 on Max's Mac, never on
@@ -86,6 +86,78 @@ test mod logs all of them; a 3-minute check needs one player on the local spike 
 change an inserter filter, a request, a combinator value and a Cybersyn 2 setting, then read the log). Recommendation:
 skip it until the panel is built; a cheap fallback is to re-check an entity's settings whenever its GUI closes.
 
+## S5 Piece identity in an edit cell (2026-10-30)
+
+Seppi's question: when a player moves, replaces, copies or deletes pieces in an edit cell, can Commit tell which
+entity is which template piece, so that an override follows a moved piece (D21)? Seppi's rule: solid identity with a
+small feature set beats brittle identity with a large one; anything unclear must be asked at Commit, never guessed.
+
+Method (`spikes/mod/fabric-spike/s5.lua`, run with `spikes/s5.sh`): each scenario builds pieces, applies an edit whose
+right answer is known, and grades four approaches against it: **ok** (right without asking), **ask** (Commit asks the
+player), **WRONG** (silently wrong: a lost or a false identity).
+
+- **Guess**: no ids, match by name, settings and position (Seppi's approach 1).
+- **Carrier**: an id in the entity's own settings: the combinator description (`fabric:<id>`) or a disabled request
+  section in requester and buffer chests (approach 2). Entities without either fall back to guessing.
+- **Tool**: `unit_number` provenance plus Fabric's own move and replace tools, which log old entity → new entity
+  (approach 3).
+- **Things**: 0-things gives each piece a Thing with a tag holding the piece id. The tag travels in blueprints, copy
+  and cut included (the "blueprint tag transport" Seppi listed).
+
+Player operations are emulated by script on the headless server: cut = blueprint plus remove plus paste, copy =
+blueprint plus paste, the game's upgrade = fast replace.
+
+| Scenario | Guess | Carrier | Tool | Things |
+|---|---|---|---|---|
+| Two identical combinators swapped with the move tool | WRONG | ok | ok | ok |
+| The same swap by cut and paste | WRONG | ok | WRONG (lost) | ok |
+| Requester moved by cut and paste, then its request changed | WRONG (lost) | ok | WRONG (lost) | ok |
+| Inserter moved with the move tool, then its filter changed | WRONG (lost) | ok | ok | ok |
+| Deleted, and an identical one built by hand elsewhere | WRONG (calls it a move) | ok | ok | ok |
+| Copied and pasted twice | ok | ok | ok | ok |
+| Cut and pasted twice (which one is the piece?) | ask | ask | WRONG (lost) | ask |
+| Three cut, two pasted back elsewhere | ok | ok | WRONG (lost) | ok |
+| Upgrade by the game on the same spot (inserter → fast, requester → buffer) | WRONG (lost) | chest ok, inserter lost | WRONG (lost) | WRONG (lost) |
+| Same replacement through Fabric's replace tool | WRONG (lost) | ok | ok | WRONG (lost) |
+| Deleted and rebuilt fresh on the same spot | says same piece | says new | says new | says new |
+| A player edits a combinator's description to another piece's id | ok | WRONG | WRONG (lost) | ok |
+| Belt and splitter moved by the move tool (rebuild and log) | ok | ok | ok | ok (once registered) |
+
+Further results:
+
+- **Save and reload**: all scenarios graded identically after saving and loading the map again.
+- **Move tool by teleport**: works for everything tried except belts, underground belts, splitters and rails (the
+  engine refuses). The entity, its `unit_number`, its settings and its contents stay (an assembler kept its 20
+  plates). For the four refusing types the tool rebuilds the entity and logs the mapping; that worked.
+- **Leaks**: a disabled request section does not request anything (the chest's real request list stays as it was),
+  but it shows in the chest's window as an extra section. A description shows in the combinator's window, and a
+  player can edit it, which produced the one silently wrong answer of the carrier approach. Descriptions exist only on
+  the four combinator types.
+- **Things**: an entity type must be registered with 0-things at data stage (`spikes/mod/fabric-spike/data.lua`;
+  without automatic interception, so only the pieces Fabric chooses become Things). Cybersyn 2 combinators already
+  are Things; Fabric's tag sits next to Cybersyn 2's own tags. 0-things does not follow the game's own upgrade (fast
+  replace): the new entity is no Thing.
+- **Not tested** (needs a player, cannot run headless): undo and redo, the real cut tool, pasting from the cursor,
+  the upgrade planner with robots. 0-things documents that a Thing survives undo and redo; that needs a short in-game
+  check.
+
+Conclusions:
+
+1. **Guessing alone is rejected**: silently wrong in most move and swap cases, because identical pieces look the same.
+2. **Carriers in settings are rejected**: visible in the entity's window, editable by players (a silently wrong
+   answer), limited to combinators and chests, and Things does the same job invisibly for every type.
+3. **Things tags plus `unit_number` plus Fabric's move and replace tools** answer every scenario correctly or ask.
+   The tag catches cut and paste and partial pastes; the tools cover what the tag cannot (the game's upgrade, belts
+   that cannot teleport).
+4. **What Commit must ask**: one piece's id on two entities while the original is gone (cut and pasted twice); a
+   piece gone with an untagged entity of the same name in the cell (deleted plus built new, or moved by hand?); a
+   different entity on a removed piece's spot (the game's upgrade). Until the player answers, Commit is blocked
+   (Seppi: never publish a silent deletion).
+
+Recommended minimal scope: identity through 0-things tags and `unit_number`; Fabric move and replace tools as the
+supported way to move or swap a piece while keeping its override; everything else that is unclear is asked at
+Commit. Copy always makes a new piece.
+
 ## Summary for the decision log
 
 | Spike | Recommendation | Needs |
@@ -93,3 +165,4 @@ skip it until the panel is built; a cheap fallback is to re-check an entity's se
 | S1 | Per-setting merge (D11). **Decided otherwise: whole entity (D20)** | A list of runtime-owned settings |
 | S2 | Mirror templates without signals and train stops; others say why not (D7). **Agreed (D22)** | Moving signals and stops: a later version |
 | S4 | Detect overrides at update time; events only for a live panel badge | A 3-minute in-game check when the panel exists |
+| S5 | Piece identity by 0-things tags and `unit_number`, Fabric move and replace tools, Commit asks the rest | Seppi and Max to decide; an in-game undo check |
