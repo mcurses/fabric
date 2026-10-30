@@ -219,6 +219,25 @@ silently wrong anywhere. Result: **no silent errors in either prototype, grades 
 | A cut pasted, the result deleted, the same blueprint pasted again | ask | ask |
 | Control: overlap sequence with P1's repair switched off | ask (the cut proof catches it) | ask |
 
+**Independent check by Seppi's agent** (Linux headless Factorio 2.1.23 in Docker on Seppi's Mac mini, its own
+harness, against the code at `06a70ed` with the same blueprintable-only scope as `754d830`): 310 cases, every grade
+identical after save and reload.
+
+- A matrix of 18 sequences × 14 entity types (252 cases): P1 154 proven, 98 unprovable, **0 wrong**; P2 140 proven,
+  112 unprovable. "Proven" includes operations that are correctly refused (belts cannot teleport, unsupported
+  replacement targets).
+- 28 adversarial cases: replaying a cut blueprint after its result was deleted is unprovable for all types. **A copy
+  and an independent removal order for the same piece in the same tick makes P1 claim a move in all 14 types** (P2
+  says unprovable). This is the known limit above, repeated over types; it is not shown that one player with Ctrl+C
+  and Delete can produce it, since the extraction event does not say who extracted or why.
+- 30 cases of a reference core **without 0-things and without Cybersyn 2 installed** (Fabric's own records plus entity
+  references, no tags trusted): explicit moves (belts by clone and mapping), supported replacement, stale mappings
+  rejected, outside rebuilds unprovable, explicit copy with a new id: all pass. This shows P2's identity layer can
+  stand without 0-things.
+- Not tested by either suite: whether settings, wires and contents survive the operations; full nested propagation;
+  real player operations (cut, settings paste, undo, upgrade planner); several players at once; recovery after an
+  error.
+
 Supported scope, failure modes, uncertainty:
 
 - **P1** answers hand cut and paste, partial pastes, swaps and repeated components without asking; it asks 10 times
