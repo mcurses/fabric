@@ -120,6 +120,15 @@ local function copy(area, only)
   return inv
 end
 
+-- A player's cut: the originals are copied (a blueprint skips entities already marked for removal), marked for removal
+-- in the same tick, then removed (by robots, or at once in the editor).
+local function cut(ar)
+  local inv = copy(ar)
+  for _, e in pairs(entities(ar)) do e.order_deconstruction("player") end
+  for _, e in pairs(entities(ar)) do e.destroy({ raise_destroy = true }) end
+  return inv
+end
+
 local function paste(inv, pos)
   remote.call(COOP, "build_blueprint", inv[1], { surface = surface(), force = "player", position = pos,
     build_mode = defines.build_mode.forced })
@@ -211,7 +220,7 @@ local function by_guess(s, area)
 end
 
 -- Shared logic for id-carrying approaches: identity first (unit or Thing id), then carried ids.
-local function by_ids(s, area, ident_of, carried_of)
+local function by_ids(s, area, ident_of, carried_of, trusted)
   local verdict, deleted, seen = {}, {}, {}
   local ents = entities(area)
   local carriers = {}
@@ -229,8 +238,8 @@ local function by_ids(s, area, ident_of, carried_of)
   end
   for pid, ks in pairs(carriers) do
     if seen[pid] then for _, k in pairs(ks) do verdict[k] = "new" end      -- original still there: these are copies
-    elseif #ks == 1 then verdict[ks[1]] = pid; seen[pid] = true            -- the only carrier: moved
-    else for _, k in pairs(ks) do verdict[k] = "ask" end; seen[pid] = "ask" end
+    elseif #ks == 1 and (not trusted or trusted(pid)) then verdict[ks[1]] = pid; seen[pid] = true -- the only carrier: moved
+    else for _, k in pairs(ks) do verdict[k] = "ask" end; seen[pid] = "ask" end -- several, or no proof of a cut
   end
   for pid in pairs(s.pieces) do
     if not seen[pid] then deleted[pid] = true elseif seen[pid] == "ask" then deleted[pid] = "ask" end
@@ -289,7 +298,8 @@ APPROACHES.P1_things = function(s, ar)
   local v, d = by_ids(s, ar, function(e)
     local id = thing_of(e)
     return (id and by_thing[id]) or by_unit(e)
-  end, function(e) local _, tag = thing_of(e); return local_id(s, tag) end)
+  end, function(e) local _, tag = thing_of(e); return local_id(s, tag) end,
+  function(pid) return storage.s5_cut and storage.s5_cut[global_id(s, pid)] end)
   return block_unclear(s, ar, v, d)
 end
 
@@ -353,8 +363,8 @@ SC.swap_cut = { i = 2,
   steps = {
     function(n, b, ar)
       local s = st(n)
-      s.bp1 = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }); find_unit(ar, s.pieces[1].unit).destroy({ raise_destroy = true })
-      s.bp2 = copy({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } }); find_unit(ar, s.pieces[2].unit).destroy({ raise_destroy = true })
+      s.bp1 = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } })
+      s.bp2 = cut({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } })
     end,
     function(n, b, ar) local s = st(n); paste(s.bp1, { b[1] + 6.5, b[2] + 2.5 }); paste(s.bp2, { b[1] + 2.5, b[2] + 2.5 }) end,
     function(n, b, ar) revive_all(ar) end,
@@ -369,7 +379,7 @@ SC.move_edit_cut = { i = 3,
     register(n, { { r, 3 } })
   end,
   steps = {
-    function(n, b, ar) local s = st(n); s.bp = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }); find_unit(ar, s.pieces[3].unit).destroy({ raise_destroy = true }) end,
+    function(n, b, ar) local s = st(n); s.bp = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
     function(n, b) paste(st(n).bp, { b[1] + 10.5, b[2] + 5.5 }) end,
     function(n, b, ar) revive_all(ar) end,
     function(n, b, ar)
@@ -411,7 +421,7 @@ SC.copy_twice = { i = 6,
 SC.cut_twice = { i = 7,
   setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, 7, b), 7 } }) end,
   steps = {
-    function(n, b, ar) local s = st(n); s.bp = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }); find_unit(ar, s.pieces[7].unit).destroy({ raise_destroy = true }) end,
+    function(n, b, ar) local s = st(n); s.bp = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
     function(n, b) local s = st(n); paste(s.bp, { b[1] + 8.5, b[2] + 2.5 }); paste(s.bp, { b[1] + 12.5, b[2] + 2.5 }) end,
     function(n, b, ar) revive_all(ar) end,
   },
@@ -427,6 +437,7 @@ SC.partial_paste = { i = 8,
     function(n, b, ar)
       local s = st(n)
       s.bp = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 5, b[2] + 3 } }, function(be) return be.name ~= "requester-chest" end)
+      for _, pid in pairs({ 81, 82, 83 }) do find_unit(ar, s.pieces[pid].unit).order_deconstruction("player") end
       for _, pid in pairs({ 81, 82, 83 }) do find_unit(ar, s.pieces[pid].unit).destroy({ raise_destroy = true }) end
     end,
     function(n, b) paste(st(n).bp, { b[1] + 10, b[2] + 8 }) end,
@@ -477,8 +488,7 @@ SC.edited_id = { i = 12,
     function(n, b, ar)
       local s = st(n)
       find_unit(ar, s.pieces[121].unit).combinator_description = "fabric:122"
-      s.bp = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } })
-      find_unit(ar, s.pieces[121].unit).destroy({ raise_destroy = true })
+      s.bp = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } })
     end,
     function(n, b) paste(st(n).bp, { b[1] + 10.5, b[2] + 2.5 }) end,
     function(n, b, ar) revive_all(ar) end,
@@ -556,6 +566,40 @@ function S.on_tags_changed(ev)
   end
 end
 
+-- Cut provenance: a piece put into a blueprint and marked for removal in the same tick was cut; a piece only put into
+-- a blueprint was copied. Only a cut lets a later carrier of its id count as the moved piece without asking.
+function S.on_extract(ev)
+  local n = remote.call(COOP, "get_num_entries", ev.blueprint_key) or 0
+  for i = 1, n do
+    local entry = remote.call(COOP, "get_entry", ev.blueprint_key, i)
+    local e = entry and entry.world_entity
+    if e and e.valid then
+      local _, tid = remote.call("things", "get_thing_id", e)
+      local gid = tid and storage.s5_map and storage.s5_map[tid]
+      if gid then
+        storage.s5_extracted = storage.s5_extracted or {}
+        storage.s5_extracted[gid] = game.tick
+        storage.s5_cut = storage.s5_cut or {}
+        storage.s5_cut[gid] = nil
+        storage.s5_extract_log = storage.s5_extract_log or {}
+        table.insert(storage.s5_extract_log, { gid = gid, what = "extracted", tick = game.tick })
+      end
+    end
+  end
+end
+
+function S.on_marked_for_deconstruction(ev)
+  local e = ev.entity
+  if not (e and e.valid) then return end
+  local _, tid = remote.call("things", "get_thing_id", e)
+  local gid = tid and storage.s5_map and storage.s5_map[tid]
+  if not gid then return end
+  local same_tick = storage.s5_extracted and storage.s5_extracted[gid] == game.tick
+  if same_tick then storage.s5_cut = storage.s5_cut or {}; storage.s5_cut[gid] = true end
+  storage.s5_extract_log = storage.s5_extract_log or {}
+  table.insert(storage.s5_extract_log, { gid = gid, what = "marked for removal" .. (same_tick and " (same tick: cut)" or ""), tick = game.tick })
+end
+
 -- A new Thing that arrives carrying a piece id while that piece's own entity still stands (and is not about to be
 -- removed, as by a cut) is a copy: its claim is dropped at once, so it can never later pass for the piece.
 function S.on_initialized(ev)
@@ -593,8 +637,7 @@ local function overlap_then_cut(repair, name)
         local bb = find_unit(ar, s.pieces[152].unit)
         local _, tag = thing_of(bb)
         s.tag_after_overlap = tag
-        s.bpb = copy({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } })
-        bb.destroy({ raise_destroy = true })
+        s.bpb = cut({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } })
       end,
       function(n, b, ar)
         local s = st(n)
@@ -627,8 +670,7 @@ SC.overlap_untagged_repaired = { i = 17,
       local bb = find_unit(ar, s.pieces[171].unit)
       local _, tag = thing_of(bb)
       s.tag_after_overlap = tag
-      s.bpb = copy({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } })
-      bb.destroy({ raise_destroy = true })
+      s.bpb = cut({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } })
     end,
     function(n, b) paste(st(n).bpb, { b[1] + 12.5, b[2] + 8.5 }) end,
     function(n, b, ar) revive_all(ar) end,
@@ -645,8 +687,8 @@ SC.repeated_components_swap = { i = 19,
   steps = {
     function(n, b, ar)
       local s = st(n)
-      s.bp1 = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }); find_unit(ar, s.pieces[1901].unit).destroy({ raise_destroy = true })
-      s.bp2 = copy({ { b[1] + 2, b[2] + 8 }, { b[1] + 3, b[2] + 9 } }); find_unit(ar, s.pieces[2901].unit).destroy({ raise_destroy = true })
+      s.bp1 = cut({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } })
+      s.bp2 = cut({ { b[1] + 2, b[2] + 8 }, { b[1] + 3, b[2] + 9 } })
     end,
     function(n, b) local s = st(n); paste(s.bp1, { b[1] + 2.5, b[2] + 8.5 }); paste(s.bp2, { b[1] + 2.5, b[2] + 2.5 }) end,
     function(n, b, ar) revive_all(ar) end,
@@ -681,6 +723,18 @@ SC.copy_then_delete_original = { i = 21,
     function(n, b, ar) find_unit(ar, st(n).pieces[21].unit).destroy({ raise_destroy = true }) end,
   },
   truth = function(i) return { at = { [at(i, 10.5, 4.5)] = "new" }, deleted = { [21] = true }, intent_unclear = true } end }
+
+-- 22. Seppi's delayed copy: copied while the original stands, the original deleted, the kept blueprint pasted later.
+-- Without cut provenance it looks exactly like a cut and paste.
+SC.delayed_copy_after_delete = { i = 22,
+  setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 22 } }) end,
+  steps = {
+    function(n, b) st(n).bp = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b, ar) find_unit(ar, st(n).pieces[22].unit).destroy({ raise_destroy = true }) end,
+    function(n, b) paste(st(n).bp, { b[1] + 10.5, b[2] + 4.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+  },
+  truth = function(i) return { at = { [at(i, 10.5, 4.5)] = "new" }, deleted = { [22] = true }, intent_unclear = true } end }
 
 function S.setup(name)
   local sc = SC[name]
@@ -752,6 +806,10 @@ function S.play_report()
     lines[#lines + 1] = string.format("ghost %s at %s: thing %s, tag p%s", g.ghost_name, key(g.position), tostring(id), tostring(tag))
   end
   table.sort(lines)
+  for _, x in ipairs(storage.s5_extract_log or {}) do
+    lines[#lines + 1] = string.format("tick %d: piece %d %s", x.tick, x.gid, x.what)
+  end
+  storage.s5_extract_log = {}
   return lines
 end
 

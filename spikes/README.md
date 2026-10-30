@@ -35,4 +35,6 @@ In the chat (`~` or Enter), type each command; `/s5 <label>` prints and records 
 8. Paste settings from p1 onto p2 (Shift+right-click p1, Shift+left-click p2). `/s5 paste-settings`; then Ctrl+Z.
    `/s5 paste-settings-undo`
 
-The results are read with `remote.call('fabric-spike-play', 'log')`.
+The results are read with `remote.call('fabric-spike-play', 'log')`. Step 2 also answers the key question for P1:
+the report lists, per piece, the tick it was put into a blueprint and the tick it was marked for removal; a real cut
+must show both in the same tick.
