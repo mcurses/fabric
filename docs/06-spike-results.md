@@ -247,8 +247,13 @@ fixture only sets inventory, robots and camera, the cut and paste are the player
 - **Editor mode cut**: the blueprint is taken but no removal mark is raised (the editor removes at once), so there is
   no cut proof and both prototypes ask. A second paste from the same blueprint makes both candidates asked, as
   designed. Asking is safe here; whether editor cuts should keep identity is open.
-- Not verified: undo and redo (the shortcuts did not change anything in the recording, then the client stalled),
-  settings paste, the upgrade planner. The same-tick copy plus removal limit above still stands.
+- **Undo and redo** (second run on the Mac mini, normal character and personal robots, 22 checkpoints with
+  screenshots): undoing the paste and redoing it rebuilds the combinator without Fabric's tag, so both prototypes
+  ask; a full undo of the cut, its redo and a repeated cycle are asked the same way. Untouched pieces stay stable and
+  no wrong identity claim appeared. The undo ghost does carry 0-things' undo data (`@u`), so P1 might keep identity
+  through undo if Fabric reads that data; the spike does not.
+- Seppi excludes editor mode from the required scope and counts normal undo and redo as important.
+- Not verified: settings paste, the upgrade planner. The same-tick copy plus removal limit above still stands.
 
 Supported scope, failure modes, uncertainty:
 
@@ -256,8 +261,8 @@ Supported scope, failure modes, uncertainty:
   in 24, each time where intent really is unclear or no id can travel. Failure modes: it depends on 0-things'
   internal behaviour (tag replacement on overlap and settings paste, copies as new Things, creation events), which a
   0-things update can change; the suite is the guard. A player's real cut takes the blueprint and marks the originals in the same tick (Seppi's
-  recording above); an editor-mode cut does not, so it is asked. Unverified: settings paste, undo and redo, the
-  upgrade planner.
+  recording above); an editor-mode cut does not, so it is asked. Undo and redo are asked in
+  both prototypes (recorded). Unverified: settings paste, the upgrade planner.
 - **P2** never depends on anything travelling; it asks 19 times in 24, i.e. after every hand cut and paste. Its
   supported scope is: move, swap and replace through Fabric's tools; copy; delete. Unverified: undo and redo (an
   undone deletion is a new entity, so Commit would ask), the upgrade planner.
