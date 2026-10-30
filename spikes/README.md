@@ -10,7 +10,8 @@ Throwaway experiments that settle design questions before implementation. Result
 - `server.sh resume`: save, stop and load the same map again (save/reload checks).
 - `mod/fabric-spike`: `s1.lua` (overrides), `s2.lua` (mirroring), `s5.lua` (piece identity; `data.lua` registers the
   entity types with 0-things), `control.lua` (event logger for S4, remote interfaces `fabric-spike-s1`, `-s2`, `-s5`).
-- `s5.sh`: runs every S5 scenario and prints the grades.
+- `s5.sh`: the S5 regression suite: every scenario on a fresh map, save and reload, grades for both prototypes; exits
+  non-zero if either is silently wrong anywhere. Raw output in `~/fabric-spike/s5/`.
 
 Example: `./server.sh start && echo 'rcon.print(serpent.block(remote.call("fabric-spike-s1", "run")))' | ./rcon.py -`
 

@@ -1,11 +1,14 @@
 -- S5 piece identity in an edit cell: after a player's edit, can Commit tell which entity is which template piece
 -- (same, moved, replaced, copied, deleted, new)? Each scenario builds pieces, applies an edit with known ground truth,
--- and grades four approaches against that truth:
+-- and grades approaches against that truth. Grades: "ok" (right without asking), "ask" (Commit is blocked until the
+-- player answers), "WRONG" (silently wrong). A regression run must have no WRONG for the two prototypes:
+--   P1 things  Fabric's own map (piece -> unit, Thing) as the truth; 0-things tags carry the piece id through
+--              blueprints, overwritten tags are repaired at once; Fabric's move and replace tools log their changes
+--   P2 tools   Fabric's own map and Fabric's move and replace tools only; nothing travels through blueprints
+-- Both end in the same Commit rule: a piece that is gone while an unidentified entity that could be it is in the cell
+-- (same name, or a replacement on its spot) blocks Commit. Reference approaches from the first round (not prototypes):
 --   guess   no ids: match by name, settings and position
 --   carrier ids in the entity's own settings: combinator description, or a disabled request section in chests
---   tool    unit_number provenance plus the mod's own move and replace operations (log old unit -> new unit)
---   things  0-things Thing ids and Thing tags (travel through blueprints)
--- Grades: "ok" (right without asking), "ask" (flags it for the player), "WRONG" (silently wrong).
 local util = require("util")
 local S = {}
 local COOP = "cooperative-blueprinting-v1"
@@ -138,19 +141,27 @@ end
 local function st(name) storage.s5 = storage.s5 or {}; storage.s5[name] = storage.s5[name] or {}; return storage.s5[name] end
 
 -- Register the pieces the template had before the edit.
+-- Piece ids are unique in a real cell; scenarios share one map, so the id a tag carries is scenario * 10000 + piece.
+local function global_id(s, pid) return s.i * 10000 + pid end
+local function local_id(s, gid) if gid and math.floor(gid / 10000) == s.i then return gid % 10000 end end
+
 local function register(name, list)
   local s = st(name)
   s.pieces, s.log = {}, {}
   for _, it in ipairs(list) do
     local e, pid = it[1], it[2]
-    local err, sum = remote.call("things", "create_thing", { entity = e, tags = { [TAG] = pid } })
+    local gid = global_id(s, pid)
+    local err, sum = remote.call("things", "create_thing", { entity = e, tags = { [TAG] = gid } })
     local thing = sum and sum.id
     if not thing then
       -- Already a Thing (Cybersyn 2 makes its combinator one): add our tag next to its own.
       local _, id = remote.call("things", "get_thing_id", e)
-      if id then remote.call("things", "set_tag", id, TAG, pid); thing, err = id, nil end
+      if id then remote.call("things", "set_tag", id, TAG, gid); thing, err = id, nil end
     end
-    if thing then storage.s5_map = storage.s5_map or {}; storage.s5_map[thing] = pid end
+    if thing then
+      storage.s5_map = storage.s5_map or {}; storage.s5_map[thing] = gid
+      storage.s5_thing_of = storage.s5_thing_of or {}; storage.s5_thing_of[gid] = thing
+    end
     s.pieces[pid] = { unit = e.unit_number, name = e.name, pos = key(e.position), hash = settings(e),
       thing = thing, carrier = set_carrier(e, pid), thing_err = err and err.code }
   end
@@ -249,16 +260,46 @@ local APPROACHES = {
     end
     return v, d
   end,
-  tool = function(s, area) return by_ids(s, area, unit_ident(s), function() end) end,
-  things = function(s, area)
-    local by_thing = {}
-    for pid, p in pairs(s.pieces) do if p.thing then by_thing[p.thing] = pid end end
-    return by_ids(s, area, function(e) local id = thing_of(e); return id and by_thing[id] end,
-      function(e) local _, tag = thing_of(e); return tag end)
-  end,
 }
 
+-- The Commit rule both prototypes share: never call a piece deleted while an unidentified entity in the cell could be
+-- it; block instead.
+local function block_unclear(s, ar, v, d)
+  local at_key = {}
+  for _, e in pairs(entities(ar)) do at_key[key(e.position)] = e end
+  local function group(name) local pr = prototypes.entity[name]; return pr and pr.fast_replaceable_group end
+  for pid, gone in pairs(d) do
+    if gone == true then
+      local p = s.pieces[pid]
+      for k, val in pairs(v) do
+        local e = at_key[k]
+        if (val == "new" or val == "ask") and e and (e.name == p.name or (k == p.pos and group(e.name) and group(e.name) == group(p.name))) then
+          v[k] = "ask"; d[pid] = "ask"
+        end
+      end
+    end
+  end
+  return v, d
+end
+
+APPROACHES.P1_things = function(s, ar)
+  local by_thing = {}
+  for pid, p in pairs(s.pieces) do if p.thing then by_thing[p.thing] = pid end end
+  local by_unit = unit_ident(s)
+  local v, d = by_ids(s, ar, function(e)
+    local id = thing_of(e)
+    return (id and by_thing[id]) or by_unit(e)
+  end, function(e) local _, tag = thing_of(e); return local_id(s, tag) end)
+  return block_unclear(s, ar, v, d)
+end
+
+APPROACHES.P2_tools = function(s, ar)
+  local v, d = by_ids(s, ar, unit_ident(s), function() end)
+  return block_unclear(s, ar, v, d)
+end
+
 local function grade(truth, verdict, deleted)
+  verdict, deleted = verdict or {}, deleted or {}
   local out = {}
   local worst = "ok"
   local function note(g, what)
@@ -507,11 +548,28 @@ SC.move_rebuild_tool = { i = 14,
 -- Repair: Fabric's own map (Thing id -> piece id) is authoritative. When 0-things replaces a piece's tags (settings
 -- paste, blueprint overlap), the piece id is written back at once; other mods' tags are left as they are.
 function S.on_tags_changed(ev)
-  if not storage.s5_repair then return end
+  if storage.s5_repair_off then return end
   local pid = storage.s5_map and storage.s5_map[ev.thing.id]
   if pid and (ev.new_tags or {})[TAG] ~= pid then
     remote.call("things", "set_tag", ev.thing.id, TAG, pid)
     storage.s5_repairs = (storage.s5_repairs or 0) + 1
+  end
+end
+
+-- A new Thing that arrives carrying a piece id while that piece's own entity still stands (and is not about to be
+-- removed, as by a cut) is a copy: its claim is dropped at once, so it can never later pass for the piece.
+function S.on_initialized(ev)
+  if storage.s5_repair_off then return end
+  local claim = ev.tags and ev.tags[TAG]
+  if not claim or (storage.s5_map and storage.s5_map[ev.id]) then return end
+  local orig = storage.s5_thing_of and storage.s5_thing_of[claim]
+  if not orig then return end
+  local _, sum = remote.call("things", "get", orig)
+  local alive = sum and (sum.status == "real" or sum.status == "ghost")
+  if alive and sum.entity and sum.entity.valid and sum.entity.to_be_deconstructed() then alive = false end
+  if alive then
+    remote.call("things", "remove_tag", ev.id, TAG)
+    storage.s5_copies = (storage.s5_copies or 0) + 1
   end
 end
 
@@ -521,7 +579,7 @@ local function overlap_then_cut(repair, name)
   name = name or "constant-combinator"
   return {
     setup = function(n, b)
-      storage.s5_repair = repair
+      storage.s5_repair_off = not repair or nil
       register(n, { { mk(name, 2.5, 2.5, nil, b), 151 }, { mk(name, 6.5, 2.5, nil, b), 152 } })
     end,
     steps = {
@@ -543,9 +601,9 @@ local function overlap_then_cut(repair, name)
         find_unit(ar, s.pieces[151].unit).destroy({ raise_destroy = true })
         paste(s.bpb, { b[1] + 12.5, b[2] + 8.5 })
       end,
-      function(n, b, ar) revive_all(ar); storage.s5_repair = nil end,
+      function(n, b, ar) revive_all(ar); storage.s5_repair_off = nil end,
     },
-    truth = function(i) return { at = { [at(i, 12.5, 8.5)] = 152 }, deleted = { [151] = true } } end }
+    truth = function(i) return { at = { [at(i, 12.5, 8.5)] = 152 }, deleted = { [151] = true }, control = not repair } end }
 end
 SC.overlap_cut = overlap_then_cut(false); SC.overlap_cut.i = 15
 SC.overlap_cut_repaired = overlap_then_cut(true); SC.overlap_cut_repaired.i = 16
@@ -554,7 +612,6 @@ SC.overlap_cut_cs2_repaired = overlap_then_cut(true, "cybersyn2-combinator"); SC
 -- 17. Overlap from a Thing without a Fabric tag (a plain combinator that is a Thing) wipes B's id; then B is cut.
 SC.overlap_untagged_repaired = { i = 17,
   setup = function(n, b)
-    storage.s5_repair = true
     register(n, { { mk("constant-combinator", 6.5, 2.5, nil, b), 171 } })
     local plain = mk("constant-combinator", 2.5, 2.5, nil, b)
     remote.call("things", "create_thing", { entity = plain, tags = { other = 1 } })
@@ -574,13 +631,61 @@ SC.overlap_untagged_repaired = { i = 17,
       bb.destroy({ raise_destroy = true })
     end,
     function(n, b) paste(st(n).bpb, { b[1] + 12.5, b[2] + 8.5 }) end,
-    function(n, b, ar) revive_all(ar); storage.s5_repair = nil end,
+    function(n, b, ar) revive_all(ar) end,
   },
   truth = function(i) return { at = { [at(i, 12.5, 8.5)] = 171, [at(i, 2.5, 2.5)] = "new" }, deleted = {} } end }
+
+-- 19. Nested and repeated components: two instances of the same component in one cell, each with an identical
+-- combinator (piece ids 1901 and 2901: instance 1 and 2, piece 1). The two combinators are swapped by cut and paste.
+SC.repeated_components_swap = { i = 19,
+  setup = function(n, b)
+    register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 1901 }, { mk("inserter", 3.5, 2.5, nil, b), 1902 },
+      { mk("constant-combinator", 2.5, 8.5, nil, b), 2901 }, { mk("inserter", 3.5, 8.5, nil, b), 2902 } })
+  end,
+  steps = {
+    function(n, b, ar)
+      local s = st(n)
+      s.bp1 = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }); find_unit(ar, s.pieces[1901].unit).destroy({ raise_destroy = true })
+      s.bp2 = copy({ { b[1] + 2, b[2] + 8 }, { b[1] + 3, b[2] + 9 } }); find_unit(ar, s.pieces[2901].unit).destroy({ raise_destroy = true })
+    end,
+    function(n, b) local s = st(n); paste(s.bp1, { b[1] + 2.5, b[2] + 8.5 }); paste(s.bp2, { b[1] + 2.5, b[2] + 2.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+  },
+  truth = function(i) return { at = { [at(i, 2.5, 8.5)] = 1901, [at(i, 2.5, 2.5)] = 2901, [at(i, 3.5, 2.5)] = 1902,
+    [at(i, 3.5, 8.5)] = 2902 }, deleted = {} } end }
+
+-- 20. Missing metadata: cut and paste through a plain blueprint (no cooperative extraction, as when a blueprint
+-- string comes from outside), so no tags travel.
+SC.cut_plain_blueprint = { i = 20,
+  setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 20 } }) end,
+  steps = {
+    function(n, b, ar)
+      local s = st(n)
+      s.inv = game.create_inventory(1); s.inv[1].set_stack({ name = "blueprint" })
+      s.inv[1].create_blueprint({ surface = surface(), force = "player", area = { { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } } })
+      find_unit(ar, s.pieces[20].unit).destroy({ raise_destroy = true })
+    end,
+    function(n, b) st(n).inv[1].build_blueprint({ surface = surface(), force = "player", position = { b[1] + 10.5, b[2] + 4.5 }, build_mode = defines.build_mode.forced }) end,
+    function(n, b, ar) revive_all(ar) end,
+  },
+  truth = function(i) return { at = { [at(i, 10.5, 4.5)] = 20 }, deleted = {} } end }
+
+-- 21. Duplicated metadata: a copy of a piece (it carries the piece's id) while the original stays, then the original
+-- is deleted: the copy is a new piece that happens to carry a deleted piece's id.
+SC.copy_then_delete_original = { i = 21,
+  setup = function(n, b) register(n, { { mk("constant-combinator", 2.5, 2.5, nil, b), 21 } }) end,
+  steps = {
+    function(n, b) st(n).bp = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b) paste(st(n).bp, { b[1] + 10.5, b[2] + 4.5 }) end,
+    function(n, b, ar) revive_all(ar) end,
+    function(n, b, ar) find_unit(ar, st(n).pieces[21].unit).destroy({ raise_destroy = true }) end,
+  },
+  truth = function(i) return { at = { [at(i, 10.5, 4.5)] = "new" }, deleted = { [21] = true }, intent_unclear = true } end }
 
 function S.setup(name)
   local sc = SC[name]
   clear(area(sc.i))
+  st(name).i = sc.i
   sc.setup(name, base(sc.i))
   local s = st(name)
   s.step = 0
@@ -602,7 +707,7 @@ function S.eval(name)
   local sc, s = SC[name], st(name)
   if not sc.truth then return { tp = s.tp, unplaced = storage.s5_unplaced } end
   local truth = sc.truth(sc.i, area(sc.i))
-  local out = { scenario = name, tag_after_overlap = s.tag_after_overlap, repairs = storage.s5_repairs }
+  local out = { scenario = name, control = truth.control }
   for an, f in pairs(APPROACHES) do
     local v, d = f(s, area(sc.i))
     local worst, detail = grade(truth, v, d)
@@ -621,8 +726,8 @@ end
 -- spawn, the player edits them by hand, `play_report` lists what every entity in the cell is now.
 local PLAY = { { -8, -8 }, { 8, 8 } }
 function S.play_setup()
-  storage.s5_repair = true
   clear(PLAY)
+  st("play").i = 99
   local b = { -6, -6 }
   register("play", {
     { mk("constant-combinator", 0.5, 0.5, nil, b), 1 }, { mk("constant-combinator", 2.5, 0.5, nil, b), 2 },

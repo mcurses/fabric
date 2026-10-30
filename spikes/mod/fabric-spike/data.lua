@@ -7,7 +7,9 @@ for _, name in pairs({
   "fast-transport-belt", "pipe", "medium-electric-pole", "wooden-chest", "iron-chest", "splitter",
 }) do
   if not names[name] then
-    names[name] = { name = name, custom_events = { on_tags_changed = "fabric-spike-on_tags_changed" } }
+    names[name] = { name = name, custom_events = { on_tags_changed = "fabric-spike-on_tags_changed",
+      on_initialized = "fabric-spike-on_initialized" } }
   end
 end
-data:extend({ { type = "custom-event", name = "fabric-spike-on_tags_changed" } })
+data:extend({ { type = "custom-event", name = "fabric-spike-on_tags_changed" },
+  { type = "custom-event", name = "fabric-spike-on_initialized" } })

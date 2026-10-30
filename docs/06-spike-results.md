@@ -158,6 +158,59 @@ the in-game check, since a script cannot raise it.
 | Overlap from a Thing without a Fabric id, with the repair | ask | WRONG (lost) | WRONG (lost) | ok |
 | Cybersyn 2 combinators, A over B, with the repair | WRONG (lost) | WRONG | WRONG (lost) | ok |
 
+**Second round: two prototypes on one regression suite** (Seppi's request, same day). Both keep Fabric's own map
+(piece → entity, `unit_number`) as the truth, and both share one Commit rule: a piece that is gone while an
+unidentified entity in the cell could be it (same name, or another entity on its spot) **blocks Commit** until the
+player answers. Nothing unclear is published as a deletion.
+
+- **P1, with 0-things as a helper**: piece ids also travel as 0-things tags. Two safeguards: an overwritten tag is
+  written back at once (above), and a new Thing that arrives carrying the id of a piece whose entity still stands
+  (and is not marked for removal, as by a cut) is a copy: its claim is dropped the moment it is created. Without that
+  second safeguard, "copy, then delete the original" passed silently for a move.
+- **P2, Fabric's own operations only**: nothing travels through blueprints. Fabric's move tool (teleport; rebuild and
+  log for belts, splitters, undergrounds, rails) and replace tool keep identity; everything a player does by hand
+  that removes a piece is asked at Commit. Fabric still needs 0-things' cooperative blueprinting for Cybersyn 2
+  settings, so P2 avoids the identity dependency, not the mod.
+
+`spikes/s5.sh` runs 20 scenarios on a fresh map, saves and reloads it, grades again, and fails if either prototype is
+silently wrong anywhere. Result: **no silent errors in either prototype, grades identical after reload.**
+
+| Scenario | P1 0-things | P2 own operations |
+|---|---|---|
+| Swap of two identical combinators with the move tool | ok | ok |
+| The same swap by cut and paste | ok | ask |
+| Requester cut, pasted, request changed | ok | ask |
+| Inserter moved with the move tool, filter changed | ok | ok |
+| Deleted, identical one built by hand elsewhere | ask | ask |
+| Copied and pasted twice | ok | ok |
+| Cut and pasted twice | ask | ask |
+| Three cut, two pasted back | ok | ask |
+| The game's upgrade on the same spot | ask | ask |
+| Fabric's replace tool | ok | ok |
+| Deleted and rebuilt on the same spot | ask | ask |
+| Description edited by a player, then cut and pasted | ok | ask |
+| Belt and splitter moved by the move tool (rebuild and log) | ok | ok |
+| Blueprint of A pasted over B, B cut and pasted, A deleted | ok | ask |
+| The same from a source without a Fabric id | ok | ask |
+| The same with Cybersyn 2 combinators | ok | ask |
+| Two instances of one component, their combinators swapped by cut and paste | ok | ask |
+| Cut and pasted through a plain blueprint (no ids travel) | ask | ask |
+| Copied, then the original deleted | ask | ask |
+| Control: overlap sequence with P1's repair switched off | WRONG (as expected) | ask |
+
+Supported scope, failure modes, uncertainty:
+
+- **P1** answers hand cut and paste, partial pastes, swaps and repeated components without asking; it asks 6 times
+  in 19, each time where intent really is unclear or no id can travel. Failure modes: it depends on 0-things'
+  internal behaviour (tag replacement on overlap and settings paste, copies as new Things, creation events), which a
+  0-things update can change; the suite is the guard. Unverified: the player's real cut (in normal play the original
+  stays until robots remove it, which the copy safeguard must recognise as "marked for removal"), settings paste,
+  undo and redo, the upgrade planner.
+- **P2** never depends on anything travelling; it asks 13 times in 19, i.e. after every hand cut and paste. Its
+  supported scope is: move, swap and replace through Fabric's tools; copy; delete. Unverified: undo and redo (an
+  undone deletion is a new entity, so Commit would ask), the upgrade planner.
+- Both: the player operations above need the in-game check (`spikes/README.md`).
+
 Conclusions:
 
 1. **Guessing alone is rejected**: silently wrong in most move and swap cases, because identical pieces look the same.
@@ -184,4 +237,4 @@ Commit. Copy always makes a new piece.
 | S1 | Per-setting merge (D11). **Decided otherwise: whole entity (D20)** | A list of runtime-owned settings |
 | S2 | Mirror templates without signals and train stops; others say why not (D7). **Agreed (D22)** | Moving signals and stops: a later version |
 | S4 | Detect overrides at update time; events only for a live panel badge | A 3-minute in-game check when the panel exists |
-| S5 | Piece identity by 0-things tags (repaired from Fabric's own map) and `unit_number`, Fabric move and replace tools, Commit asks the rest | Seppi and Max to decide; the in-game check (cut tool, undo, redo, upgrade planner, settings paste) |
+| S5 | Two prototypes, both without silent errors: P1 (0-things helper, asks 6 of 19) and P2 (own operations only, asks 13 of 19); Commit blocks on anything unclear | Seppi and Max to choose; the in-game check (cut tool, undo, redo, upgrade planner, settings paste) |

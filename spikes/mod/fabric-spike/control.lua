@@ -41,6 +41,8 @@ remote.add_interface("fabric-spike-s1", { run = function() return s1.run() end, 
 local s5 = require("s5")
 script.on_event("fabric-spike-on_tags_changed", s5.on_tags_changed)
 script.on_event("cybersyn2-combinator-on_tags_changed", s5.on_tags_changed)
+script.on_event("fabric-spike-on_initialized", s5.on_initialized)
+script.on_event("cybersyn2-combinator-on_initialized", s5.on_initialized)
 remote.add_interface("fabric-spike-s5", { setup = s5.setup, step = s5.step, eval = s5.eval, names = s5.names, leak = s5.leak,
   play_setup = s5.play_setup, play_report = s5.play_report })
 
