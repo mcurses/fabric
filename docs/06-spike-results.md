@@ -206,7 +206,7 @@ Supported scope, failure modes, uncertainty:
   0-things update can change; the suite is the guard. Unverified: the player's real cut (in normal play the original
   stays until robots remove it, which the copy safeguard must recognise as "marked for removal"), settings paste,
   undo and redo, the upgrade planner.
-- **P2** never depends on anything travelling; it asks 13 times in 19, i.e. after every hand cut and paste. Its
+- **P2** never depends on anything travelling; it asks 14 times in 19, i.e. after every hand cut and paste. Its
   supported scope is: move, swap and replace through Fabric's tools; copy; delete. Unverified: undo and redo (an
   undone deletion is a new entity, so Commit would ask), the upgrade planner.
 - Both: the player operations above need the in-game check (`spikes/README.md`).
@@ -237,4 +237,4 @@ Commit. Copy always makes a new piece.
 | S1 | Per-setting merge (D11). **Decided otherwise: whole entity (D20)** | A list of runtime-owned settings |
 | S2 | Mirror templates without signals and train stops; others say why not (D7). **Agreed (D22)** | Moving signals and stops: a later version |
 | S4 | Detect overrides at update time; events only for a live panel badge | A 3-minute in-game check when the panel exists |
-| S5 | Two prototypes, both without silent errors: P1 (0-things helper, asks 6 of 19) and P2 (own operations only, asks 13 of 19); Commit blocks on anything unclear | Seppi and Max to choose; the in-game check (cut tool, undo, redo, upgrade planner, settings paste) |
+| S5 | Two prototypes, both without silent errors: P1 (0-things helper, asks 6 of 19) and P2 (own operations only, asks 14 of 19); Commit blocks on anything unclear | Seppi and Max to choose; the in-game check (cut tool, undo, redo, upgrade planner, settings paste) |
