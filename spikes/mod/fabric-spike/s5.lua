@@ -542,6 +542,38 @@ function S.names()
   return l
 end
 
+-- In-game check with a real player (cut tool, undo, redo, upgrade planner): `play_setup` builds tagged pieces near the
+-- spawn, the player edits them by hand, `play_report` lists what every entity in the cell is now.
+local PLAY = { { -8, -8 }, { 8, 8 } }
+function S.play_setup()
+  clear(PLAY)
+  local b = { -6, -6 }
+  register("play", {
+    { mk("constant-combinator", 0.5, 0.5, nil, b), 1 }, { mk("constant-combinator", 2.5, 0.5, nil, b), 2 },
+    { mk("inserter", 4.5, 0.5, nil, b), 3 }, { mk("requester-chest", 6.5, 0.5, nil, b), 4 },
+    { mk("assembling-machine-2", 1.5, 4.5, nil, b), 5 },
+  })
+  return S.play_report()
+end
+
+function S.play_report()
+  local s = st("play")
+  local lines = {}
+  for _, e in pairs(entities(PLAY)) do
+    local id, tag = thing_of(e)
+    local was
+    for pid, p in pairs(s.pieces) do if p.unit == e.unit_number then was = pid end end
+    lines[#lines + 1] = string.format("%s at %s: thing %s, tag p%s, same entity as p%s", e.name, key(e.position),
+      tostring(id), tostring(tag), tostring(was))
+  end
+  for _, g in pairs(surface().find_entities_filtered({ area = PLAY, type = "entity-ghost" })) do
+    local id, tag = thing_of(g)
+    lines[#lines + 1] = string.format("ghost %s at %s: thing %s, tag p%s", g.ghost_name, key(g.position), tostring(id), tostring(tag))
+  end
+  table.sort(lines)
+  return lines
+end
+
 -- Leak check: what a carrier does to the entity's real behaviour.
 function S.leak()
   local b = { 2000, 1000 }

@@ -39,4 +39,26 @@ remote.add_interface("fabric-spike-s1", { run = function() return s1.run() end, 
   cs2_step = function(n) return s1.cs2_step(n) end })
 
 local s5 = require("s5")
-remote.add_interface("fabric-spike-s5", { setup = s5.setup, step = s5.step, eval = s5.eval, names = s5.names, leak = s5.leak })
+remote.add_interface("fabric-spike-s5", { setup = s5.setup, step = s5.step, eval = s5.eval, names = s5.names, leak = s5.leak,
+  play_setup = s5.play_setup, play_report = s5.play_report })
+
+-- In-game check: "/s5 <label>" prints and stores the identity report, "/s5 setup" rebuilds the pieces.
+commands.add_command("s5", "Fabric spike S5: /s5 setup, or /s5 <label> to report piece identity", function(cmd)
+  local p = cmd.player_index and game.get_player(cmd.player_index)
+  if cmd.parameter == "setup" then
+    s5.play_setup()
+    storage.play_log = {}
+    if p then
+      p.admin = true
+      p.teleport({ 0, 2 })
+      if p.controller_type ~= defines.controllers.editor then p.toggle_map_editor() end
+      p.print("S5 pieces built: two constant combinators, inserter, requester chest, assembler. Editor is on.")
+    end
+    return
+  end
+  local lines = s5.play_report()
+  storage.play_log = storage.play_log or {}
+  storage.play_log[#storage.play_log + 1] = { label = cmd.parameter or "", lines = lines }
+  if p then for _, l in ipairs(lines) do p.print(l) end end
+end)
+remote.add_interface("fabric-spike-play", { log = function() return storage.play_log end })
