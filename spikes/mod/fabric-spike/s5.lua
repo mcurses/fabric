@@ -150,6 +150,7 @@ local function register(name, list)
       local _, id = remote.call("things", "get_thing_id", e)
       if id then remote.call("things", "set_tag", id, TAG, pid); thing, err = id, nil end
     end
+    if thing then storage.s5_map = storage.s5_map or {}; storage.s5_map[thing] = pid end
     s.pieces[pid] = { unit = e.unit_number, name = e.name, pos = key(e.position), hash = settings(e),
       thing = thing, carrier = set_carrier(e, pid), thing_err = err and err.code }
   end
@@ -503,6 +504,80 @@ SC.move_rebuild_tool = { i = 14,
   },
   truth = function(i) return { at = { [at(i, 12.5, 8.5)] = 141, [at(i, 15.5, 9)] = 142 }, deleted = {} } end }
 
+-- Repair: Fabric's own map (Thing id -> piece id) is authoritative. When 0-things replaces a piece's tags (settings
+-- paste, blueprint overlap), the piece id is written back at once; other mods' tags are left as they are.
+function S.on_tags_changed(ev)
+  if not storage.s5_repair then return end
+  local pid = storage.s5_map and storage.s5_map[ev.thing.id]
+  if pid and (ev.new_tags or {})[TAG] ~= pid then
+    remote.call("things", "set_tag", ev.thing.id, TAG, pid)
+    storage.s5_repairs = (storage.s5_repairs or 0) + 1
+  end
+end
+
+-- 15/16. Seppi's sequence: blueprint of A pasted over B (0-things gives B A's tags), then B cut and pasted elsewhere,
+-- then A deleted. Truth: B moved, A deleted. Without repair B's copy claims to be A.
+local function overlap_then_cut(repair, name)
+  name = name or "constant-combinator"
+  return {
+    setup = function(n, b)
+      storage.s5_repair = repair
+      register(n, { { mk(name, 2.5, 2.5, nil, b), 151 }, { mk(name, 6.5, 2.5, nil, b), 152 } })
+    end,
+    steps = {
+      function(n, b) local s = st(n); s.bpa = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+      function(n, b)
+        remote.call(COOP, "build_blueprint", st(n).bpa[1], { surface = surface(), force = "player",
+          position = { b[1] + 6.5, b[2] + 2.5 }, build_mode = defines.build_mode.superforced })
+      end,
+      function(n, b, ar)
+        local s = st(n)
+        local bb = find_unit(ar, s.pieces[152].unit)
+        local _, tag = thing_of(bb)
+        s.tag_after_overlap = tag
+        s.bpb = copy({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } })
+        bb.destroy({ raise_destroy = true })
+      end,
+      function(n, b, ar)
+        local s = st(n)
+        find_unit(ar, s.pieces[151].unit).destroy({ raise_destroy = true })
+        paste(s.bpb, { b[1] + 12.5, b[2] + 8.5 })
+      end,
+      function(n, b, ar) revive_all(ar); storage.s5_repair = nil end,
+    },
+    truth = function(i) return { at = { [at(i, 12.5, 8.5)] = 152 }, deleted = { [151] = true } } end }
+end
+SC.overlap_cut = overlap_then_cut(false); SC.overlap_cut.i = 15
+SC.overlap_cut_repaired = overlap_then_cut(true); SC.overlap_cut_repaired.i = 16
+SC.overlap_cut_cs2_repaired = overlap_then_cut(true, "cybersyn2-combinator"); SC.overlap_cut_cs2_repaired.i = 18
+
+-- 17. Overlap from a Thing without a Fabric tag (a plain combinator that is a Thing) wipes B's id; then B is cut.
+SC.overlap_untagged_repaired = { i = 17,
+  setup = function(n, b)
+    storage.s5_repair = true
+    register(n, { { mk("constant-combinator", 6.5, 2.5, nil, b), 171 } })
+    local plain = mk("constant-combinator", 2.5, 2.5, nil, b)
+    remote.call("things", "create_thing", { entity = plain, tags = { other = 1 } })
+  end,
+  steps = {
+    function(n, b) local s = st(n); s.bpa = copy({ { b[1] + 2, b[2] + 2 }, { b[1] + 3, b[2] + 3 } }) end,
+    function(n, b)
+      remote.call(COOP, "build_blueprint", st(n).bpa[1], { surface = surface(), force = "player",
+        position = { b[1] + 6.5, b[2] + 2.5 }, build_mode = defines.build_mode.superforced })
+    end,
+    function(n, b, ar)
+      local s = st(n)
+      local bb = find_unit(ar, s.pieces[171].unit)
+      local _, tag = thing_of(bb)
+      s.tag_after_overlap = tag
+      s.bpb = copy({ { b[1] + 6, b[2] + 2 }, { b[1] + 7, b[2] + 3 } })
+      bb.destroy({ raise_destroy = true })
+    end,
+    function(n, b) paste(st(n).bpb, { b[1] + 12.5, b[2] + 8.5 }) end,
+    function(n, b, ar) revive_all(ar); storage.s5_repair = nil end,
+  },
+  truth = function(i) return { at = { [at(i, 12.5, 8.5)] = 171, [at(i, 2.5, 2.5)] = "new" }, deleted = {} } end }
+
 function S.setup(name)
   local sc = SC[name]
   clear(area(sc.i))
@@ -527,7 +602,7 @@ function S.eval(name)
   local sc, s = SC[name], st(name)
   if not sc.truth then return { tp = s.tp, unplaced = storage.s5_unplaced } end
   local truth = sc.truth(sc.i, area(sc.i))
-  local out = { scenario = name }
+  local out = { scenario = name, tag_after_overlap = s.tag_after_overlap, repairs = storage.s5_repairs }
   for an, f in pairs(APPROACHES) do
     local v, d = f(s, area(sc.i))
     local worst, detail = grade(truth, v, d)
@@ -546,6 +621,7 @@ end
 -- spawn, the player edits them by hand, `play_report` lists what every entity in the cell is now.
 local PLAY = { { -8, -8 }, { 8, 8 } }
 function S.play_setup()
+  storage.s5_repair = true
   clear(PLAY)
   local b = { -6, -6 }
   register("play", {

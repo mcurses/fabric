@@ -141,12 +141,30 @@ Further results:
   the upgrade planner with robots. 0-things documents that a Thing survives undo and redo; that needs a short in-game
   check.
 
+**Follow-up after Seppi's source audit of 0-things** (same day): 0-things *replaces* a Thing's whole tag set when a
+player pastes settings onto it or a blueprint is pasted over it. A piece then carries another piece's id (or none),
+and a later cut and paste carries the wrong id. Reproduced: a blueprint of piece A pasted over piece B, B cut and
+pasted elsewhere, A deleted: the pasted B claims to be A (silently wrong). **Fix tested: Fabric keeps its own map
+from Thing id to piece id as the truth and writes the piece id back the moment 0-things reports a tag change** (it
+reports every change through a per-type event; Cybersyn 2's own event for its combinator). Only Fabric's key is
+touched, Cybersyn 2's settings stay. With the fix, the sequence above, the same with a source Thing that has no Fabric
+id, and the same with Cybersyn 2 combinators all come out right. The player's settings paste (and its undo) is in
+the in-game check, since a script cannot raise it.
+
+| Scenario | Guess | Carrier | Tool | Things |
+|---|---|---|---|---|
+| A pasted over B, B cut and pasted, A deleted (no repair) | WRONG (lost) | WRONG | WRONG (lost) | WRONG |
+| The same with the repair | WRONG (lost) | WRONG | WRONG (lost) | ok |
+| Overlap from a Thing without a Fabric id, with the repair | ask | WRONG (lost) | WRONG (lost) | ok |
+| Cybersyn 2 combinators, A over B, with the repair | WRONG (lost) | WRONG | WRONG (lost) | ok |
+
 Conclusions:
 
 1. **Guessing alone is rejected**: silently wrong in most move and swap cases, because identical pieces look the same.
 2. **Carriers in settings are rejected**: visible in the entity's window, editable by players (a silently wrong
    answer), limited to combinators and chests, and Things does the same job invisibly for every type.
-3. **Things tags plus `unit_number` plus Fabric's move and replace tools** answer every scenario correctly or ask.
+3. **Things tags plus `unit_number` plus Fabric's move and replace tools, with Fabric's map as the truth and the
+   immediate repair of overwritten tags,** answer every scenario correctly or ask.
    The tag catches cut and paste and partial pastes; the tools cover what the tag cannot (the game's upgrade, belts
    that cannot teleport).
 4. **What Commit must ask**: one piece's id on two entities while the original is gone (cut and pasted twice); a
@@ -154,7 +172,8 @@ Conclusions:
    different entity on a removed piece's spot (the game's upgrade). Until the player answers, Commit is blocked
    (Seppi: never publish a silent deletion).
 
-Recommended minimal scope: identity through 0-things tags and `unit_number`; Fabric move and replace tools as the
+Recommended minimal scope: identity through 0-things tags and `unit_number`, Fabric's map authoritative, overwritten
+tags repaired at once; Fabric move and replace tools as the
 supported way to move or swap a piece while keeping its override; everything else that is unclear is asked at
 Commit. Copy always makes a new piece.
 
@@ -165,4 +184,4 @@ Commit. Copy always makes a new piece.
 | S1 | Per-setting merge (D11). **Decided otherwise: whole entity (D20)** | A list of runtime-owned settings |
 | S2 | Mirror templates without signals and train stops; others say why not (D7). **Agreed (D22)** | Moving signals and stops: a later version |
 | S4 | Detect overrides at update time; events only for a live panel badge | A 3-minute in-game check when the panel exists |
-| S5 | Piece identity by 0-things tags and `unit_number`, Fabric move and replace tools, Commit asks the rest | Seppi and Max to decide; an in-game undo check |
+| S5 | Piece identity by 0-things tags (repaired from Fabric's own map) and `unit_number`, Fabric move and replace tools, Commit asks the rest | Seppi and Max to decide; the in-game check (cut tool, undo, redo, upgrade planner, settings paste) |

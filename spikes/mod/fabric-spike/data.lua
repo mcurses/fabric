@@ -4,7 +4,10 @@ local names = data.raw["mod-data"]["things-names"].data
 for _, name in pairs({
   "inserter", "fast-inserter", "assembling-machine-2", "assembling-machine-3", "constant-combinator",
   "decider-combinator", "arithmetic-combinator", "requester-chest", "buffer-chest", "transport-belt",
-  "fast-transport-belt", "pipe", "medium-electric-pole", "wooden-chest", "iron-chest",
+  "fast-transport-belt", "pipe", "medium-electric-pole", "wooden-chest", "iron-chest", "splitter",
 }) do
-  if not names[name] then names[name] = { name = name } end
+  if not names[name] then
+    names[name] = { name = name, custom_events = { on_tags_changed = "fabric-spike-on_tags_changed" } }
+  end
 end
+data:extend({ { type = "custom-event", name = "fabric-spike-on_tags_changed" } })

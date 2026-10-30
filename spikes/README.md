@@ -31,5 +31,7 @@ In the chat (`~` or Enter), type each command; `/s5 <label>` prints and records 
 5. Upgrade planner: inserter → fast inserter over p3, requester → buffer chest over p4. `/s5 upgrade`
 6. Mine p2 (remove it), then Ctrl+Z. `/s5 mine-undo`
 7. Copy p5 (Ctrl+C) and paste it next to itself. `/s5 copy`
+8. Paste settings from p1 onto p2 (Shift+right-click p1, Shift+left-click p2). `/s5 paste-settings`; then Ctrl+Z.
+   `/s5 paste-settings-undo`
 
 The results are read with `remote.call('fabric-spike-play', 'log')`.
