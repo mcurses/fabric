@@ -238,13 +238,26 @@ identical after save and reload.
   real player operations (cut, settings paste, undo, upgrade planner); several players at once; recovery after an
   error.
 
+Real player cut and paste (Seppi, recorded in the game window, Factorio 2.1.24, Things 0.6.7, Cybersyn 2 0.5.1; the
+fixture only sets inventory, robots and camera, the cut and paste are the player's own):
+
+- **Normal play, cut with Cmd+X and paste, robots rebuild**: the blueprint is taken and the original marked for
+  removal in the same tick, so P1 keeps the piece's identity across the move; P2 asks. This confirms the open point
+  of safeguard 3 for the ordinary cut.
+- **Editor mode cut**: the blueprint is taken but no removal mark is raised (the editor removes at once), so there is
+  no cut proof and both prototypes ask. A second paste from the same blueprint makes both candidates asked, as
+  designed. Asking is safe here; whether editor cuts should keep identity is open.
+- Not verified: undo and redo (the shortcuts did not change anything in the recording, then the client stalled),
+  settings paste, the upgrade planner. The same-tick copy plus removal limit above still stands.
+
 Supported scope, failure modes, uncertainty:
 
 - **P1** answers hand cut and paste, partial pastes, swaps and repeated components without asking; it asks 10 times
   in 24, each time where intent really is unclear or no id can travel. Failure modes: it depends on 0-things'
   internal behaviour (tag replacement on overlap and settings paste, copies as new Things, creation events), which a
-  0-things update can change; the suite is the guard. Unverified: that a player's real cut takes the blueprint and marks the originals in the same
-  tick (if not, every hand cut and paste is asked, as in P2), settings paste, undo and redo, the upgrade planner.
+  0-things update can change; the suite is the guard. A player's real cut takes the blueprint and marks the originals in the same tick (Seppi's
+  recording above); an editor-mode cut does not, so it is asked. Unverified: settings paste, undo and redo, the
+  upgrade planner.
 - **P2** never depends on anything travelling; it asks 19 times in 24, i.e. after every hand cut and paste. Its
   supported scope is: move, swap and replace through Fabric's tools; copy; delete. Unverified: undo and redo (an
   undone deletion is a new entity, so Commit would ask), the upgrade planner.
