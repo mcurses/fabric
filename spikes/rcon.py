@@ -3,7 +3,7 @@
 
 Usage: rcon.py <file.lua | -> [--port N]
 Each blank-line-separated chunk of the file is sent as one /sc command (lines joined with spaces, so no trailing
-inline `--` comments inside a chunk). A chunk starting with `@mod` runs in the spike mod's Lua state.
+inline `--` comments inside a chunk). A chunk starting with `@mod` runs in the spike mod's Lua state; one starting with `/` is sent as is.
 """
 import socket
 import struct
@@ -52,7 +52,9 @@ def main():
     for chunk in [c.strip() for c in src.split("\n\n") if c.strip()]:
         lines = [l for l in chunk.splitlines() if not l.strip().startswith("--")]
         prefix = "/sc "
-        if lines and lines[0].strip() == "@mod":
+        if lines and lines[0].startswith("/"):
+            prefix = ""
+        elif lines and lines[0].strip() == "@mod":
             prefix = "/sc __fabric-spike__ "
             lines = lines[1:]
         out = run(prefix + " ".join(l.strip() for l in lines), port)

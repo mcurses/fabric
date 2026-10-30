@@ -37,3 +37,6 @@ remote.add_interface("fabric-spike-s2", { run = function() return s2.run() end, 
 local s1 = require("s1")
 remote.add_interface("fabric-spike-s1", { run = function() return s1.run() end, sample = function(n) return s1.sample(n) end, probe = function(x) return s1.probe(x) end,
   cs2_step = function(n) return s1.cs2_step(n) end })
+
+local s5 = require("s5")
+remote.add_interface("fabric-spike-s5", { setup = s5.setup, step = s5.step, eval = s5.eval, names = s5.names, leak = s5.leak })

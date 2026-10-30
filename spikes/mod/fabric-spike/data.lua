@@ -1,0 +1,10 @@
+-- S5: register the entity types an edit cell may hold as 0-things Things, without intercepting construction, so the
+-- spike decides which entities become Things. Cybersyn 2 registers its own combinator.
+local names = data.raw["mod-data"]["things-names"].data
+for _, name in pairs({
+  "inserter", "fast-inserter", "assembling-machine-2", "assembling-machine-3", "constant-combinator",
+  "decider-combinator", "arithmetic-combinator", "requester-chest", "buffer-chest", "transport-belt",
+  "fast-transport-belt", "pipe", "medium-electric-pole", "wooden-chest", "iron-chest",
+}) do
+  if not names[name] then names[name] = { name = name } end
+end

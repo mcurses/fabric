@@ -1,6 +1,7 @@
 #!/bin/bash
 # Local headless Factorio for Fabric's design spikes. Never touches the player's own install, saves or mods.
 #   spikes/server.sh start   fresh map, start in the background (UDP 34410, RCON 127.0.0.1:27410, password "spike")
+#   spikes/server.sh resume  save, stop and load the same map again
 #   spikes/server.sh stop    stop the run whose pid is in server.pid
 set -euo pipefail
 DIR="$HOME/fabric-spike"
@@ -19,8 +20,27 @@ stop() {
   fi
 }
 
+launch() {
+    nohup "$BIN" --config "$DIR/config.ini" --mod-directory "$DIR/mods" --start-server "$DIR/saves/spike.zip" \
+      --server-settings "$DIR/server-settings.json" --port 34410 --rcon-port 27410 --rcon-password spike \
+      > "$DIR/server.log" 2>&1 < /dev/null &
+    echo $! > "$DIR/server.pid"
+    for _ in $(seq 120); do grep -q "RCON interface at" "$DIR/server.log" 2>/dev/null && break; sleep 1; done
+    grep -q "RCON interface at" "$DIR/server.log" || { tail -20 "$DIR/server.log"; exit 1; }
+    # The first Lua command of a run only triggers the "achievements will be disabled" notice; spend it here.
+    "$(dirname "$0")/rcon.py" - <<< 'rcon.print(1)' > /dev/null
+    echo "running, pid $(cat "$DIR/server.pid")"
+}
+
 case "${1:-}" in
   stop) stop ;;
+  resume)
+    # Save, stop and load the same map again (save/reload checks).
+    "$(dirname "$0")/rcon.py" - <<< '/server-save' > /dev/null
+    sleep 3
+    stop
+    launch
+    ;;
   start)
     stop
     cat > "$DIR/config.ini" <<EOF
@@ -37,15 +57,7 @@ json.dump(s, open(sys.argv[1], "w"), indent=1)
 PY
     rm -f "$DIR/saves/spike.zip"
     "$BIN" --config "$DIR/config.ini" --mod-directory "$DIR/mods" --create "$DIR/saves/spike.zip" > "$DIR/create.log" 2>&1
-    nohup "$BIN" --config "$DIR/config.ini" --mod-directory "$DIR/mods" --start-server "$DIR/saves/spike.zip" \
-      --server-settings "$DIR/server-settings.json" --port 34410 --rcon-port 27410 --rcon-password spike \
-      > "$DIR/server.log" 2>&1 < /dev/null &
-    echo $! > "$DIR/server.pid"
-    for _ in $(seq 120); do grep -q "RCON interface at" "$DIR/server.log" 2>/dev/null && break; sleep 1; done
-    grep -q "RCON interface at" "$DIR/server.log" || { tail -20 "$DIR/server.log"; exit 1; }
-    # The first Lua command of a run only triggers the "achievements will be disabled" notice; spend it here.
-    "$(dirname "$0")/rcon.py" - <<< 'rcon.print(1)' > /dev/null
-    echo "running, pid $(cat "$DIR/server.pid")"
+    launch
     ;;
   *) echo "usage: $0 start|stop"; exit 2 ;;
 esac

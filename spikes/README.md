@@ -7,7 +7,9 @@ Throwaway experiments that settle design questions before implementation. Result
   player's mod folder, plus `mod/fabric-spike` linked from here. Never touches the player's own saves or the live
   server.
 - `rcon.py <file | ->`: sends each blank-line-separated chunk as one Lua command.
-- `mod/fabric-spike`: `s1.lua` (overrides), `s2.lua` (mirroring), `control.lua` (event logger for S4, remote
-  interfaces `fabric-spike-s1`, `fabric-spike-s2`).
+- `server.sh resume`: save, stop and load the same map again (save/reload checks).
+- `mod/fabric-spike`: `s1.lua` (overrides), `s2.lua` (mirroring), `s5.lua` (piece identity; `data.lua` registers the
+  entity types with 0-things), `control.lua` (event logger for S4, remote interfaces `fabric-spike-s1`, `-s2`, `-s5`).
+- `s5.sh`: runs every S5 scenario and prints the grades.
 
 Example: `./server.sh start && echo 'rcon.print(serpent.block(remote.call("fabric-spike-s1", "run")))' | ./rcon.py -`
