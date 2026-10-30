@@ -99,7 +99,10 @@ end
 local function entities(area)
   local list = {}
   for _, e in pairs(surface().find_entities_filtered({ area = area })) do
-    if e.valid and e.type ~= "character" and e.type ~= "entity-ghost" then list[#list + 1] = e end
+    -- Identity subjects are blueprintable entities; Cybersyn 2's hidden helpers are not.
+    if e.valid and e.type ~= "character" and e.type ~= "entity-ghost" and not e.prototype.has_flag("not-blueprintable") then
+      list[#list + 1] = e
+    end
   end
   return list
 end
