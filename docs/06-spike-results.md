@@ -181,6 +181,10 @@ player answers. Nothing unclear is published as a deletion.
   that removes a piece is asked at Commit. Fabric still needs 0-things' cooperative blueprinting for Cybersyn 2
   settings, so P2 avoids the identity dependency, not the mod.
 
+In the tables, **ask** means identity cannot be proven from what the game shows. Whether Fabric then asks at Commit
+or does not support the operation at all (for example: hand cut and paste of pieces is not a move) is a product
+decision for Seppi and Max, not settled by the spike (Seppi, 2026-10-30).
+
 `spikes/s5.sh` runs 24 scenarios on a fresh map, saves and reloads it, grades again, and fails if either prototype is
 silently wrong anywhere. Result: **no silent errors in either prototype, grades identical after reload.**
 
