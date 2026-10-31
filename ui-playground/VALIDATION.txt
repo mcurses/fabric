@@ -1,0 +1,27 @@
+Validated 2026-10-31 with Factorio 2.1.24 and the installed dependencies.
+
+Command:
+  FABRIC_TEST_SAVE=<playground autosave> ./ui-playground/smoke.sh
+
+Passed:
+- Exact 20 source modules; every source entity exists or remains a matching ghost.
+- Three CS2 Requester elevated rails lack standalone support; capture retains them.
+- Cooperative Cybersyn settings round-trip, including same-tick capture protection.
+- Fresh-template change detection ignores circuit-generated filters/scanner output.
+- Grid cell boundaries match native placement with zero missing grid pieces.
+- All 16 quarter-turn/horizontal/vertical-mirror combinations match native Grid placement.
+- Custom placement final position matches the actual native cursor build.
+- Composite cursor blueprints resolve overlapping references with last-wins precedence.
+- Real UI handler flow: create, origin/custom layout, icon/category, native placement,
+  commit, nested propagation to World, metadata/category edits, discard, one-click close.
+- Neighbor precedence and non-removability, cycle rejection, fixed World dimensions.
+- Tile-only capture, origin underlay exclusion, persistence reload of the client save.
+
+Graphical client reloaded successfully. Screenshot 432954.png in the playground
+script-output/fabric-ui folder shows connected rail joins and real instance rows.
+Automated native pointer clicks did not work with this client; UI handler integration
+and native blueprint build API tests are not a claim that every mouse path was tested.
+
+The launch save and functional-20261031.zip were preserved in the isolated profile.
+The previous launch save was backed up; normal Factorio saves were not replaced.
+See LIMITATIONS.txt for destructive snapshot semantics and remaining prototype scope.

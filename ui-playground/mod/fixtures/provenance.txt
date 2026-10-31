@@ -1,0 +1,6 @@
+Source: _qultion4.zip, saved 2026-10-24 16:20 local time.
+Book: Gradus ad Parnassum (versioned)
+Exported storage.modules[key].versions[latest].bp from Block Versions 0.4.24 in an isolated copy.
+All 20 definitions retained, including the one-entity placeholders present in the original book.
+Source snapshots retain their original coordinates, wires, settings and version numbers.
+Runtime normalizes the old 160x160 top-left coordinates to cell-centered coordinates.

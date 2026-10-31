@@ -1,0 +1,33 @@
+Functional prototype limits — agreed 2026-10-31
+
+- No persistent entity IDs, matching, granular entity diffs, or per-piece patch
+  preservation. Blueprint entity numbers and Things metadata indices are local
+  serialization references only; Fabric does not track entity identity.
+- Commit replaces the whole own snapshot and committed reference list. It updates
+  nested dependents immediately and rebuilds World. Rebuilds are destructive:
+  manual World edits, inventories, running machine state, and untracked additions
+  within the rebuilt footprint can be lost. This was explicitly accepted for now.
+- Edit a referenced template through its source button. Direct edits to a nested
+  reference's materialized entities are not tracked as overrides. Source contents
+  and the ordered reference list are the durable authoring inputs.
+- The changes panel reports whole snapshots and reference counts. It does not
+  pretend to offer the old mock's individual moved/replaced/deleted patch actions.
+- World cell dimensions are fixed after setup. There is no smooth resize/migration.
+  The initial playable World has four cells; creating an arbitrary expanding grid
+  of instances is not yet a product flow.
+- One neighbor row represents the whole neighbor. Precedence uses entity-center
+  ownership at cell boundaries and tile ownership for tiles. Fine-grained neighbor
+  overrides and an anchors editor remain future work.
+- The Origin Template underlay is a translucent visual guide made of entity icons,
+  not collision-bearing buildings or a reference. It is not a full ghost rendering
+  of every rail's artwork. It never enters captured template contents.
+- Source presets are imported. There is no slots/anchors editing UI yet.
+- The source book is the October 24 snapshot, not the current multiplayer save.
+  Its intentionally small placeholder modules are preserved. A piece that needs
+  support absent from its standalone source remains a ghost (for example three
+  elevated rails in CS2 Requester); it is retained during capture.
+- This is an editor/placement prototype, not a powered, supplied logistics factory.
+  Train operations, station throughput, multiplayer concurrent editing, exhaustive
+  exotic prototype transforms, and production-scale performance are not certified.
+- Native blueprint capture excludes trains and the default refined-concrete editor
+  floor. Save the Factorio playground to persist templates and layout changes.

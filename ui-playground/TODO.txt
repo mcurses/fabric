@@ -1,0 +1,20 @@
+Fabric UI prototype — ideas to explore
+Noted 2026-10-31; backlog only, not implementation commitments.
+
+[ ] Anchors
+[ ] Slots
+[ ] Neighbor overrides
+[ ] Layout defined by a base template or a custom size
+[ ] Prototype an actual city grid with actual templates (Trash, etc.)
+
+Side quest
+[ ] Spotlight for blueprints
+
+Functional pass, 2026-10-31
+[x] Import the exact 20 previous-mod modules, replacing sample fixtures
+[x] Origin Template or custom dimensions, plus editing padding
+[x] Fixed World origin/dimensions and real cell contents
+[x] Whole-neighbor rows with local ordering (fine-grained overrides still open)
+[x] Imported source presets (slots editor still open)
+[x] Real snapshot create/commit/discard and immediate nested propagation
+See LIMITATIONS.txt for the explicitly destructive prototype boundaries.

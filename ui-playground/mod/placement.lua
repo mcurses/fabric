@@ -1,5 +1,7 @@
+local runtime=require("__fabric-ui-playground__/runtime")
+local snapshots=require("__fabric-ui-playground__/snapshots")
 local world_areas=require("__fabric-ui-playground__/world_areas")
--- Shared add/reference dialog. Placement is a UI fixture, not Fabric mechanics.
+-- Shared add/reference dialog using native blueprint placement.
 local components=require("__fabric-ui-playground__/components")
 local workspaces=require("__fabric-ui-playground__/workspaces")
 local M={name="fabric_ui_add_template",tool="blueprint"}
@@ -14,10 +16,10 @@ function M.refresh(player,state)
   if not panel or not draft then return end
   local template=draft.catalog[panel.template_picker.selected_index]
   draft.template=template
-  -- Sample anchors supplied by each template, ready for a real definition later.
-  template.position_presets=template.position_presets or {
-    {name="Center",x=0,y=0},{name="Input side",x=-6,y=0},{name="Output side",x=6,y=0},
-  }
+  template.position_presets={{name="Cell origin",x=0,y=0}}
+  for _,slot in ipairs(template.slots or {}) do
+    template.position_presets[#template.position_presets+1]={name=slot.name,x=slot.dx,y=slot.dy}
+  end
   local choices={}
   for _,preset in ipairs(template.position_presets) do choices[#choices+1]=preset.name end
   choices[#choices+1]="Custom"
@@ -32,7 +34,7 @@ end
 function M.show(player,state)
   M.close(player,state)
   state.placement={catalog=workspaces.catalog(player,state),items=state.items,
-    surface=player.surface,parent=state.parent_template}
+    surface=player.surface,parent=state.parent_template,cell=state.camera_area}
   local panel=player.gui.screen.add{type="frame",name=M.name,direction="vertical"}
   panel.style.width=380
   components.titlebar(panel,{title=state.workspace=="collection" and "Reference a Template" or "Add a Template",
@@ -55,12 +57,8 @@ function M.finish(player,state,position)
   if not draft or draft.items~=state.items or draft.surface~=player.surface or draft.parent~=state.parent_template then
     M.close(player,state); return false
   end
-  local item={id=state.next_id,name=draft.template.name,icon=draft.template.icon,
-    template_id=draft.template.id,position=position,overrides={},override_fixture_v2=true}
-  local area=world_areas.at(state.world_demo,position)
-  item.world_area=area and area.id or nil
-  state.next_id=state.next_id+1
-  state.items[#state.items+1]=item
+  runtime.add_reference(player,state,draft.template.id,position,draft.build)
+  workspaces.select_camera(player,state)
   M.close(player,state)
   return true
 end
@@ -74,14 +72,10 @@ function M.confirm(player,state)
     if not player.clear_cursor() then return false end
     local stack=player.cursor_stack
     stack.set_stack{name="blueprint",count=1}
-    local demo=state.contexts.collection.world_demo
-    for _,area in ipairs(demo.areas) do
-      if area.template.id==draft.template.id then
-        stack.create_blueprint{surface=demo.surface,force=player.force,
-          area={area.left_top,area.right_bottom},always_include_tiles=false}
-        break
-      end
-    end
+    local snapshot=runtime.flatten(draft.template.id)
+    snapshot['snap-to-grid']={x=2,y=2};snapshot['absolute-snapping']=true
+    snapshot['position-relative-to-grid']={x=0,y=0}
+    if #(snapshot.entities or {})>0 or #(snapshot.tiles or {})>0 then stack.import_stack(snapshots.encode(snapshot)) end
     if not stack.is_blueprint_setup() then
       stack.clear()
       panel.hint.caption="This template has no buildings to place yet."
@@ -94,6 +88,7 @@ function M.confirm(player,state)
     return false
   end
   local preset=draft.template.position_presets[index]
-  return M.finish(player,state,{x=player.position.x+preset.x,y=player.position.y+preset.y})
+  local target=state.workspace=="collection" and state.parent_template.area or state.camera_area
+  return M.finish(player,state,{x=target.center.x+preset.x,y=target.center.y+preset.y})
 end
 return M

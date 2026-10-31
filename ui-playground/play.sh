@@ -25,9 +25,8 @@ show-tips-and-tricks=false
 CONFIG
 fi
 if [[ ! -e "$LAB/mods/fabric-ui-playground" ]]; then ln -s "$SOURCE/mod" "$LAB/mods/fabric-ui-playground"; fi
-cat > "$LAB/mods/mod-list.json" <<'MODS'
-{"mods":[{"name":"base","enabled":true},{"name":"elevated-rails","enabled":false},{"name":"quality","enabled":false},{"name":"space-age","enabled":false},{"name":"recycler","enabled":false},{"name":"fabric-ui-playground","enabled":true}]}
-MODS
+python3 "$SOURCE/prepare-mods.py" "$LAB"
+
 args=(--config "$LAB/config.ini" --mod-directory "$LAB/mods")
 if [[ ! -f "$LAB/saves/playground.zip" ]]; then
   "$BIN" "${args[@]}" --create "$LAB/saves/playground.zip" --map-gen-settings "$SOURCE/map-gen-settings.json" > "$LAB/create.log" 2>&1 || { cat "$LAB/create.log"; exit 1; }

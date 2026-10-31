@@ -1,3 +1,4 @@
+local runtime=require("__fabric-ui-playground__/runtime")
 local world_areas=require("__fabric-ui-playground__/world_areas")
 local navigation=require("__fabric-ui-playground__/navigation")
 local components=require("__fabric-ui-playground__/components")
@@ -79,20 +80,14 @@ function M.layout(player, state, moving_id, raise_rows)
 end
 
 function M.move(player, state, id, y)
-  if state.workspace=="world" and state.world_camera_mode then return end
   local root=player.gui.screen[M.root]
   if not root then return end
   local destination=math.floor(((y-root.location.y)/player.display_scale-list_top(state))/ROW_STEP+0.5)+1
   destination=math.max(1,math.min(#visible_items(state),destination))
-  for i, item in ipairs(visible_items(state)) do
-    if item.id == id then
-      if i ~= destination then
-        table.remove(state.items,i)
-        table.insert(state.items,destination,item)
-      end
-      break
-    end
-  end
+  runtime.reorder(player,state,id,destination)
+  local target=state.workspace=="collection" and state.parent_template or state.camera_area
+  state.items=target and (state.workspace=="collection" and target.children or target.items) or {}
+  state.world_demo.groups=target and (state.workspace=="collection" and target.area.groups or target.groups) or {}
   -- Never reposition the frame currently controlled by the mouse.
   M.layout(player,state,id)
 end
@@ -229,6 +224,8 @@ local function create_row(player,item)
     remove.style.margin=0
     remove.style.width=16
     remove.style.height=28
+    remove.visible=not item.neighbor
+    if item.neighbor then name.style.font_color={0.55,0.8,1};name.tooltip="Neighbor contribution · reorder to control precedence inside this cell" end
     local function enable_hover(element)
       element.raise_hover_events=true
       for _, child in pairs(element.children) do enable_hover(child) end
@@ -259,7 +256,7 @@ function M.refresh_rows(player,state)
     local count=overrides.count(item)
     local label=player.gui.screen[row_name(item.id)].contents.item_name
     label.caption=item.name..(count>0 and "  [color=1,0.72,0.3]•[/color]" or "")
-    label.tooltip=item.name..(count>0 and (" · "..count.." patches") or " · No patches").."\nClick to locate and inspect"
+    label.tooltip=(item.neighbor and "Neighbor · cannot be removed · last row wins\n" or "")..item.name..(count>0 and (" · "..count.." patches") or " · No patches").."\nClick to locate and inspect"
   end
   for _, element in pairs(player.gui.screen.children) do
     if element.tags.fabric_ui_row and not wanted[element.tags.id] then element.destroy() end
@@ -282,7 +279,8 @@ function M.build(player, state)
   root.style.padding=12
   local window_height=(list_top(state)+52)+#visible_items(state)*ROW_STEP
   root.style.height=window_height
-  components.titlebar(root,{title=state.workspace=="collection" and "Edit Template" or "Edit Instance",close_tags={action="close"}})
+  components.titlebar(root,{title=state.workspace=="collection" and "Edit Template" or "Edit Instance",close_tags={action="close"},
+    icon_actions=state.parent_template and state.parent_template.origin_id and {{name="underlay",sprite="utility/expand",tags={action="toggle_underlay"}}} or nil})
   components.meta_bar(player)
   navigation.show(player,state)
   if state.workspace=="world" and state.world_camera_mode then

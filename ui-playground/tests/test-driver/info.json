@@ -1,0 +1,1 @@
+{"name":"fabric-ui-test-driver","version":"0.1.0","title":"Fabric disposable test driver","author":"Fabric","factorio_version":"2.1","dependencies":["fabric-ui-playground >= 0.1.0"]}

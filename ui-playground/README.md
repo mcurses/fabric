@@ -1,115 +1,89 @@
-# Fabric UI playground
+# Fabric functional UI prototype
 
-Standalone, playable frontend prototype for reviewing Fabric's interaction model.
-This runs separately from the main mod. Template/version changes and patches are
-sample data; stitching and discarding resolve those samples, not backend changes.
-Custom blueprint placement does place buildings/ghosts in the disposable demo.
+A playable Factorio prototype using the 20 modules from **Gradus ad Parnassum
+(versioned)** in the October 24 save. The Grid v6, Universal request v7, Trash
+sender v6, stations, depots, providers, and the original small placeholder modules
+replace the invented demo fixtures. See `mod/fixtures/provenance.txt`.
 
-## Try this version
+This version implements whole-blueprint snapshot commits. It deliberately has no
+persistent entity identity system. Read `LIMITATIONS.txt` before using it beyond
+the disposable playground.
 
-Tested with **Factorio 2.1.24 on macOS**, base game only. Close any previous
-playground client before updating: this version adds icon prototypes.
+## Run
 
-From the repository root:
+Requires **Factorio 2.1.24**, Space Age, Elevated Rails, Quality, Cybersyn 2,
+Cybersyn, Ghost Scanner 4 Ignore Assigned, Things, and flib.
 
 ```sh
-git fetch origin
-git switch ui-playground/first-poc
-git pull --ff-only
 ./ui-playground/play.sh
 ```
 
-For an independent review with fresh fixtures, use a new profile:
+The launcher prepares an isolated profile at `~/fabric-ui-playground`, copying
+required mod ZIPs from installed local mods. Set `FABRIC_SOURCE_MODS` to another
+mods folder if needed. It does not enable the previous Block Versions mod.
+Missing dependencies produce a list rather than silently dropping their entities.
+Close the game before the first launch of this version so its new mods load.
 
-```sh
-FABRIC_UI_HOME="$HOME/fabric-ui-review-2026-10-31" ./ui-playground/play.sh
-```
+Set `FACTORIO_BIN` for a different executable or `FABRIC_UI_HOME` for a fresh
+profile. The launcher supports the macOS Steam install and `/Applications`.
+`./ui-playground/play.sh setup` prepares the profile without opening the game.
+Normal Factorio saves and mods remain separate. Save your playground after editing.
 
-The launcher detects Steam's macOS Factorio install (or `/Applications`). Set
-`FACTORIO_BIN` to your executable if installed elsewhere. It creates an isolated
-profile and save, links the mod to this checkout, and leaves your normal saves
-and mods alone. Default profile: `~/fabric-ui-playground`.
-`./ui-playground/play.sh setup` prepares the profile without opening a window.
-Use a separate checkout/worktree if you have unrelated changes on your branch.
-The downloadable playground archive can also be extracted and run directly with
-`./ui-playground/play.sh`; no checkout is needed.
+## Try the workflow
 
-## Suggested walkthrough
+1. **View Template Collection** opens the categorized real library. Select a
+   template to open its concrete editing island in the void and **Edit Template**.
+2. **+ Sew new Template** asks for name, icon, category, Origin Template or custom
+   dimensions, and padding on each side. Mark an Origin Template at creation to
+   make it available as a layout choice for future templates.
+3. Choosing an Origin Template copies its cell dimensions and shows a toggleable
+   visual underlay. It does **not** add a reference or include origin contents in
+   commits. The title-bar underlay button toggles it. Padding is editable space
+   outside the logical cell and is included in snapshot capture.
+4. Build or change entities in the island using the native map editor. **View
+   Changes → Stitch into Template** captures the real draft, increments its
+   version, and immediately rebuilds dependent templates and World references.
+   **Discard Changes** restores the last committed contents and reference order.
+5. **+ Reference a Template** and **+ Add a Template** use the same placement
+   dialog. Choose a saved source-book preset or **Custom → Place freely** for
+   the native blueprint cursor, rotation/mirroring, and click placement. Q cancels.
+6. In **World**, **Edit on Map** opens the instance beneath the camera. The four
+   initial cells use The Grid's fixed 160 × 160 dimensions and real station,
+   provider, and depot references. Concrete cells sit on grass; extensions beyond
+   cells remain present. Hover rows to highlight their contributions.
+7. Neighbor contributions appear as distinct blue rows, one per neighbor, without
+   a remove button. Drag rows into order alongside your references: top to bottom,
+   last wins inside the receiving cell. Click a template row to inspect it; the
+   small source button opens its template for editing.
+8. The pencil edits names, icons, and categories. **Fabric Settings** chooses the
+   World Origin Template; a replacement must have the already-established cell
+   dimensions. Applying it rebuilds World.
 
-1. Open the persistent **Fabric** panel using the Fabric shortcut at the bottom
-   of the screen. **Edit on Map** opens the editor at the camera's location.
-2. In **World**, move the camera between bordered concrete squares on land.
-   Each square is an instance containing template references. Examples contain
-   0, 1, 5, and 10 references, plus the original demo. The square's border shows
-   selection, and the editor lists its references. Names are generated once;
-   the small pencil edits an instance's name.
-3. Hover reference rows to highlight their buildings. Click one to inspect its
-   **Patches**. Hover changes for before/after feedback; click to locate them.
-   The small icon beside the reference name opens its source template in the
-   collection. Sample patch indicators are deliberately varied.
-4. **View Template Collection** opens a scrolling, categorized library of 50
-   templates. Clicking a card centers its concrete island in the void surface
-   and opens **Edit Template**. Moving the camera selects another island;
-   moving between islands clears selection. Surface switching alone closes the
-   editor; use Edit on Map to reopen it.
-5. **View Changes** opens the template's sample draft. Examples range from zero
-   to 18 changes, with an always-visible scrollbar. **Stitch into Template**,
-   **Discard Changes**, and individual reset/apply actions resolve sample rows.
-   Closing the window preserves unfinished changes.
-6. Use the pencil to edit a template's name, icon, or category. The icon picker
-   supports items, fluids, and signals; categories can be selected or created.
-   **+ Sew new Template** reuses this same form and creates a new island.
-7. **+ Add a Template** in World and **+ Reference a Template** in Collection
-   share a placement popup. Select a template and a sample position preset, or
-   choose Custom → Place freely. Custom uses a real blueprint cursor with native
-   preview, rotate/flip, click placement, and Q to cancel. Empty templates cannot
-   supply a blueprint preview. Presets currently add a reference entry only.
+## Development and verification
 
-## Iteration and validation
-
-**Reload** / **Ctrl+Shift+R** reload runtime Lua. Open editors retain their state;
-closed editors remain closed. New prototypes/assets require restarting Factorio.
-**Ctrl+Shift+U** or `/ui` opens the editor. **Ctrl+Shift+P** captures a screenshot
-under the profile's `script-output/fabric-ui/` directory.
-
-**Tune** has Reference rows, Change rows, and Fabric title controls. Offsets,
-icon size, spacing, replacement-arrow gaps, and reset inset update immediately.
-Debug controls and Add sample edits live in the top bar, outside product windows.
+**Reload / Ctrl+Shift+R** reloads Lua. **Ctrl+Shift+U** or `/ui` opens the editor.
+**Ctrl+Shift+P** saves a screenshot to the profile's `script-output/fabric-ui/`.
+**Tune** retains reference-row and title layout controls. Runtime log:
+`~/fabric-ui-playground/factorio-current.log`.
 
 ```sh
 ./ui-playground/smoke.sh
+# Shorter end-to-end UI test:
+./ui-playground/smoke.sh integration
+# Also check an existing save, without modifying the original:
+FABRIC_TEST_SAVE=/absolute/path/to/save.zip ./ui-playground/smoke.sh integration
 ```
 
-The smoke script uses a fresh temporary headless profile and removes it afterward.
-It requires Factorio 2.1.24's `--test-scenario` support. It exercises construction,
-row retention/tuning, highlights and temporary ghost cleanup, draft close/actions,
-camera-selected World instances, collection islands, name/category/icon editing,
-creation, blueprint cursor setup, and navigation persistence. It does not replace
-visual testing of pointer interaction and layout at different display scales.
+Tests run with the real dependencies in a temporary profile. They check original
+module placement, native grid composition and all 16 Grid rotation/mirror cases,
+capture coordinates and tile-only
+snapshots, cooperative mod settings, nested propagation, discard, cycle rejection,
+fixed World dimensions, underlay separation, neighbor precedence, and the shared
+creation/placement/commit/metadata UI handlers. Native cursor placement is exercised
+through Factorio's build API. Pointer input and visual layout still need graphical
+review; passing a scripted test is not a claim of complete gameplay coverage.
 
-Runtime log: `~/fabric-ui-playground/factorio-current.log` (or your custom profile).
-Save after reviewing if you want to retain edits and tuning on the next launch.
-
-## Shared components and current boundaries
-
-- `components.lua`: shared title bars, action stacks/icons, and debug toolbar.
-- `ui.lua`: shared reference rows, composite layout, and live tuning.
-- `overrides.lua`: shared scrollable change rows and actions for template drafts
-  and reference patches.
-- `metadata.lua`: shared creation/edit form, icon picker, and category popup.
-- `placement.lua`: shared Add/Reference dialog and blueprint cursor setup.
-- `navigation.lua`, `library.lua`: persistent Fabric controls and grouped chooser.
-- `workspaces.lua`, `collection.lua`, `world_areas.lua`: spatial contexts, template
-  islands, instance squares, and camera selection.
-- `world.lua`: fixtures, hover feedback, and camera focus.
-
-This is a UI testing ground, not a completed Fabric implementation. Recursive
-resolution, real diff/patch propagation, version conflict handling, and persistence
-of real backend template semantics are not implemented. Some older sample
-references acquire their catalog definition when first followed. Reference rows
-use separate top-level frames for native dragging; Add and View Changes also use
-separate frames so pressing them does not cover the reference list. Very long
-reference lists and cross-instance drag/reordering still need further design.
-
-The custom Fabric and needle icons come from Seppi's supplied SVG assets in
-`mod/graphics/`; PNG exports are included so no graphics tooling is needed to run.
+`runtime.lua` owns templates, cells, references, and rebuilding. `snapshots.lua`
+owns blueprint capture, transforms, placement, and wire restoration. Shared UI
+components remain in `components.lua`, `ui.lua`, `metadata.lua`, `placement.lua`,
+`library.lua`, `navigation.lua`, and `overrides.lua`.

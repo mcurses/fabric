@@ -1,9 +1,17 @@
 {
   "name": "fabric-ui-playground",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "title": "Fabric UI Playground",
   "author": "Fabric",
   "factorio_version": "2.1",
-  "dependencies": ["base >= 2.1.7"],
-  "description": "Standalone UI prototype with fixtures and script reload. No Fabric game logic."
+  "dependencies": [
+    "base >= 2.1.24",
+    "space-age",
+    "elevated-rails",
+    "quality",
+    "cybersyn2",
+    "cybersyn",
+    "GhostScanner4IgnoreAssigned"
+  ],
+  "description": "Functional snapshot-based Fabric prototype with the real city-grid library. Destructive rebuilds; no entity identity tracking."
 }

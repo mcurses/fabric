@@ -35,7 +35,7 @@ function M.show(player,state)
     if existing then existing.destroy() end
     return
   end
-  if existing and existing.tags.version==5 and existing.tags.complete then
+  if existing and existing.tags.version==6 and existing.tags.complete then
     pcall(function() existing.children[1].children[1].sprite="fabric-ui-brand" end)
     M.apply_tuning(player,state)
     return
@@ -60,12 +60,12 @@ function M.show(player,state)
   title.style.horizontally_stretchable=true
   title.add{type="sprite-button",sprite="utility/close",style="close_button",tags={action="fabric_controls_close"}}
   for _,spec in ipairs({
-    {"View Template Collection","library"},{"+ Sew new Template","template_new"},{"Edit on Map","edit_current"},
+    {"View Template Collection","library"},{"+ Sew new Template","template_new"},{"Edit on Map","edit_current"},{"Fabric Settings","fabric_settings"},
   }) do
     local button=panel.add{type="button",caption=spec[1],tags={action=spec[2]}}
     button.style.width=206; button.style.height=32
   end
-  panel.tags={complete=true,version=5}
+  panel.tags={complete=true,version=6}
   M.apply_tuning(player,state)
 end
 function M.close(player,state)
