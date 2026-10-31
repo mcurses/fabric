@@ -177,7 +177,8 @@ The mod notices settings changes on pieces it placed: `on_gui_closed` for an ent
 the 0-things change events for Cybersyn 2 combinators, rotation events. It compares the entity's settings with the value
 the instance's compile expects for that piece; a difference becomes `set_override` on the **most local** owner: the
 instance in a map block, or the component instance in an edit cell (where Commit then writes it into the version). Only
-settings, not position: moving a piece by hand is remove plus a plain entity.
+settings, not position: moving a piece by hand is remove plus a plain entity. (Superseded by D23: hand moves, replacements and deletions are
+overrides too; this section will be rewritten with the panel's model.)
 
 ### 4.2 Updates keep overrides in place
 

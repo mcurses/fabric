@@ -60,3 +60,10 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 | D20 | **Overrides cover the whole entity.** A piece with any hand change keeps all its settings through updates; a template change to that piece does not arrive until the override is cleared. Chosen over the per-setting merge that spike S1 showed to be workable. Settles Q3. | Max | final |
 | D21 | **What the template does to an overridden piece**: a **move** changes only its position, the overridden settings are kept; a **replacement** keeps the overridden settings where they apply (an upgrade, or any new entity that has the same setting); a **delete** deletes the piece and its override (D12). Settles Q4. | Max | final |
 | D22 | **Mirroring signals and train stops comes later.** The first version mirrors templates without rail signals, chain signals and train stops; a template with them says it cannot be mirrored. Moving them to the other side of the track is for a later version. Settles Q7. | Max | final |
+
+## Round 6 (2026-10-31): Seppi's first UI prototype
+
+| # | Decision | Who | State |
+|---|---|---|---|
+| D23 | **Hand moves, replacements and deletions of an instance's pieces are overrides**, listed in the instance's panel next to settings changes, each with its own reset (as in Seppi's prototype). Changes §4.1 ("only settings, not position") and how removed pieces (D13) are shown; the design doc follows once the panel's model is fixed. A hand move kept as an override needs the piece's identity (`06-spike-results.md`, S5). | Max, agreeing with Seppi's prototype | agreed; design text to follow |
+| D24 | **Work split proposed**: Seppi builds the whole interface through; Max builds the mechanics behind it and playtests. | Max | proposed, waiting for Seppi |
