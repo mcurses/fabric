@@ -67,3 +67,10 @@ Seppi reviewed the first draft with his agent (AXOS message 186); Max answered i
 |---|---|---|---|
 | D23 | **Hand moves, replacements and deletions of an instance's pieces are overrides**, listed in the instance's panel next to settings changes, each with its own reset (as in Seppi's prototype). Changes §4.1 ("only settings, not position") and how removed pieces (D13) are shown; the design doc follows once the panel's model is fixed. A hand move kept as an override needs the piece's identity (`06-spike-results.md`, S5). | Max, agreeing with Seppi's prototype | agreed; design text to follow |
 | D24 | **Work split proposed**: Seppi builds the whole interface through; Max builds the mechanics behind it and playtests. | Max | proposed, waiting for Seppi |
+
+## Round 7 (2026-10-31): identity limits and recovery
+
+| # | Decision | Who | State |
+|---|---|---|---|
+| D25 | **Mining a piece by hand and placing it again is a delete plus a new piece, not a move.** Mined items stack anonymously, so identity cannot travel through the inventory. Cut and paste is the way to move a piece and keep it. | Max | final |
+| D26 | **Recovery over perfect coverage**: rather than covering every edge case of identity, Fabric gets a change history of its own changes (Commits, placements, overrides, removals), where a single change can be undone, including the overrides it dropped on every instance. Goal: a wrong Commit never means fixing many instances by hand. Unsupported or unexpected cases at least inform the player (a log line), and are fixed by hand or covered later if they happen often. Today's design only has reset to a version (requirement 9), which does not bring back dropped overrides. | Max | proposed, to discuss with Seppi |
