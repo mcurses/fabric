@@ -250,7 +250,7 @@ function M.capture(surface,force,bounds,center,exclude)
   data.wires=wires
   data.tiles={}
   -- Only changes from the editor's default concrete floor belong to a snapshot.
-  for _,tile in ipairs(surface.find_tiles_filtered{area=bounds}) do
+  for _,tile in ipairs(surface.find_tiles_filtered{area=bounds,name={"refined-concrete","out-of-map"},invert=true}) do
     if tile.name~='refined-concrete' and tile.name~='out-of-map' then
       data.tiles[#data.tiles+1]={name=tile.name,position={x=tile.position.x-center.x,y=tile.position.y-center.y}}
     end

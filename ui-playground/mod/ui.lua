@@ -7,12 +7,19 @@ local highlight_styles=require("__fabric-ui-playground__/world").styles
 local M = {root="fabric_ui_playground", revision="34"}
 local ROW_HEIGHT, ROW_STEP, LIST_TOP = 36, 40, 52
 local function visible_items(state)
-  if state.drag and state.drag.preview then return state.drag.preview end
-  if state.pending_order then return state.pending_order.preview end
-  if state.workspace=="world" and state.world_camera_mode then
-    return world_areas.items(state)
+  local items=(state.drag and state.drag.preview) or (state.pending_order and state.pending_order.preview) or state.items
+  if state.workspace=='world' and state.camera_area and not state.camera_area.neighbors_expanded then
+    local out={};local group
+    for _,ref in ipairs(items) do
+      if ref.neighbor and not ref.neighbor_group then
+        if not group then group={id=-state.camera_area.id,neighbor_group=true,neighbor=true,name='Neighbors',icon='utility/list_view',members={},patches={}};out[#out+1]=group end
+        group.members[#group.members+1]=ref
+        for _,patch in ipairs(ref.patches or {}) do group.patches[#group.patches+1]=patch end
+      else out[#out+1]=ref end
+    end
+    return out
   end
-  return state.items
+  return items
 end
 local function list_top(state) return LIST_TOP+((state.workspace=="collection" or state.world_camera_mode) and 28 or 0)+(state.parent_template and 92 or 0) end
 local WINDOW_WIDTH, ROW_WIDTH, NAME_WIDTH = 420, 396, 272
@@ -54,6 +61,9 @@ function M.raise_rows(player,state)
   if panel then panel.bring_to_front() end
   local detail=player.gui.screen[overrides.panel_name]
   if detail then detail.bring_to_front() end
+  for _,name in ipairs({'fabric_ui_metadata','fabric_ui_category','fabric_ui_add_template','fabric_template_picker','fabric_position_picker','fabric_remove_confirm','fabric_usages'}) do
+    local modal=player.gui.screen[name];if modal then modal.bring_to_front() end
+  end
 end
 
 function M.layout(player, state, moving_id, raise_rows)
@@ -73,10 +83,9 @@ function M.layout(player, state, moving_id, raise_rows)
   end
   local footer=player.gui.screen[M.root.."_footer"]
   if footer then
-    if footer.add_template then
-      footer.add_template.caption=state.pending_order and 'Apply order' or (state.workspace=='collection' and '+ Reference a Template' or '+ Add a Template')
-      footer.add_template.tags={action=state.pending_order and 'apply_order' or 'add'}
-    end
+    footer.apply_order.visible=state.pending_order~=nil
+    footer.style.height=state.pending_order and 76 or 36
+    root.style.height=(list_top(state)+52)+#visible_items(state)*ROW_STEP+(state.pending_order and 40 or 0)
     footer.location={x=math.floor(origin.x+12*scale),
       y=math.floor(origin.y+(list_top(state)+4+#visible_items(state)*ROW_STEP)*scale)}
   end
@@ -92,7 +101,7 @@ function M.move(player, state, id, y)
   destination=math.max(1,math.min(#visible_items(state),destination))
   state.drag=state.drag or {id=id,tick=game.tick}
   state.drag.destination=destination
-  state.drag.preview=state.drag.preview or {table.unpack(state.pending_order and state.pending_order.preview or state.items)}
+  state.drag.preview=state.drag.preview or {table.unpack(visible_items(state))}
   local list=state.drag.preview
   for i,item in ipairs(list) do if item.id==id then table.remove(list,i);table.insert(list,destination,item);break end end
   local target=state.workspace=="collection" and state.parent_template or state.camera_area
@@ -265,7 +274,7 @@ function M.refresh_rows(player,state)
     if not player.gui.screen[row_name(item.id)] then create_row(player,item) end
     local count=overrides.count(item)
     local label=player.gui.screen[row_name(item.id)].contents.item_name
-    label.caption=item.name..(count>0 and "  [color=1,0.72,0.3]•[/color]" or "")
+    label.caption=item.name..(item.preview_only and " [color=0.55,0.8,1](Preview)[/color]" or "")..(count>0 and "  [color=1,0.72,0.3]•[/color]" or "")
     label.tooltip=(item.neighbor and "Neighbor · cannot be removed · last row wins\n" or "")..item.name..(count>0 and (" · "..count.." patches") or " · No patches").."\nClick to locate and inspect"
   end
   for _, element in pairs(player.gui.screen.children) do
@@ -289,8 +298,14 @@ function M.build(player, state)
   root.style.padding=12
   local window_height=(list_top(state)+52)+#visible_items(state)*ROW_STEP
   root.style.height=window_height
-  components.titlebar(root,{title=state.workspace=="collection" and "Edit Template" or "Edit Instance",close_tags={action="close"},
-    icon_actions=state.parent_template and state.parent_template.origin_id and {{name="underlay",sprite="utility/expand",tags={action="toggle_underlay"}}} or nil})
+  local actions={}
+  if state.parent_template then
+    actions[#actions+1]={name='usages',sprite='utility/map',tags={action='show_usages'},tooltip='Show Usages'}
+    actions[#actions+1]={name='underlay',sprite='fabric-ui-eye',tags={action='toggle_underlay'},tooltip='Toggle preview underlay'}
+  elseif state.camera_area then
+    actions[#actions+1]={name='neighbors',sprite='utility/list_view',tags={action='toggle_neighbors'},tooltip='Group or expand neighbors'}
+  end
+  components.titlebar(root,{title=state.workspace=='collection' and 'Edit Template' or 'Edit Instance',close_tags={action='close'},icon_actions=actions})
   components.meta_bar(player)
   navigation.show(player,state)
   if state.workspace=="world" and state.world_camera_mode then
@@ -341,6 +356,8 @@ function M.build(player, state)
   local footer=player.gui.screen.add{type="frame",name=M.root.."_footer",direction="vertical",style="invisible_frame"}
   footer.style.width=ROW_WIDTH
   footer.style.height=36
+  local apply=footer.add{type='button',name='apply_order',caption='Apply order',tags={action='apply_order'},visible=state.pending_order~=nil}
+  apply.style.width=ROW_WIDTH;apply.style.height=36
   local add=footer.add{type="button", name="add_template", caption=state.workspace=="collection" and "+ Reference a Template" or "+ Add a Template",
     style="train_schedule_add_interrupt_station_button", tags={action="add"}}
   add.enabled=state.workspace~="collection" or state.parent_template~=nil
@@ -354,4 +371,5 @@ function M.build(player, state)
   if state.override_selected then overrides.show(player,state,state.override_selected) end
 end
 
+M.visible_items=visible_items
 return M

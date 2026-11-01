@@ -33,26 +33,31 @@ local D=require('__fabric-ui-playground__/diff')
 local G=require('__fabric-ui-playground__/ghosts')
 function M.apply_tuning(player,state) end
 function M.count(item) return #(item.patches or {}) end
-function M.changes(t)
-  local changes=D.compare(t.snapshot,R.capture(t))
+function M.changes(t,force)
+  if t.review_cache and not force then return t.review_cache end
+  local current=R.capture(t)
+  t.draft_dirty=t.area and R.signature(current)~=t.area.baseline or false
+  local changes=D.compare(t.snapshot,current)
   local ref_change=#t.children~=#t.committed_refs
-  for i,r in ipairs(t.children) do local old=t.committed_refs[i];if not old or old.id~=r.id or old.x~=r.x or old.y~=r.y then ref_change=true end end
+  for i,r in ipairs(t.children) do local old=t.committed_refs[i];if not old or old.id~=r.id or old.x~=r.x or old.y~=r.y or old.preview_only~=r.preview_only then ref_change=true end end
   if ref_change then changes[#changes+1]={kind='References',reference=true} end
+  t.review_cache=changes
   return changes
 end
-function M.pending_count(template) return #M.changes(template) end
+function M.pending_count(template) return #(template.review_cache or {}) end
 function M.close(player,state)
   local panel=player.gui.screen[M.panel_name];if panel then panel.destroy() end
   state.override_selected=nil;state.editing_id=nil;state.reviewing_parent=nil;state.review_changes=nil
   components.sample_action(player,nil);world.clear(state)
 end
 local function source_for(state,id)
+  if id<0 and state.camera_area then return R.neighbor_group(state.camera_area),false end
   if state.reviewing_parent and state.parent_template and state.parent_template.id==id then return state.parent_template,true end
   for _,ref in ipairs(state.items) do if ref.id==id then return ref,false end end
 end
 function M.show(player,state,id)
   local source,editing=source_for(state,id);if not source then return end
-  if editing then R.check_dirty(source) elseif state.workspace=='world' then R.scan_patches() end
+  if editing then M.changes(source,true) elseif state.workspace=='world' then R.scan_patches() end
   state.override_selected=id
   state.review_changes=editing and M.changes(source) or source.patches or {}
   local panel=player.gui.screen[M.panel_name]
@@ -92,6 +97,7 @@ function M.show(player,state,id)
   components.action_stack(panel,id,{{caption='Stitch into Template',icon='stitch',action=editing and 'edit_commit' or 'patch_commit'},
     {caption='Discard Changes',icon='reset',action=editing and 'edit_discard' or 'patch_discard'}},#state.review_changes>0 and not source.neighbor)
   panel.bring_to_front()
+  M.preview(player,state,id)
 end
 function M.edit(player,state,id,change,action)
   local source,editing=source_for(state,id);if not source then return end
@@ -110,19 +116,30 @@ function M.edit(player,state,id,change,action)
   elseif state.workspace=='world' then
     R.patch_action(player,state.camera_area,source,selected,action=='patch_commit' or action=='patch_accept')
   end
-  M.show(player,state,id)
+  if not storage.fabric_job then M.show(player,state,id) end
 end
 function M.preview(player,state,id,index,focus)
-  local source,editing=source_for(state,id);local c=(state.review_changes or {})[index]
-  if not source or not c or c.reference then return end
+  local source,editing=source_for(state,id)
+  if not source then return end
   world.clear(state)
   local center=editing and source.area.center or state.camera_area.center
-  local snapshot=S.empty();snapshot.entities={}
-  if not c.tile then
-    if c.before then snapshot.entities[#snapshot.entities+1]=c.before end
-    if c.after then snapshot.entities[#snapshot.entities+1]=c.after end
-    state.preview_ghosts=G.show(player.surface,snapshot,center)
-  end
-  if focus then local e=c.after or c.before;player.teleport({center.x+e.position.x,center.y+e.position.y}) end
+  local changes=index and {state.review_changes[index]} or state.review_changes or {}
+  local snapshot=S.empty();state.highlight_objects={}
+  for _,c in ipairs(changes) do if not c.reference then
+    local color=c.kind=='Deleted' and {1,.25,.2} or (c.kind=='Added' and {.25,1,.4} or {1,.75,.2})
+    for _,e in ipairs({c.after or c.before,c.after and c.before or nil}) do
+      local pos={x=center.x+e.position.x,y=center.y+e.position.y}
+      local real=not c.tile and S.find(player.surface,e,center)
+      local proto=not c.tile and prototypes.entity[e.name]
+      local b=real and real.bounding_box
+      local sb=proto and proto.selection_box or {left_top={x=-.5,y=-.5},right_bottom={x=.5,y=.5}}
+      local lt=b and b.left_top or {x=pos.x+sb.left_top.x,y=pos.y+sb.left_top.y}
+      local rb=b and b.right_bottom or {x=pos.x+sb.right_bottom.x,y=pos.y+sb.right_bottom.y}
+      state.highlight_objects[#state.highlight_objects+1]=rendering.draw_rectangle{surface=player.surface,left_top=lt,right_bottom=rb,color=color,width=index and 5 or 3,draw_on_ground=false,players={player.index}}
+      if not real and not c.tile then snapshot.entities[#snapshot.entities+1]=e end
+    end
+  end end
+  state.preview_ghosts=G.show(player.surface,snapshot,center)
+  if focus and changes[1] and not changes[1].reference then local e=changes[1].after or changes[1].before;player.teleport({center.x+e.position.x,center.y+e.position.y}) end
 end
 return M

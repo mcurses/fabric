@@ -18,6 +18,7 @@ function M.show(player,state)
   scroll.style.height=math.min(420,math.max(180,player.display_resolution.height/player.display_scale-180))
   local catalog=workspaces.catalog(player,state)
   local group_count=0
+  state.library_queue={};state.library_index=1
   for _,category in ipairs(workspaces.categories(state)) do
     local items={}
     for _,template in ipairs(catalog) do
@@ -32,6 +33,22 @@ function M.show(player,state)
       local grid=section.add{type="table",name="grid",column_count=5}
       grid.style.horizontal_spacing=12; grid.style.vertical_spacing=12
       for _,template in ipairs(items) do
+        state.library_queue[#state.library_queue+1]={grid=grid,template=template}
+
+      end
+    end
+  end
+  panel.auto_center=true
+end
+function M.tick(player,state)
+  local queue=state.library_queue
+  if not queue then return end
+  if not player.gui.screen[M.name] then state.library_queue=nil;return end
+  for _=1,3 do
+    local entry=queue[state.library_index]
+    if not entry then state.library_queue=nil;return end
+    local grid,template=entry.grid,entry.template
+    if grid.valid then
         local card=grid.add{type="flow",direction="vertical"}
         card.style.width=96; card.style.height=128; card.style.horizontal_align="center"
         card.add{type="sprite-button",sprite=template.icon or "item/blueprint",
@@ -40,9 +57,8 @@ function M.show(player,state)
         local label=card.add{type="label",caption=template.name..(overrides.pending_count(template)>0 and " [color=1,0.72,0.3]•[/color]" or ""),tags={action="library_select",id=template.id}}
         label.style.width=96; label.style.height=44
         label.style.single_line=false; label.style.horizontal_align="center"
-      end
     end
+    state.library_index=state.library_index+1
   end
-  panel.auto_center=true
 end
 return M

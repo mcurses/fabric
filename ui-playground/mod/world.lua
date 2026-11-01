@@ -31,8 +31,14 @@ function M.highlight(player,state,id)
   M.clear(state)
   local demo=state.world_demo
   local group=demo and demo.groups[id]
+  if id<0 and state.camera_area then
+    group={entities={}}
+    for _,ref in ipairs(state.camera_area.items) do if ref.neighbor then
+      for _,entity in ipairs((demo.groups[ref.id] or {}).entities or {}) do group.entities[#group.entities+1]=entity end
+    end end
+  end
   if not group or not demo.surface.valid or player.surface.index~=demo.surface.index then return end
-  local ref
+  local ref=id<0 and state.camera_area and R.neighbor_group(state.camera_area) or nil
   for _,item in ipairs(state.items or {}) do if item.id==id then ref=item;break end end
   if ref then
     local center,snapshot
@@ -104,6 +110,12 @@ end
 function M.focus(player,state,id)
   local demo=state.world_demo
   local group=demo and demo.groups[id]
+  if id<0 and state.camera_area then
+    group={entities={}}
+    for _,ref in ipairs(state.camera_area.items) do if ref.neighbor then
+      for _,entity in ipairs((demo.groups[ref.id] or {}).entities or {}) do group.entities[#group.entities+1]=entity end
+    end end
+  end
   if not group or not demo.surface.valid then
     player.print("This reference has no buildings to locate.")
     return false

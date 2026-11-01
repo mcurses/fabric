@@ -8,7 +8,7 @@ end
 local function action(p,name,id)
   for _,root in ipairs({p.gui.screen,p.gui.top,p.gui.left}) do
     local el=find(root,function(e) return e.tags.action==name and (not id or e.tags.id==id) end)
-    if el then remote.call('fabric-ui-test','click',p.index,el);return end
+    if el then remote.call('fabric-ui-test','click',p.index,el);remote.call('fabric-ui-test','drain',p.index);return end
   end
   error('Missing action '..name)
 end
@@ -45,6 +45,13 @@ local reloaded=false
 script.on_load(function() reloaded=true end)
 script.on_event(defines.events.on_tick,function(e)
   local p=game.get_player(1);if not p then return end
+  if reloaded and storage.resume_job then
+    if remote.call('fabric-ui-test','busy') then return end
+    origin_id=storage.origin_id;child_id=storage.child_id
+    assert(inspect(p).catalog[origin_id].entities==2,'Queued commit survives Lua reload')
+    storage.idle_captures=inspect(p).catalog[origin_id].captures;storage.idle_tick=e.tick
+    reloaded=false;step=7;log('QUEUED_RELOAD_PASS');return
+  end
   if reloaded then
     local db=inspect(p)
     local t=db.catalog[storage.origin_id];local child=db.catalog[storage.child_id]
@@ -64,6 +71,7 @@ script.on_event(defines.events.on_tick,function(e)
     assert(child.origin_id==origin_id and child.refs==0 and child.underlay>0)
     action(p,'add')
     local form=p.gui.screen.fabric_ui_add_template
+    assert(form.template_picker.selected_index==0 and not form.confirm.enabled,'No template is preselected')
     choose(p,form.template_picker,origin_id);choose(p,form.position_picker,#form.position_picker.items)
     action(p,'placement_picker')
     local picker=p.gui.screen.fabric_template_picker;assert(picker)
@@ -136,6 +144,51 @@ script.on_event(defines.events.on_tick,function(e)
     action(p,'apply_order')
     assert(inspect(p).cells[1].first_ref_id==storage.dragged_id,'Apply order persists the displayed ordering')
     log('DEFERRED_REORDER_PASS')
+    action(p,'toggle_neighbors')
+    local individual=0;for _,el in ipairs(p.gui.screen.children) do if el.tags.fabric_ui_row and el.contents.item_name.caption:find('Neighbor ·',1,true) then individual=individual+1 end end
+    assert(individual>0,'Neighbors expand individually')
+    action(p,'toggle_neighbors')
+    local combined=0;for _,el in ipairs(p.gui.screen.children) do if el.tags.fabric_ui_row and el.tags.id<0 then combined=combined+1 end end
+    assert(combined==1,'Neighbors combine as one row')
+    action(p,'add');choose(p,p.gui.screen.fabric_ui_add_template.template_picker,child_id);action(p,'placement_confirm')
+    source(p,child_id);action(p,'add')
+    local form=p.gui.screen.fabric_ui_add_template
+    choose(p,form.template_picker,origin_id);form.preview_only.state=true
+    action(p,'placement_confirm');commit(p)
+    assert(inspect(p).catalog[child_id].preview_refs==1,'Preview-only references persist')
+    assert(not p.surface.find_entity('iron-chest',{child_center.x+3.5,child_center.y+3.5}),'Preview-only never builds real contents')
+    source(p,origin_id);action(p,'show_usages')
+    local usages=inspect(p).usages;local nested=false;local child_uses=0
+    for _,entry in ipairs(usages) do if entry.cell and #entry.via>0 then nested=true end;if entry.template==child_id then child_uses=child_uses+1 end end
+    assert(nested and child_uses==1,'Usages include nested world placements and exclude preview-only refs')
+    action(p,'usages_close')
+    action(p,'template_changes')
+    p.cursor_stack.set_stack{name='small-lamp',count=1}
+    p.build_from_cursor{position={origin_center.x+12.5,origin_center.y+12.5}}
+    p.clear_cursor()
+    storage.live_tick=e.tick;step=5
+  elseif step==5 and e.tick>storage.live_tick+2 then
+    assert(inspect(p).review_count==1,'Open diff updates on the next tick after building')
+    assert(inspect(p).highlight_count>0,'All changes highlighted without hover')
+    local row=find(p.gui.screen.fabric_ui_overrides,function(el)return el.tags.override_change end)
+    remote.call('fabric-ui-test','hover',p.index,row)
+    assert(inspect(p).highlight_count>0,'Diff hover creates visible top-layer highlight')
+    remote.call('fabric-ui-test','leave',p.index,row)
+    assert(inspect(p).highlight_count>0,'Leaving diff restores all changes')
+    local button=find(p.gui.screen.fabric_ui_overrides,function(el)return el.tags.action=='edit_commit' end)
+    remote.call('fabric-ui-test','click',p.index,button)
+    assert(remote.call('fabric-ui-test','busy'),'Commit queues work immediately')
+    assert(p.gui.screen.fabric_loading,'Progress is visible before work begins')
+    storage.async_tick=e.tick;step=6
+  elseif step==6 and remote.call('fabric-ui-test','busy') and e.tick>storage.async_tick+20 and not storage.resume_job then
+    storage.resume_job=true;game.reload_mods();return
+  elseif step==6 and not remote.call('fabric-ui-test','busy') then
+    assert(e.tick>storage.async_tick+3,'Rebuild spreads across actual game ticks')
+    assert(inspect(p).catalog[origin_id].entities==2,'Async commit completed')
+    storage.idle_captures=inspect(p).catalog[origin_id].captures;storage.idle_tick=e.tick;step=7
+  elseif step==7 and e.tick>storage.idle_tick+250 then
+    assert(inspect(p).catalog[origin_id].captures==storage.idle_captures,'Idle editor does not periodically capture the padded island')
+    log('RESPONSIVE_PREVIEW_USAGES_LIVE_DIFF_ASYNC_PASS')
     log('UI_INTEGRATION_PASS');script.finish_test(true);step=100
   end
 end)

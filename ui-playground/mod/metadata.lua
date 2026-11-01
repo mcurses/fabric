@@ -8,6 +8,8 @@ local function destroy(player,name)
   if panel then panel.destroy() end
 end
 function M.close(player)
+  if storage.fabric_job and not storage.fabric_job.finishing then storage.fabric_job.close_panels[M.name]=true;return end
+
   destroy(player,M.name); destroy(player,M.category_name)
 end
 function M.show(player,state,creating)
@@ -47,7 +49,7 @@ function M.show(player,state,creating)
     sizes.add{type="label",caption="Height"}
     sizes.add{type="textfield",name="cell_height",text="160",numeric=true,allow_decimal=false,allow_negative=false}.style.width=72
     panel.add{type="label",caption="Editing padding (each side)",style="caption_label"}
-    panel.add{type="textfield",name="padding",text="160",numeric=true,allow_decimal=false,allow_negative=false}.style.width=100
+    panel.add{type="textfield",name="padding",text="32",numeric=true,allow_decimal=false,allow_negative=false}.style.width=100
   elseif template.width then
     panel.add{type="label",caption=template.width.." × "..template.height.." · padding "..template.padding..(template.is_origin and " · Origin Template" or "")}
   end

@@ -23,7 +23,8 @@ Functional prototype limits — updated 2026-11-01
   guides, never part of captures/commits, and are cleared when leaving the preview.
 - World cell dimensions remain fixed. The initial World has four cells; expanding
   it arbitrarily is not yet a product flow. Origin/custom layout plus padding works.
-- One row represents each whole neighbor. Ownership is by entity center at the
+- Neighbors are one group by default, expandable into whole-neighbor rows.
+  Ownership is by entity center at the
   receiving cell boundary. Fine-grained neighbor overrides and an anchors editor
   remain future work. Source presets are imported; no slots editor yet.
 - Source is the October 24 book, not the current multiplayer save. All 20 source
@@ -33,3 +34,22 @@ Functional prototype limits — updated 2026-11-01
   operations, throughput, concurrent multiplayer edits, exotic prototype transforms,
   and production-scale performance are not certified. Native capture excludes
   trains and the default refined-concrete editor floor. Save to persist your edits.
+
+Responsiveness pass (2026-11-01)
+- UI rebuild operations use a saveable single-writer task queue, with progress in
+  the action button and a progress panel. Floor work is split into 32-tile batches;
+  world placement runs one blueprint layer per tick. Individual native blueprint
+  builds/captures and editor composition are still synchronous engine calls, so
+  very large layers can still cause a short frame spike. This is not a constant
+  millisecond budget or a production-scale performance guarantee.
+- Collection cards populate incrementally. Change badges use cached authoring
+  diffs; script changes that do not raise build/mine/settings events refresh when
+  their changes view is opened. Idle editors do not poll entire padded islands.
+- Preview-only references are editor underlays, omitted from built compositions
+  and physical usages. Usages follow committed references, including nested paths;
+  the list describes placements, not a guarantee that every building survives
+  later overlapping layers.
+- Neighbors default to one contiguous priority group after The Grid and before
+  own additions. The header expands individual neighbors; this is saved per cell.
+  Collapsing gathers them at the first neighbor's priority. Reordering the group
+  moves all its neighbors together.

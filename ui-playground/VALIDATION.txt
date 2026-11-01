@@ -38,3 +38,20 @@ Passed all source/native transform tests plus:
 - Fresh world has no false patches from overlapping rails or generated outputs.
 - Today's client save migrates to packed islands and the explicit Grid row.
 The client was reloaded successfully; its unsaved draft remains open.
+
+2026-11-01 responsiveness pass:
+- Existing headless entity/rail transform, nested snapshot, patch, and GUI flows
+  pass after queue integration. Native pointer automation on this Mac remains
+  unreliable; GUI integration invokes the actual registered GUI handlers.
+- Extended integration exercises empty initial selection, preview-only references
+  excluded from real builds, direct/transitive usage discovery, grouped/expanded
+  neighbors, native player build -> next-tick live diff, hover/all-change outlines,
+  multi-tick commit progress, and 250 idle ticks without recapturing the island.
+- Reload and migration of the user's preserved save are tested separately.
+- Final focused run: UI_INTEGRATION_PASS, QUEUED_RELOAD_PASS,
+  RESPONSIVE_PREVIEW_USAGES_LIVE_DIFF_ASYNC_PASS and SAVE_RELOAD_PASS.
+- Full mechanics run: FUNCTIONAL_SMOKE_PASS (library, cooperative metadata,
+  transforms, nesting, neighbor precedence, geometric patches and preview ghosts).
+- Live profile restarted with current edited save, custom icon loaded, neighbor
+  migration completed; instance screenshot verified grouped neighbors and separate
+  Apply order/Add controls. Original and fresh pre-migration backups retained.

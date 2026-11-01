@@ -28,5 +28,5 @@ if [[ "${1:-}" != persistence ]]; then
   "$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-scenario ui-integration --test-ticks 1200
 fi
 if [[ -n "${FABRIC_TEST_SAVE:-}" ]]; then
-  "$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-save "$FABRIC_TEST_SAVE" --test-arg persistence --test-ticks 180
+  "$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-save "$FABRIC_TEST_SAVE" --test-arg persistence --test-ticks 1200
 fi

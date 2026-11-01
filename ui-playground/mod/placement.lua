@@ -8,11 +8,13 @@ local ghosts=require('__fabric-ui-playground__/ghosts')
 local world=require('__fabric-ui-playground__/world')
 local M={name="fabric_ui_add_template",tool="blueprint"}
 function M.close(player,state)
+  if storage.fabric_job and not storage.fabric_job.finishing then storage.fabric_job.close_panels[M.name]=true;return end
   local panel=player.gui.screen[M.name]
   if panel then panel.destroy() end
   local picker=player.gui.screen.fabric_template_picker;if picker then picker.destroy() end
+  local positions=player.gui.screen.fabric_position_picker;if positions then positions.destroy() end
   world.clear(state)
-  state.placement=nil
+  state.placement=nil;state.preview_pending=nil
 end
 function M.refresh(player,state)
   local panel=player.gui.screen[M.name]
@@ -20,6 +22,9 @@ function M.refresh(player,state)
   if not panel or not draft then return end
   local template=draft.catalog[panel.template_picker.selected_index]
   draft.template=template
+  panel.confirm.enabled=template~=nil
+  panel.position_button.enabled=template~=nil
+  if not template then panel.template_button.caption='Click to select';panel.hint.caption='';return end
   if panel.template_button then panel.template_button.caption="[img="..template.icon.."]  "..template.name end
   template.position_presets={{name="Cell origin",x=0,y=0}}
   for _,slot in ipairs(template.slots or {}) do
@@ -31,27 +36,32 @@ function M.refresh(player,state)
   local selected=panel.position_picker.selected_index
   panel.position_picker.items=choices
   panel.position_picker.selected_index=math.max(1,math.min(selected,#choices))
+  panel.position_button.caption=choices[panel.position_picker.selected_index]
   local custom=panel.position_picker.selected_index==#choices
   panel.hint.caption=custom and "Choose a point in the world with the placement cursor."
     or "Use this template's saved position preset."
   panel.confirm.caption=custom and "Place freely" or (state.workspace=="collection" and "Reference Template" or "Add Template")
+  M.preview(player,state,template.id,panel.position_picker.selected_index)
 end
 function M.show(player,state)
   M.close(player,state)
   state.placement={catalog=workspaces.catalog(player,state),items=state.items,
-    surface=player.surface,parent=state.parent_template,cell=state.camera_area}
+    surface=player.surface,preview_enabled=true,parent=state.parent_template,cell=state.camera_area}
   local panel=player.gui.screen.add{type="frame",name=M.name,direction="vertical"}
   panel.style.width=380
   components.titlebar(panel,{title=state.workspace=="collection" and "Reference a Template" or "Add a Template",
-    close_tags={action="placement_close"}})
+    close_tags={action="placement_close"},icon_actions={{name="preview",sprite="fabric-ui-eye",tags={action="placement_toggle_preview"},tooltip="Toggle placement preview"}}})
   panel.add{type="label",caption="Template",style="caption_label"}
   local names={}
   for _,template in ipairs(state.placement.catalog) do names[#names+1]=template.name end
-  panel.add{type="drop-down",name="template_picker",items=names,selected_index=1,tags={action="placement_template"}}.style.width=348
+  panel.add{type="drop-down",name="template_picker",items=names,selected_index=0,tags={action="placement_template"}}.style.width=348
   panel.template_picker.visible=false
   panel.add{type='button',name='template_button',caption='Select Template',tags={action='placement_picker'}}.style.width=348
   panel.add{type="label",caption="Position",style="caption_label"}.style.top_margin=12
   panel.add{type="drop-down",name="position_picker",items={"Center"},selected_index=1,tags={action="placement_position"}}.style.width=348
+  panel.position_picker.visible=false
+  panel.add{type='button',name='position_button',caption='Cell origin',tags={action='placement_positions'}}.style.width=348
+  if state.parent_template then panel.add{type='checkbox',name='preview_only',caption='Only as Preview',state=false,tags={action='placement_preview_only'},tooltip='Show an underlay in this editor; do not build it as part of this template.'} end
   local hint=panel.add{type="label",name="hint",caption=""}
   hint.style.single_line=false; hint.style.maximal_width=348
   local button=panel.add{type="button",name="confirm",caption="Add Template",tags={action="placement_confirm"}}
@@ -81,17 +91,44 @@ function M.pick(player,state,index)
   local picker=player.gui.screen.fabric_template_picker;if picker then picker.destroy() end
   player.gui.screen[M.name].template_picker.selected_index=index;M.refresh(player,state)
 end
-function M.preview(player,state,id)
+function M.preview(player,state,id,preset_index)
   world.clear(state)
-  local draft=state.placement;if not draft then return end
+  local draft=state.placement;if not draft or not draft.preview_enabled then return end
   local target=draft.parent and draft.parent.area or draft.cell
-  if target then state.preview_ghosts=ghosts.show(player.surface,runtime.flatten(id),target.center) end
+  local template=runtime.template(id)
+  local preset=preset_index and (template.position_presets or {})[preset_index]
+  if preset_index and not preset then return end
+  if target then
+    local center={x=target.center.x+(preset and preset.x or 0),y=target.center.y+(preset and preset.y or 0)}
+    state.preview_ghosts=ghosts.show(player.surface,runtime.flatten(id),center)
+  end
+end
+function M.restore_preview(player,state)
+  local draft=state.placement;local panel=player.gui.screen[M.name]
+  if draft and draft.template and panel then M.preview(player,state,draft.template.id,panel.position_picker.selected_index) end
+end
+function M.positions(player,state)
+  local old=player.gui.screen.fabric_position_picker;if old then old.destroy();M.restore_preview(player,state);return end
+  local draft=state.placement;if not draft or not draft.template then return end
+  local panel=player.gui.screen.add{type='frame',name='fabric_position_picker',direction='vertical'}
+  components.titlebar(panel,{title='Position',close_tags={action='placement_positions'}})
+  for i,preset in ipairs(draft.template.position_presets) do
+    panel.add{type='button',caption=preset.name,raise_hover_events=true,tags={action='placement_position_pick',index=i,preview_template=draft.template.id,preview_position=i}}.style.width=300
+  end
+  panel.add{type='button',caption='Custom',tags={action='placement_position_pick',index=#draft.template.position_presets+1}}.style.width=300
+  panel.auto_center=true
+end
+function M.position_pick(player,state,index)
+  player.gui.screen[M.name].position_picker.selected_index=index
+  local popup=player.gui.screen.fabric_position_picker;if popup then popup.destroy() end
+  M.refresh(player,state)
 end
 function M.finish(player,state,position)
   local draft=state.placement
   if not draft or draft.items~=state.items or draft.surface~=player.surface or draft.parent~=state.parent_template then
     M.close(player,state); return false
   end
+  state.pending_order=nil;state.drag=nil
   runtime.add_reference(player,state,draft.template.id,position,draft.build)
   workspaces.select_camera(player,state)
   M.close(player,state)
@@ -102,6 +139,8 @@ function M.confirm(player,state)
   if not panel or not state.placement then return false end
   M.refresh(player,state)
   local draft=state.placement
+  if not draft.template then return false end
+  draft.preview_only=panel.preview_only and panel.preview_only.state or false
   local index=panel.position_picker.selected_index
   if index>#draft.template.position_presets then
     if not player.clear_cursor() then return false end

@@ -1,4 +1,5 @@
 data:extend({
+  {type="sprite",name="fabric-ui-eye",filename="__fabric-ui-playground__/graphics/eye-64.png",width=64,height=64,scale=0.5,flags={"gui-icon"}},
   {type="sprite",name="fabric-ui-brand",filename="__fabric-ui-playground__/graphics/fabric-white-56.png",
     width=56,height=56,scale=0.5,flags={"gui-icon"}},
   {type="selection-tool",name="fabric-ui-place",icon="__fabric-ui-playground__/graphics/fabric-56.png",

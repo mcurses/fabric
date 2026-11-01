@@ -32,4 +32,8 @@ if [[ ! -f "$LAB/saves/playground.zip" ]]; then
   "$BIN" "${args[@]}" --create "$LAB/saves/playground.zip" --map-gen-settings "$SOURCE/map-gen-settings.json" > "$LAB/create.log" 2>&1 || { cat "$LAB/create.log"; exit 1; }
 fi
 if [[ "${1:-}" == setup ]]; then echo "Ready: $LAB"; exit 0; fi
+# Steam otherwise relaunches without our isolated profile arguments.
+if [[ "$BIN" == *"Steam/steamapps/"* ]]; then
+  export SteamAppId=427520 SteamGameId=427520
+fi
 exec "$BIN" "${args[@]}" --load-game "$LAB/saves/playground.zip"

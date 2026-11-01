@@ -3,6 +3,21 @@ local D=require('__fabric-ui-playground__/diff')
 local G=require('__fabric-ui-playground__/ghosts')
 local seeds=require('__fabric-ui-playground__/fixtures/library')
 local M={}
+local function queue(task)
+  local job=storage.fabric_job
+  job.tasks[#job.tasks+1]=task
+end
+local function insert_tasks(tasks)
+  local job=storage.fabric_job
+  for i=#tasks,1,-1 do table.insert(job.tasks,job.index+1,tasks[i]) end
+end
+local function tile_tasks(tasks,sf,bounds,name)
+  for x=math.floor(bounds.left_top.x),math.ceil(bounds.right_bottom.x)-1,32 do
+    for y=math.floor(bounds.left_top.y),math.ceil(bounds.right_bottom.y)-1,32 do
+      tasks[#tasks+1]={kind='floor',surface=sf,bounds={left_top={x=x,y=y},right_bottom={x=math.min(x+32,bounds.right_bottom.x),y=math.min(y+32,bounds.right_bottom.y)}},name=name}
+    end
+  end
+end
 local function box(center,w,h,pad)
   pad=pad or 0
   return {left_top={x=center.x-w/2-pad,y=center.y-h/2-pad},right_bottom={x=center.x+w/2+pad,y=center.y+h/2+pad}}
@@ -29,6 +44,7 @@ end
 function M.store() return storage.fabric_snapshot end
 function M.template(id) return M.store().templates[id] end
 function M.ref_name(ref)
+  if ref.neighbor_group then return "Neighbors" end
   if ref.neighbor then local c=M.store().cells[ref.neighbor];return 'Neighbor · '..c.name end
   local t=M.template(ref.template_id);return t and t.name or 'Missing template'
 end
@@ -46,8 +62,10 @@ function M.layers(id,seen)
   local t=assert(M.template(id),'Missing template');seen[id]=true
   local out={{snapshot=t.snapshot}}
   for _,ref in ipairs(t.committed_refs) do
+    if not ref.preview_only then
     for _,layer in ipairs(M.layers(ref.template_id,seen)) do
       out[#out+1]={snapshot=S.transform(layer.snapshot,ref),reference=ref.id}
+    end
     end
   end
   seen[id]=nil;return out
@@ -59,6 +77,8 @@ function M.depends(id,target,seen)
   return false
 end
 function M.flatten(id)
+  local db=M.store();db.preview_cache=db.preview_cache or {}
+  if db.preview_cache[id] then return S.copy(db.preview_cache[id]) end
   local layers=M.layers(id)
   if #layers==1 then return S.copy(layers[1].snapshot) end
   -- Resolve overlaps through the same native build rules as the editor before
@@ -77,6 +97,7 @@ function M.flatten(id)
   S.settle(sf,game.forces.player)
   local result=S.capture(sf,game.forces.player,bounds,{x=0,y=0})
   S.clear(sf,bounds)
+  db.preview_cache[id]=S.copy(result)
   return result
 end
 local function stable(v)
@@ -104,6 +125,7 @@ function M.signature(snapshot)
   table.sort(parts);return table.concat(parts,'\n')
 end
 function M.capture(t)
+  t.capture_serial=(t.capture_serial or 0)+1
   if not t.area or not t.area.built then return S.copy(t.snapshot) end
   return S.capture(M.store().collection_surface,game.forces.player,t.area.edit_bounds,t.area.center,t.area.excluded)
 end
@@ -111,7 +133,7 @@ local function ref_signature(refs)
   local out={}
   for _,ref in ipairs(refs or {}) do
     out[#out+1]={template_id=ref.template_id,x=ref.x,y=ref.y,direction=ref.direction,
-      flip_horizontal=ref.flip_horizontal,flip_vertical=ref.flip_vertical}
+      flip_horizontal=ref.flip_horizontal,flip_vertical=ref.flip_vertical,preview_only=ref.preview_only}
   end
   return stable(out)
 end
@@ -131,8 +153,11 @@ end
 function M.underlay(player,t)
   local area=t.area;if not area then return end
   clear_underlay(area)
-  if t.origin_id and t.show_underlay~=false then
-    area.underlay=G.show(M.store().collection_surface,M.flatten(t.origin_id),area.center)
+  if t.show_underlay~=false then
+    if t.origin_id then area.underlay=G.show(M.store().collection_surface,M.flatten(t.origin_id),area.center) end
+    for _,ref in ipairs(t.children) do if ref.preview_only then
+      for _,ghost in ipairs(G.show(M.store().collection_surface,S.transform(M.flatten(ref.template_id),ref),area.center)) do area.underlay[#area.underlay+1]=ghost end
+    end end
   end
 end
 function M.center_for(t)
@@ -145,15 +170,17 @@ function M.center_for(t)
   end
 end
 function M.render_editor(player,t,own)
+  if storage.fabric_job and not storage.fabric_job.in_task then queue{kind='editor',id=t.id,own=own};return end
   local area=t.area;if not area then return end
+  t.review_cache=nil
   local sf=M.store().collection_surface
   local was_dirty=own and (t.draft_dirty or (area.baseline and M.signature(own)~=area.baseline)) or false
-  S.clear(sf,area.edit_bounds);floor(sf,area.edit_bounds,'refined-concrete')
+  if not (storage.fabric_job and storage.fabric_job.prepared) then S.clear(sf,area.edit_bounds);floor(sf,area.edit_bounds,'refined-concrete') end
   area.groups={};area.excluded={}
   S.place(sf,player.force,own or t.snapshot,area.center)
   for _,ref in ipairs(t.children) do
     prepare_ref(ref);local group={name=ref.name,icon=ref.icon,entities={}}
-    for _,layer in ipairs(M.layers(ref.template_id)) do
+    for _,layer in ipairs(ref.preview_only and {} or M.layers(ref.template_id)) do
       for _,e in ipairs(S.place(sf,player.force,S.transform(layer.snapshot,ref),area.center)) do
         group.entities[#group.entities+1]=e;area.excluded[S.entity_key(e)]=true
       end
@@ -173,7 +200,7 @@ function M.ensure_area(player,t)
   local edit=box(center,t.width,t.height,t.padding)
   local bounds=box(center,t.width,t.height)
   t.area={template=t,center=center,left_top=bounds.left_top,right_bottom=bounds.right_bottom,edit_bounds=edit,groups={}}
-  generate(sf,edit);floor(sf,edit,'refined-concrete')
+  if not storage.fabric_job then generate(sf,edit);floor(sf,edit,'refined-concrete') end
   t.area.border=rendering.draw_rectangle{surface=sf,left_top=bounds.left_top,right_bottom=bounds.right_bottom,color={0.2,0.9,1},width=3}
   t.area.padding_border=rendering.draw_rectangle{surface=sf,left_top=edit.left_top,right_bottom=edit.right_bottom,color={0.35,0.35,0.4},width=1}
   M.render_editor(player,t)
@@ -210,10 +237,43 @@ function M.neighbors()
         keep[#keep+1]=prepare_ref{id=db.next_ref,neighbor=other.id};db.next_ref=db.next_ref+1
       end
     end
+    if not cell.neighbor_order_initialized then
+      local ordered={}
+      for _,ref in ipairs(keep) do if ref.origin then ordered[#ordered+1]=ref end end
+      for _,ref in ipairs(keep) do if ref.neighbor then ordered[#ordered+1]=ref end end
+      for _,ref in ipairs(keep) do if not ref.neighbor and not ref.origin then ordered[#ordered+1]=ref end end
+      keep=ordered;cell.neighbor_order_initialized=true
+    end
     cell.items=keep
+    if not cell.neighbors_expanded then M.collapse_neighbors(cell) end
   end
 end
+function M.neighbor_group(cell)
+  local group={id=-cell.id,neighbor=true,neighbor_group=true,name='Neighbors',icon='utility/list_view',members={},patches={}}
+  for _,ref in ipairs(cell.items) do if ref.neighbor then
+    group.members[#group.members+1]=ref
+    for _,patch in ipairs(ref.patches or {}) do group.patches[#group.patches+1]=patch end
+  end end
+  return group
+end
+function M.collapse_neighbors(cell)
+  local ordered={};local inserted=false
+  for _,ref in ipairs(cell.items) do
+    if ref.neighbor then
+      if not inserted then
+        for _,neighbor in ipairs(cell.items) do if neighbor.neighbor then ordered[#ordered+1]=neighbor end end
+        inserted=true
+      end
+    else ordered[#ordered+1]=ref end
+  end
+  cell.items=ordered
+end
 function M.reference_snapshot(cell,ref)
+  if ref.neighbor_group then
+    local result=S.empty()
+    for _,member in ipairs(ref.members) do for _,e in ipairs(M.reference_snapshot(cell,member).entities) do result.entities[#result.entities+1]=e end end
+    return result
+  end
   local result=S.empty();result.wires={}
   local layers=ref.neighbor and cell_layers(M.store().cells[ref.neighbor]) or M.layers(ref.template_id)
   local center=ref.neighbor and M.store().cells[ref.neighbor].center or cell.center
@@ -289,10 +349,11 @@ function M.patch_action(player,cell,ref,changes,commit)
     local own=D.apply(t.snapshot,mapped)
     M.ensure_area(player,t);M.render_editor(player,t,own)
     M.apply_world_changes(cell,changes,true);ref.patches={}
-    M.commit(player,t)
+    M.commit(player,t,own)
   else M.apply_world_changes(cell,changes,true);M.scan_patches() end
 end
 function M.rebuild_world(player)
+  if storage.fabric_job and not storage.fabric_job.in_task then queue{kind='world'};return end
   local db=M.store();if not db.world_origin then return end
   M.scan_patches()
   M.neighbors()
@@ -359,12 +420,105 @@ function M.rebuild_world(player)
     for _,ref in ipairs(cell.items) do M.apply_world_changes(cell,ref.patches or {}) end
   end
 end
-function M.commit(player,t)
-  local own=M.capture(t)
+function M.run_task(player,task)
+  local db=M.store();local job=storage.fabric_job
+  if task.kind=='generate' then task.surface.request_to_generate_chunks(task.position,0);task.surface.force_generate_chunk_requests()
+  elseif task.kind=='floor' then floor(task.surface,task.bounds,task.name)
+  elseif task.kind=='clear' then S.clear(task.surface,task.bounds)
+  elseif task.kind=='editor' then
+    local t=M.template(task.id);local area=t.area;local sf=db.collection_surface
+    local tasks={}
+    for x=math.floor(area.edit_bounds.left_top.x/32),math.floor((area.edit_bounds.right_bottom.x-1)/32) do
+      for y=math.floor(area.edit_bounds.left_top.y/32),math.floor((area.edit_bounds.right_bottom.y-1)/32) do
+        if not sf.is_chunk_generated{x,y} then tasks[#tasks+1]={kind='generate',surface=sf,position={x=x*32+16,y=y*32+16}} end
+      end
+    end
+    tasks[#tasks+1]={kind='clear',surface=sf,bounds=area.edit_bounds}
+    tile_tasks(tasks,sf,area.edit_bounds,'refined-concrete')
+    tasks[#tasks+1]={kind='editor_finish',id=t.id,own=task.own}
+    insert_tasks(tasks)
+  elseif task.kind=='editor_finish' then
+    job.in_task=true;job.prepared=true
+    M.render_editor(player,M.template(task.id),task.own)
+    job.in_task=nil;job.prepared=nil
+  elseif task.kind=='world' then
+    if not db.world_origin then return end
+    M.scan_patches();M.neighbors()
+    local sf=db.world_surface
+    local extent={left_top={x=db.cells[1].left_top.x,y=db.cells[1].left_top.y},right_bottom={x=db.cells[1].right_bottom.x,y=db.cells[1].right_bottom.y}}
+    for _,cell in ipairs(db.cells) do
+      extent.left_top.x=math.min(extent.left_top.x,cell.left_top.x);extent.left_top.y=math.min(extent.left_top.y,cell.left_top.y)
+      extent.right_bottom.x=math.max(extent.right_bottom.x,cell.right_bottom.x);extent.right_bottom.y=math.max(extent.right_bottom.y,cell.right_bottom.y)
+      for _,layer in ipairs(cell_layers(cell)) do
+        local b=S.shift_bounds(S.bounds(layer.snapshot),cell.center)
+        extent.left_top.x=math.min(extent.left_top.x,b.left_top.x);extent.left_top.y=math.min(extent.left_top.y,b.left_top.y)
+        extent.right_bottom.x=math.max(extent.right_bottom.x,b.right_bottom.x);extent.right_bottom.y=math.max(extent.right_bottom.y,b.right_bottom.y)
+      end
+    end
+    generate(sf,extent)
+    local tasks={}
+    if db.world_built_bounds then tasks[#tasks+1]={kind='clear',surface=sf,bounds=db.world_built_bounds} end
+    tasks[#tasks+1]={kind='clear',surface=sf,bounds=extent}
+    tile_tasks(tasks,sf,extent,'grass-1');db.world_built_bounds=extent
+    for _,cell in ipairs(db.cells) do
+      cell.groups={};tile_tasks(tasks,sf,cell.bounds,'refined-concrete')
+      for _,layer in ipairs(cell_layers(cell)) do tasks[#tasks+1]={kind='place',snapshot=layer.snapshot,center=cell.center,outside=true} end
+    end
+    for _,cell in ipairs(db.cells) do
+      for _,ref in ipairs(cell.items) do
+        cell.groups[ref.id]={name=M.ref_name(ref),icon=ref.icon,entities={}}
+        local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id)
+        local center=ref.neighbor and db.cells[ref.neighbor].center or cell.center
+        for _,layer in ipairs(layers) do
+          tasks[#tasks+1]={kind='place',snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref),center=center,bounds=cell.bounds}
+        end
+      end
+    end
+    tasks[#tasks+1]={kind='settle'}
+    for _,cell in ipairs(db.cells) do
+      for _,layer in ipairs(cell_layers(cell)) do tasks[#tasks+1]={kind='rewire',snapshot=layer.snapshot,center=cell.center} end
+      for _,ref in ipairs(cell.items) do tasks[#tasks+1]={kind='group',cell=cell.id,ref=ref.id} end
+      tasks[#tasks+1]={kind='baseline',cell=cell.id}
+    end
+    insert_tasks(tasks)
+  elseif task.kind=='place' then
+    local clip=task.bounds
+    if task.outside then clip=function(pos) for _,cell in ipairs(db.cells) do if S.inside(pos,cell.bounds) then return false end end;return true end end
+    S.place(db.world_surface,player.force,task.snapshot,task.center,clip)
+  elseif task.kind=='settle' then S.settle(db.world_surface,player.force)
+  elseif task.kind=='rewire' then S.rewire(db.world_surface,task.snapshot,task.center)
+  elseif task.kind=='group' then
+    local cell=db.cells[task.cell];local ref
+    for _,r in ipairs(cell.items) do if r.id==task.ref then ref=r end end
+    if not ref then return end
+    local group=cell.groups[ref.id]
+    local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id)
+    local center=ref.neighbor and db.cells[ref.neighbor].center or cell.center
+    for _,layer in ipairs(layers) do
+      local snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref)
+      for _,e in ipairs(snapshot.entities or {}) do
+        if S.inside({x=e.position.x+center.x,y=e.position.y+center.y},cell.bounds) then
+          local real=S.find(db.world_surface,e,center);if real then group.entities[#group.entities+1]=real end
+        end
+      end
+    end
+  elseif task.kind=='baseline' then
+    local cell=db.cells[task.cell];cell.baseline=S.capture(db.world_surface,player.force,cell.bounds,cell.center);cell.owners={}
+    for _,ref in ipairs(cell.items) do
+      for _,entity in ipairs((cell.groups[ref.id] or {}).entities or {}) do
+        if entity.valid then local key=entity.name..'@'..(entity.position.x-cell.center.x)..','..(entity.position.y-cell.center.y);if not ref.neighbor or not cell.owners[key] then cell.owners[key]=ref.id end end
+      end
+    end
+    for _,ref in ipairs(cell.items) do M.apply_world_changes(cell,ref.patches or {}) end
+  end
+end
+function M.commit(player,t,own_override)
+  local own=own_override or M.capture(t)
   -- Validate graph before changing the committed snapshot.
   for _,ref in ipairs(t.children) do assert(not M.depends(ref.template_id,t.id),'A template cannot reference itself, even indirectly.') end
   local drafts={}
   for _,other in ipairs(M.catalog()) do if other~=t and other.area and M.depends(other.id,t.id) then drafts[other.id]=M.capture(other) end end
+  M.store().preview_cache={}
   t.snapshot=own;t.committed_refs=S.copy(t.children);t.version=t.version+1;t.edit_version=t.version;t.draft_dirty=false
   M.render_editor(player,t)
   for _,other in ipairs(M.catalog()) do
@@ -383,6 +537,7 @@ function M.add_reference(player,state,template_id,position,transform)
   if state.workspace=='collection' then assert(not M.depends(template_id,target.id),'This reference would create a template cycle.') end
   local center=state.workspace=='collection' and target.area.center or target.center
   local ref=prepare_ref{id=db.next_ref,template_id=template_id,x=position.x-center.x,y=position.y-center.y,
+    preview_only=state.workspace=='collection' and state.placement and state.placement.preview_only or false,
     direction=transform and transform.direction or 0,flip_horizontal=transform and transform.flip_horizontal or false,flip_vertical=transform and transform.flip_vertical or false}
   db.next_ref=db.next_ref+1
   if state.workspace=='collection' then
@@ -416,7 +571,11 @@ function M.apply_order(player,state,order)
   local list=state.workspace=='collection' and target.children or target.items
   local own=state.workspace=='collection' and M.capture(target)
   local by_id={};for _,ref in ipairs(list) do by_id[ref.id]=ref end
-  local sorted={};for _,ref in ipairs(order) do if by_id[ref.id] then sorted[#sorted+1]=by_id[ref.id];by_id[ref.id]=nil end end
+  local sorted={};for _,ref in ipairs(order) do
+    if ref.neighbor_group then
+      for _,actual in ipairs(list) do if actual.neighbor and by_id[actual.id] then sorted[#sorted+1]=actual;by_id[actual.id]=nil end end
+    elseif by_id[ref.id] then sorted[#sorted+1]=by_id[ref.id];by_id[ref.id]=nil end
+  end
   for _,ref in ipairs(list) do if by_id[ref.id] then sorted[#sorted+1]=ref end end
   if own then target.children=sorted;target.draft_dirty=true;M.render_editor(player,target,own)
   else target.items=sorted;M.rebuild_world(player) end
@@ -531,7 +690,7 @@ function M.ensure(player)
     end
   end
   M.configure_world(player,1)
-  db.placement_revision=4;db.ready=true;db.layout_revision=2
+  db.placement_revision=4;db.ready=true;db.layout_revision=2;db.neighbor_ui_revision=1
   for _,t in ipairs(M.catalog()) do M.ensure_area(player,t) end
   return db
 end

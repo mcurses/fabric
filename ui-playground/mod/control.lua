@@ -10,6 +10,9 @@ local navigation=require('navigation')
 local library=require('library')
 local components=require('components')
 local settings=require('fabric_settings')
+local jobs=require('jobs')
+local usages=require('usages')
+local handle_click
 local pending=true
 local function state(p)
   storage.players=storage.players or {}
@@ -19,9 +22,10 @@ end
 local function sync(p,s) W.select_camera(p,s) end
 local function safe(p,fn)
   local ok,err=pcall(fn)
-  if not ok then log(err);p.print('[Fabric] '..tostring(err)) end
+  if not ok then if storage.fabric_job and storage.fabric_job.executing then error(err) end;log(err);p.print('[Fabric] '..tostring(err)) end
 end
 local function refresh(p,s)
+  if storage.fabric_job and not storage.fabric_job.finishing then return end
   sync(p,s)
   if p.gui.screen[ui.root] then ui.build(p,s) end
 end
@@ -33,6 +37,19 @@ end
 local function open_editor(p,s)
   sandbox(p);library.close(p);sync(p,s);ui.build(p,s);p.gui.screen[ui.root].bring_to_front();ui.raise_rows(p,s)
 end
+local function tick_job()
+  if storage.fabric_job and not storage.fabric_job.error then jobs.tick(handle_click,function(p,job)
+      for name in pairs(job.close_panels) do local panel=p.gui.screen[name];if panel then panel.destroy() end end
+      local s=storage.players[p.index]
+      if job.close_panels.fabric_ui_add_template then placement.close(p,s) end
+      if job.action=='apply_order' or job.action=='placement_confirm' or job.action=='remove_confirm' or job.action=='toggle_neighbors' then s.pending_order=nil;s.drag=nil end
+      s.world_dirty=false;s.template_dirty=nil
+      local migration=p.gui.top.fabric_neighbor_upgrade;if migration then migration.destroy() end
+      if s.parent_template then review.changes(s.parent_template,true) end
+      refresh(p,s)
+      if s.override_selected then review.show(p,s,s.override_selected) end
+    end) end
+end
 script.on_init(function() storage.players={} end)
 script.on_load(function() pending=true end)
 script.on_event(defines.events.on_tick,function(e)
@@ -40,10 +57,18 @@ script.on_event(defines.events.on_tick,function(e)
   if pending then
     pending=false
     for _,p in pairs(game.connected_players) do safe(p,function()
-      sandbox(p);local s=state(p);sync(p,s);if s.parent_template then R.underlay(p,s.parent_template) end;components.meta_bar(p);navigation.show(p,s)
-      if p.gui.screen[ui.root] then ui.build(p,s) end
+      sandbox(p);local s=state(p);sync(p,s);
+      if not script.active_mods['fabric-ui-test-driver'] and not R.store().responsive_backup then R.store().responsive_backup=true;game.auto_save('fabric-responsive-backup') end
+      if s.parent_template then R.underlay(p,s.parent_template);s.template_dirty=true end;components.meta_bar(p);navigation.show(p,s)
+      if not storage.fabric_job and p.gui.screen[ui.root] then ui.build(p,s) end
+      if storage.fabric_job then storage.fabric_job.error=nil end
+      if not R.store().neighbor_ui_revision and not storage.fabric_job then
+        local button=p.gui.top.fabric_neighbor_upgrade or p.gui.top.add{type='button',name='fabric_neighbor_upgrade',caption='Updating neighbor priorities',visible=false,tags={action='neighbor_defaults'}}
+        jobs.start(p,button)
+      end
     end) end
   end
+  if storage.fabric_job then tick_job();return end
   for _,p in pairs(game.connected_players) do
     local s=storage.players and storage.players[p.index]
     if s and s.snapshot_schema then
@@ -57,11 +82,16 @@ script.on_event(defines.events.on_tick,function(e)
         end)
       end
       if e.tick%6==0 then safe(p,function() if W.select_camera(p,s) and p.gui.screen[ui.root] then ui.build(p,s) end end) end
-      if e.tick%120==0 and s.parent_template then
-        local dirty=R.dirty(s.parent_template)
+      library.tick(p,s)
+      if s.preview_pending and e.tick>=s.preview_pending.tick then
+        local hover=s.preview_pending;s.preview_pending=nil
+        if hover.element.valid then safe(p,function() placement.preview(p,s,hover.id,hover.position);s.hover_element=hover.element.index end) end
+      end
+      if s.template_dirty and s.parent_template then
+        s.template_dirty=nil
         safe(p,function()
-          R.check_dirty(s.parent_template)
-          if dirty~=R.dirty(s.parent_template) then ui.refresh_summary(p,s) end
+          review.changes(s.parent_template,true);ui.refresh_summary(p,s)
+          if s.reviewing_parent and s.override_selected then review.show(p,s,s.override_selected) end
         end)
       end
       world.tick(s,e.tick)
@@ -69,24 +99,29 @@ script.on_event(defines.events.on_tick,function(e)
         local drag=s.drag;s.drag=nil;s.pending_order=drag
         safe(p,function() ui.layout(p,s,nil,true) end)
       end
-      if e.tick%180==0 and s.workspace=='world' and not s.drag and not s.pending_order and not s.placement and s.world_dirty then
-        safe(p,function() R.scan_patches();s.world_dirty=false;if p.gui.screen[ui.root] then ui.refresh_rows(p,s) end end)
+      if e.tick%6==0 and s.workspace=='world' and not s.drag and not s.pending_order and not s.placement and s.world_dirty then
+        safe(p,function() R.scan_patches();s.world_dirty=false;if p.gui.screen[ui.root] then ui.refresh_rows(p,s) end;if s.override_selected then review.show(p,s,s.override_selected) end end)
       end
     end
   end
 end)
 script.on_event(defines.events.on_player_created,function(e)
   if script.active_mods['fabric-ui-test-driver'] and script.test_arg=='unit' then return end
-  local p=game.get_player(e.player_index);safe(p,function() sandbox(p);local s=state(p);sync(p,s);if s.parent_template then R.underlay(p,s.parent_template) end;components.meta_bar(p);navigation.show(p,s) end)
+  local p=game.get_player(e.player_index);safe(p,function() sandbox(p);local s=state(p);sync(p,s);if s.parent_template then R.underlay(p,s.parent_template);s.template_dirty=true end;components.meta_bar(p);navigation.show(p,s) end)
 end)
 script.on_event('fabric-ui-reload',function() game.reload_mods() end)
 script.on_event('fabric-ui-open',function(e) local p=game.get_player(e.player_index);safe(p,function() open_editor(p,state(p)) end) end)
 script.on_event('fabric-ui-screenshot',function(e) local p=game.get_player(e.player_index);game.take_screenshot{player=p,show_gui=true,path='fabric-ui/'..game.tick..'.png'} end)
-script.on_event(defines.events.on_gui_click,function(e)
+handle_click=function(e)
   if not e.element.valid then return end
   local p=game.get_player(e.player_index)
   safe(p,function()
     local s=state(p);local t=e.element.tags
+    local job=storage.fabric_job
+    if job and not job.executing then return end
+    local expensive={edit_commit=true,edit_discard=true,change_reset=true,patch_accept=true,patch_commit=true,patch_discard=true,
+      placement_confirm=true,apply_order=true,remove_confirm=true,metadata_save=true,rebuild_instance=true,toggle_neighbors=true}
+    if expensive[t.action] and not job then jobs.start(p,e.element);return end
     if not t.action then
       local el=e.element
       while el and el.valid do
@@ -99,10 +134,17 @@ script.on_event(defines.events.on_gui_click,function(e)
       return
     end
     local a=t.action
-    if a=='reload' then game.reload_mods()
+    if a=='neighbor_defaults' then R.neighbors();R.rebuild_world(p);R.store().neighbor_ui_revision=1
+    elseif a=='reload' then game.reload_mods()
     elseif a=='world' or a=='collection' then W.switch(p,s,a);ui.close(p)
     elseif a=='edit_current' then open_editor(p,s)
     elseif a=='fabric_controls_close' then navigation.close(p,s)
+    elseif a=='show_usages' then usages.show(p,s)
+    elseif a=='usages_close' then usages.close(p)
+    elseif a=='usage_focus' then usages.focus(p,s,t.index);ui.build(p,s)
+    elseif a=='toggle_neighbors' then
+      if s.pending_order then p.print('Apply the pending order before changing neighbor grouping.');return end
+      local cell=s.camera_area;if cell then cell.neighbors_expanded=not cell.neighbors_expanded;if not cell.neighbors_expanded then R.collapse_neighbors(cell);R.rebuild_world(p) end;sync(p,s);ui.refresh_rows(p,s) end
     elseif a=='library' then library.show(p,s)
     elseif a=='library_close' then library.close(p)
     elseif a=='library_select' then library.close(p);W.focus_template(p,s,t.id);ui.build(p,s)
@@ -138,6 +180,9 @@ script.on_event(defines.events.on_gui_click,function(e)
       if order then R.apply_order(p,s,order.preview);refresh(p,s) end
     elseif a=='add' then
       if s.parent_template or s.camera_area then placement.show(p,s) else p.print('Move the camera into an instance or template first.') end
+    elseif a=='placement_positions' then placement.positions(p,s)
+    elseif a=='placement_position_pick' then placement.position_pick(p,s,t.index)
+    elseif a=='placement_toggle_preview' then s.placement.preview_enabled=not s.placement.preview_enabled;placement.restore_preview(p,s)
     elseif a=='placement_picker' then placement.picker(p,s)
     elseif a=='placement_pick' then placement.pick(p,s,t.index)
     elseif a=='placement_close' then placement.close(p,s)
@@ -152,19 +197,23 @@ script.on_event(defines.events.on_gui_click,function(e)
       buttons.add{type='button',caption='Remove',tags={action='remove_confirm',id=t.id}};panel.auto_center=true
     elseif a=='remove_cancel' then local panel=p.gui.screen.fabric_remove_confirm;if panel then panel.destroy() end
     elseif a=='remove_confirm' then
-      local panel=p.gui.screen.fabric_remove_confirm;if panel then panel.destroy() end
+      if storage.fabric_job then storage.fabric_job.close_panels.fabric_remove_confirm=true end
+      s.pending_order=nil;s.drag=nil
       R.remove_reference(p,s,t.id);sync(p,s);ui.refresh_rows(p,s)
     elseif a=='tuning' then ui.show_tuning(p,s)
     elseif a=='tune' then ui.adjust(p,s,e.element)
     elseif a=='close' then s.location=p.gui.screen[ui.root].location;world.clear(s);ui.close(p)
     end
+    ui.raise_rows(p,s)
   end)
-end)
+end
+script.on_event(defines.events.on_gui_click,handle_click)
 script.on_event(defines.events.on_gui_hover,function(e)
   if not e.element.valid then return end
   local p=game.get_player(e.player_index);local s=storage.players and storage.players[p.index];if not s then return end
   local el=e.element
-  if el.tags.preview_template then safe(p,function() placement.preview(p,s,el.tags.preview_template);s.hover_element=e.element.index end);return end
+  if storage.fabric_job then return end
+  if el.tags.preview_template then s.preview_pending={element=el,id=el.tags.preview_template,position=el.tags.preview_position,tick=game.tick+20};return end
   while el and el.valid do
     if el.tags.fabric_ui_row then safe(p,function() world.highlight(p,s,el.tags.id);s.hover_element=e.element.index end);return
     elseif el.tags.override_change then safe(p,function() review.preview(p,s,el.tags.id,el.tags.change,false);s.hover_element=e.element.index end);return
@@ -174,7 +223,15 @@ script.on_event(defines.events.on_gui_hover,function(e)
 end)
 script.on_event(defines.events.on_gui_leave,function(e)
   local s=storage.players and storage.players[e.player_index]
-  if s and e.element.valid and s.hover_element==e.element.index then world.clear(s) end
+  if s and e.element.valid then
+    if s.preview_pending and s.preview_pending.element==e.element then s.preview_pending=nil end
+    if s.hover_element==e.element.index then
+      world.clear(s)
+      local p=game.get_player(e.player_index)
+      if s.placement then placement.restore_preview(p,s)
+      elseif s.override_selected then review.preview(p,s,s.override_selected) end
+    end
+  end
 end)
 script.on_event(defines.events.on_gui_selection_state_changed,function(e)
   if not e.element.valid then return end
@@ -216,11 +273,12 @@ script.on_event(defines.events.on_pre_build,function(e)
 end)
 script.on_event(defines.events.on_built_entity,function(e)
   local s=storage.players and storage.players[e.player_index]
-  if s then s.world_dirty=true end
+  if s and not storage.fabric_job then s.world_dirty=true;s.template_dirty=true end
   if s and s.placement and s.placement.build then s.placement.built[#s.placement.built+1]=e.entity end
 end)
 local function world_changed(e)
-  for _,s in pairs(storage.players or {}) do s.world_dirty=true end
+  if storage.fabric_job then return end
+  for _,s in pairs(storage.players or {}) do s.world_dirty=true;s.template_dirty=true end
 end
 script.on_event({defines.events.on_player_mined_entity,defines.events.on_robot_mined_entity,
   defines.events.on_entity_died,defines.events.on_player_rotated_entity,defines.events.on_entity_settings_pasted,
@@ -232,12 +290,23 @@ end)
 script.on_event(defines.events.on_chunk_generated,function(e) R.on_chunk(e.surface,e.area) end)
 commands.add_command('ui','Open Fabric editor, or /ui reload',function(e)
   local p=e.player_index and game.get_player(e.player_index)
-  if p then safe(p,function() if e.parameter=='reload' then game.reload_mods() else open_editor(p,state(p)) end end) end
+  if p then safe(p,function() if e.parameter=='reload' then game.reload_mods() elseif e.parameter=='save' then game.auto_save('fabric-responsive-backup') else open_editor(p,state(p)) end end) end
 end)
 
 -- Enabled only by the disposable integration-test profile.
 if script.active_mods['fabric-ui-test-driver'] then
   remote.add_interface('fabric-ui-test',{
+    drain=function(index)
+      local n=0
+      while storage.fabric_job do
+        assert(not storage.fabric_job.error,storage.fabric_job.error)
+        tick_job();n=n+1;assert(n<10000,'Job must terminate')
+      end
+      local s=storage.players[index];while s.library_queue do library.tick(game.get_player(index),s) end
+      return n
+    end,
+    busy=function() return storage.fabric_job~=nil end,
+
     click=function(index,element)
       script.get_event_handler(defines.events.on_gui_click){player_index=index,element=element}
     end,
@@ -248,11 +317,11 @@ if script.active_mods['fabric-ui-test-driver'] then
       script.get_event_handler(defines.events.on_gui_selection_state_changed){player_index=index,element=element}
     end,
     inspect=function(index)
-      local s=state(game.get_player(index));local db=R.store();local out={catalog={},cells={},selected=s.parent_template and s.parent_template.id}
+      local s=state(game.get_player(index));local db=R.store();local out={catalog={},cells={},selected=s.parent_template and s.parent_template.id,review_count=#(s.review_changes or {}),highlight_count=#(s.highlight_objects or {}),usages=s.usages,job=storage.fabric_job and {index=storage.fabric_job.index,total=#storage.fabric_job.tasks}}
       for _,t in ipairs(R.catalog()) do
         out.catalog[#out.catalog+1]={id=t.id,name=t.name,category=t.category,icon=t.icon,width=t.width,height=t.height,padding=t.padding,
           origin_id=t.origin_id,is_origin=t.is_origin,entities=#(t.snapshot.entities or {}),refs=#t.children,committed_refs=#t.committed_refs,
-          version=t.version,dirty=R.dirty(t),underlay=t.area and #t.area.underlay or 0,center=t.area and t.area.center}
+          captures=t.capture_serial or 0,preview_refs=(function() local n=0;for _,r in ipairs(t.children) do if r.preview_only then n=n+1 end end;return n end)(),version=t.version,dirty=R.dirty(t),underlay=t.area and #t.area.underlay or 0,center=t.area and t.area.center}
       end
       for _,c in ipairs(db.cells) do local patches=0;for _,ref in ipairs(c.items) do patches=patches+#(ref.patches or {}) end;out.cells[#out.cells+1]={id=c.id,name=c.name,refs=#c.items,patches=patches,first_ref_id=c.items[1] and c.items[1].id} end
       return out
