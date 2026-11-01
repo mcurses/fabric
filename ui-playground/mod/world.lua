@@ -116,6 +116,17 @@ function M.focus(player,state,id)
       for _,entity in ipairs((demo.groups[ref.id] or {}).entities or {}) do group.entities[#group.entities+1]=entity end
     end end
   end
+  if state.parent_template and demo and demo.surface.valid then
+    for _,ref in ipairs(state.items or {}) do
+      if ref.id==id and ref.preview_only then
+        local snapshot=S.transform(R.flatten(ref.template_id,ref.slot_assignments),ref)
+        local bounds=S.bounds(snapshot);local origin=state.parent_template.area.center
+        player.teleport({x=origin.x+(bounds.left_top.x+bounds.right_bottom.x)/2,y=origin.y+(bounds.left_top.y+bounds.right_bottom.y)/2},demo.surface)
+        M.highlight(player,state,id)
+        return true
+      end
+    end
+  end
   if not group or not demo.surface.valid then
     player.print("This reference has no buildings to locate.")
     return false

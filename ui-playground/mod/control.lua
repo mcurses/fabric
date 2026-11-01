@@ -141,7 +141,7 @@ handle_click=function(e)
       while el and el.valid do
         if el.tags.fabric_ui_row and e.element.name~='grip' then
           if s.placement and el.tags.id==placement.draft_id then return end
-          s.review_slot=nil;world.focus(p,s,el.tags.id);review.show(p,s,el.tags.id);return
+          s.review_slot=nil;s.reviewing_parent=nil;world.focus(p,s,el.tags.id);review.show(p,s,el.tags.id);return
         elseif el.tags.override_change then review.preview(p,s,el.tags.id,el.tags.change,true);return
         elseif el.name==ui.root then ui.raise_rows(p,s);return end
         el=el.parent
@@ -266,11 +266,13 @@ script.on_event(defines.events.on_gui_leave,function(e)
   if s and e.element.valid then
     if s.preview_pending and s.preview_pending.element==e.element then s.preview_pending=nil end
     if s.hover_element==e.element.index then
-      world.clear(s)
       local p=game.get_player(e.player_index)
+      safe(p,function()
+      world.clear(s)
       if s.pending_slots and next(s.pending_slots) then Slots.preview_drafts(p,s)
       elseif s.placement then placement.restore_preview(p,s)
       elseif s.override_selected then review.preview(p,s,s.override_selected) end
+      end)
     end
   end
 end)

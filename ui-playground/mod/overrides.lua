@@ -128,8 +128,11 @@ function M.preview(player,state,id,index,focus)
   local source,editing=source_for(state,id)
   if not source then return end
   world.clear(state)
-  local center=editing and source.area.center or state.camera_area.center
-  local changes=index and {state.review_changes[index]} or state.review_changes or {}
+  local area=editing and source.area or (state.workspace=='collection' and state.parent_template and state.parent_template.area or state.camera_area)
+  if not area then return end
+  local center=area.center
+  local changes=index and {(state.review_changes or {})[index]} or state.review_changes or {}
+  if not editing and state.workspace=='collection' and #changes==0 then world.highlight(player,state,id);return end
   local snapshot=S.empty();state.highlight_objects={}
   for _,c in ipairs(changes) do if not c.reference then
     local color=c.kind=='Deleted' and {1,.25,.2} or (c.kind=='Added' and {.25,1,.4} or {1,.75,.2})
