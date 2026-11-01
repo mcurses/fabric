@@ -1,3 +1,4 @@
+local slot_tuning=require('__fabric-ui-playground__/slot_tuning')
 local runtime=require("__fabric-ui-playground__/runtime")
 local world_areas=require("__fabric-ui-playground__/world_areas")
 local navigation=require("__fabric-ui-playground__/navigation")
@@ -156,6 +157,7 @@ local function offset(element,value)
   element.style.bottom_margin=-value
 end
 function M.apply_tuning(player,state)
+  slot_tuning.apply(player.gui.screen[M.root],state)
   local t=tuning(state)
   for _, item in ipairs(visible_items(state)) do
     local row=player.gui.screen[row_name(item.id)]
@@ -175,15 +177,16 @@ function M.show_tuning(player,state)
   if old then old.destroy(); return end
   local change_mode=state.tuning_target=="changes" or
     (not state.tuning_target and player.gui.screen[overrides.panel_name]~=nil)
+  local slot_mode=state.tuning_target=="slots" or state.tuning_target=="slot_previews"
   local header_mode=state.tuning_target=="header"
-  state.tuning_target=header_mode and "header" or (change_mode and "changes" or "references")
-  local fields=header_mode and navigation.tuning_fields or (change_mode and overrides.tuning_fields or tuning_fields)
-  local t=header_mode and navigation.tuning(state) or (change_mode and overrides.tuning(state) or tuning(state))
+  state.tuning_target=slot_mode and state.tuning_target or (header_mode and "header" or (change_mode and "changes" or "references"))
+  local fields=slot_mode and slot_tuning.fields_for(state.tuning_target) or header_mode and navigation.tuning_fields or (change_mode and overrides.tuning_fields or tuning_fields)
+  local t=slot_mode and slot_tuning.values(state,state.tuning_target) or header_mode and navigation.tuning(state) or (change_mode and overrides.tuning(state) or tuning(state))
   local panel=player.gui.screen.add{type="frame",name=M.root.."_tuning",direction="vertical"}
   components.titlebar(panel,{title="Live UI tuning",close_tags={action="tuning"}})
-  panel.add{type="drop-down",name="tuning_target",items={"Reference rows","Change rows","Fabric title"},
-    selected_index=header_mode and 3 or (change_mode and 2 or 1),tags={action="tuning_target"}}
-  if not change_mode and not header_mode then
+  panel.add{type="drop-down",name="tuning_target",items={"Reference rows","Change rows","Fabric title","Slot rows","Slot preview rows"},
+    selected_index=slot_mode and (state.tuning_target=="slots" and 4 or 5) or header_mode and 3 or (change_mode and 2 or 1),tags={action="tuning_target"}}
+  if not change_mode and not header_mode and not slot_mode then
   panel.add{type="label",caption="World highlight"}
   panel.add{type="drop-down",name="highlight_style_picker",items=highlight_styles,
     selected_index=state.highlight_style or 5,tags={action="highlight_style"}}
@@ -212,14 +215,15 @@ end
 function M.select_tuning(player,state,index)
   local panel=player.gui.screen[M.root.."_tuning"]
   if panel then panel.destroy() end
-  state.tuning_target=index==3 and "header" or (index==2 and "changes" or "references")
+  state.tuning_target=({"references","changes","header","slots","slot_previews"})[index] or "references"
   M.show_tuning(player,state)
 end
 function M.adjust(player,state,element)
+  local slot_mode=state.tuning_target=="slots" or state.tuning_target=="slot_previews"
   local header_mode=state.tuning_target=="header"
   local change_mode=state.tuning_target=="changes"
-  local t=header_mode and navigation.tuning(state) or (change_mode and overrides.tuning(state) or tuning(state))
-  for _, f in ipairs(header_mode and navigation.tuning_fields or (change_mode and overrides.tuning_fields or tuning_fields)) do
+  local t=slot_mode and slot_tuning.values(state,state.tuning_target) or header_mode and navigation.tuning(state) or (change_mode and overrides.tuning(state) or tuning(state))
+  for _, f in ipairs(slot_mode and slot_tuning.fields_for(state.tuning_target) or header_mode and navigation.tuning_fields or (change_mode and overrides.tuning_fields or tuning_fields)) do
     if f.key==element.tags.key then
       t[f.key]=math.max(f.min,math.min(f.max,t[f.key]+element.tags.delta))
       element.parent.tuning_value.caption=tostring(t[f.key])
@@ -409,26 +413,26 @@ function M.build(player, state)
         frame=components.reference_frame(manager,{direction='vertical',raise_hover_events=true,tags={preview_anchor=i}})
         frame.style.width=396;frame.style.height=preview and 80 or 40
       end
-      local line=(frame or manager).add{type='flow',direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}}
+      local line=(frame or manager).add{type='flow',direction='horizontal',raise_hover_events=true,tags={preview_anchor=i,slot_tune_kind='slots'}}
       line.style.height=28;line.style.width=388;line.style.horizontal_spacing=4;line.style.vertical_align='center'
-      line.add{type='label',caption=label..(anchor and ('  [entity='..anchor.name..']') or ' · inactive'),style='bold_label',raise_hover_events=true,tags={preview_anchor=i}}.style.width=i>0 and 130 or 176
+      line.add{type='label',name='slot_label',caption=label..(anchor and ('  [entity='..anchor.name..']') or ' · inactive'),style='bold_label',raise_hover_events=true,tags={preview_anchor=i}}.style.width=i>0 and 130 or 176
       local space=line.add{type='empty-widget',raise_hover_events=true,tags={preview_anchor=i}};space.style.horizontally_stretchable=true
-      local change=line.add{type='button',caption=anchor and 'Change anchor' or 'Select anchor',raise_hover_events=true,tags={action='slot_anchor_pick',slot=i,preview_anchor=i}}
+      local change=line.add{type='button',name='anchor_button',caption=anchor and 'Change anchor' or 'Select anchor',raise_hover_events=true,tags={action='slot_anchor_pick',slot=i,preview_anchor=i}}
       change.style.width=i>0 and (preview and 224 or 130) or 170;change.style.height=28
       if i>0 and not preview then
-        local button=line.add{type='button',caption='Preview',enabled=anchor~=nil,raise_hover_events=true,tags={action='slot_preview_open',slot=i,preview_anchor=i}}
+        local button=line.add{type='button',name='preview_button',caption='Preview',enabled=anchor~=nil,raise_hover_events=true,tags={action='slot_preview_open',slot=i,preview_anchor=i}}
         button.style.width=90;button.style.height=28
       end
-      if i>0 then components.reference_remove(line,{tags={action='slot_delete',slot=i,preview_anchor=i},raise_hover_events=true,tooltip='Delete slot and its assignments'}) end
+      if i>0 then components.reference_remove(line,{name='slot_remove',tags={action='slot_delete',slot=i,preview_anchor=i},raise_hover_events=true,tooltip='Delete slot and its assignments'}) end
       if preview then
         local row=components.reference_frame(frame,{direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}})
         row.style.width=388;row.style.height=36
-        local contents=row.add{type='flow',direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}}
+        local contents=row.add{type='flow',direction='horizontal',raise_hover_events=true,tags={preview_anchor=i,slot_tune_kind='slot_previews'}}
         contents.style.width=380;contents.style.height=28;contents.style.horizontal_spacing=4;contents.style.vertical_align='center'
-        local icon=contents.add{type='sprite',sprite=preview.icon or 'item/blueprint',raise_hover_events=true,tags={preview_anchor=i}};icon.style.size=28
-        local name=contents.add{type='label',caption=preview.name,style='bold_label',tooltip=preview.name,raise_hover_events=true,tags={preview_anchor=i}}
-        name.style.horizontally_stretchable=true;name.style.single_line=true;name.style.maximal_width=328
-        components.reference_remove(contents,{tags={action='slot_preview_remove',slot=i,preview_anchor=i},raise_hover_events=true,tooltip='Remove preview'})
+        local icon=contents.add{type='sprite',name='preview_icon',sprite=preview.icon or 'item/blueprint',raise_hover_events=true,tags={preview_anchor=i}};icon.style.size=28
+        local name=contents.add{type='label',name='slot_label',caption=preview.name,style='bold_label',tooltip=preview.name,raise_hover_events=true,tags={preview_anchor=i}}
+        name.style.width=328;name.style.single_line=true
+        components.reference_remove(contents,{name='slot_remove',tags={action='slot_preview_remove',slot=i,preview_anchor=i},raise_hover_events=true,tooltip='Remove preview'})
       end
     end
     for i,slot in ipairs(t.slot_definitions or {}) do anchor_row(i,slot.anchor,'Slot '..i) end

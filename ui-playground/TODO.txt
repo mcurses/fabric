@@ -18,3 +18,9 @@ Functional pass, 2026-10-31
 [x] Replace imported Left/Right presets with Cell origin/Custom and anchored slots
 [x] Real snapshot create/commit/discard and immediate nested propagation
 See LIMITATIONS.txt for the explicitly destructive prototype boundaries.
+
+Later handover — Seppi writes the message (do not send or draft it yet)
+[ ] Remind Seppi to ask Max for his opinion on the fluid-slider setup: does he
+    have a smart way to configure this through the UI within our current model,
+    without asking an agent to generate a smart description? Or is it out of scope?
+[ ] Handover preparation remains on hold until Seppi explicitly starts it.
