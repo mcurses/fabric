@@ -172,7 +172,9 @@ handle_click=function(e)
     elseif a=='slot_preview_open' then Slots.author_picker(p,s,t.slot)
     elseif a=='slot_preview_pick' then
       local panel=p.gui.screen.fabric_template_picker;if panel then panel.destroy() end;s.slot_picker=nil
-      Slots.author_select(p,s,t.slot,t.value)
+      Slots.author_select(p,s,t.slot,t.value);refresh(p,s)
+    elseif a=='slot_preview_remove' then
+      local host=s.parent_template;if host and host.slot_previews then host.slot_previews[t.slot]=nil;world.clear(s);R.underlay(p,host);refresh(p,s) end
     elseif a=='slot_open' then Slots.picker(p,s,t.id,t.slot)
     elseif a=='slot_picker_close' then local panel=p.gui.screen.fabric_template_picker;if panel then panel.destroy() end;s.slot_picker=nil;Slots.preview_drafts(p,s)
     elseif a=='slot_assign' then

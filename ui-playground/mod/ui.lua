@@ -33,7 +33,12 @@ local function visible_items(state)
   end
   return items
 end
-local function slot_height(state) local t=state.parent_template;return t and (96+#(t.slot_definitions or {})*44+(t.slot_eligible and 36 or 0)) or 0 end
+local function slot_height(state)
+  local t=state.parent_template;if not t then return 0 end
+  local height=96+#(t.slot_definitions or {})*44+(t.slot_eligible and 36 or 0)
+  for i in ipairs(t.slot_definitions or {}) do if runtime.template((t.slot_previews or {})[i]) then height=height+40 end end
+  return height
+end
 local function list_top(state) return LIST_TOP+((state.workspace=="collection" or state.world_camera_mode) and 28 or 0)+(state.parent_template and 92 or 0)+slot_height(state) end
 local WINDOW_WIDTH, ROW_WIDTH, NAME_WIDTH = 420, 396, 272
 local icons = {
@@ -398,14 +403,33 @@ function M.build(player, state)
     local manager=root.add{type='flow',direction='vertical'};manager.style.height=slot_height(state);manager.style.vertical_spacing=4
     manager.add{type='label',caption='Slots',style='caption_label'}.style.height=24
     local function anchor_row(i,anchor,label)
-      local line
-      if i>0 then line=components.reference_frame(manager,{direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}});line.style.width=396;line.style.height=40
-      else line=manager.add{type='flow',direction='horizontal',tags={preview_anchor=i}};line.style.height=32 end
-      line.style.vertical_align='center'
+      local preview=i>0 and runtime.template((t.slot_previews or {})[i])
+      local frame
+      if i>0 then
+        frame=components.reference_frame(manager,{direction='vertical',raise_hover_events=true,tags={preview_anchor=i}})
+        frame.style.width=396;frame.style.height=preview and 80 or 40
+      end
+      local line=(frame or manager).add{type='flow',direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}}
+      line.style.height=28;line.style.width=388;line.style.horizontal_spacing=4;line.style.vertical_align='center'
       line.add{type='label',caption=label..(anchor and ('  [entity='..anchor.name..']') or ' · inactive'),style='bold_label',raise_hover_events=true,tags={preview_anchor=i}}.style.width=i>0 and 130 or 176
-      line.add{type='button',caption=anchor and 'Change anchor' or 'Select anchor',raise_hover_events=true,tags={action='slot_anchor_pick',slot=i,preview_anchor=i}}.style.width=i>0 and 130 or 170
-      if i>0 then line.add{type='button',caption='Preview',enabled=anchor~=nil,raise_hover_events=true,tags={action='slot_preview_open',slot=i,preview_anchor=i}}.style.width=90 end
+      local space=line.add{type='empty-widget',raise_hover_events=true,tags={preview_anchor=i}};space.style.horizontally_stretchable=true
+      local change=line.add{type='button',caption=anchor and 'Change anchor' or 'Select anchor',raise_hover_events=true,tags={action='slot_anchor_pick',slot=i,preview_anchor=i}}
+      change.style.width=i>0 and (preview and 224 or 130) or 170;change.style.height=28
+      if i>0 and not preview then
+        local button=line.add{type='button',caption='Preview',enabled=anchor~=nil,raise_hover_events=true,tags={action='slot_preview_open',slot=i,preview_anchor=i}}
+        button.style.width=90;button.style.height=28
+      end
       if i>0 then components.reference_remove(line,{tags={action='slot_delete',slot=i,preview_anchor=i},raise_hover_events=true,tooltip='Delete slot and its assignments'}) end
+      if preview then
+        local row=components.reference_frame(frame,{direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}})
+        row.style.width=388;row.style.height=36
+        local contents=row.add{type='flow',direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}}
+        contents.style.width=380;contents.style.height=28;contents.style.horizontal_spacing=4;contents.style.vertical_align='center'
+        local icon=contents.add{type='sprite',sprite=preview.icon or 'item/blueprint',raise_hover_events=true,tags={preview_anchor=i}};icon.style.size=28
+        local name=contents.add{type='label',caption=preview.name,style='bold_label',tooltip=preview.name,raise_hover_events=true,tags={preview_anchor=i}}
+        name.style.horizontally_stretchable=true;name.style.single_line=true;name.style.maximal_width=328
+        components.reference_remove(contents,{tags={action='slot_preview_remove',slot=i,preview_anchor=i},raise_hover_events=true,tooltip='Remove preview'})
+      end
     end
     for i,slot in ipairs(t.slot_definitions or {}) do anchor_row(i,slot.anchor,'Slot '..i) end
     manager.add{type='button',caption='+ Add a Slot',enabled=#(t.slot_definitions or {})<32,tags={action='slot_add'}}.style.width=396
