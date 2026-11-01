@@ -41,6 +41,67 @@ local function commit(p)
   action(p,'template_changes');assert(p.gui.screen.fabric_ui_overrides)
   action(p,'edit_commit')
 end
+local function test_slots(p)
+  -- Configure a slot-compatible template by selecting a real owned entity.
+  source(p,origin_id);action(p,'metadata_open')
+  local form=p.gui.screen.fabric_ui_metadata;form.slot_eligible.state=true
+  remote.call('fabric-ui-test','text',p.index,form.slot_count)
+  action(p,'slot_anchor_pick')
+  local filler=inspect(p).catalog[origin_id]
+  local anchor=p.surface.find_entity('iron-chest',{filler.center.x+3.5,filler.center.y+3.5})
+  assert(anchor);remote.call('fabric-ui-test','opened',p.index,anchor);action(p,'metadata_save')
+  assert(inspect(p).catalog[origin_id].slot_anchor,'Selected filler anchor persists')
+  local host=create(p,'QA Slot Host',false)
+  local positions={{3.5,3.5},{3.5,9.5},{9.5,3.5}}
+  for _,pos in ipairs(positions) do p.surface.create_entity{name='steel-chest',position={host.center.x+pos[1],host.center.y+pos[2]},force=p.force} end
+  commit(p);action(p,'edit_exit');action(p,'metadata_open')
+  form=p.gui.screen.fabric_ui_metadata;form.slot_count.text='3';remote.call('fabric-ui-test','text',p.index,form.slot_count)
+  assert(not form.slot_eligible.enabled,'Hosts cannot be marked as fillers')
+  for i,pos in ipairs(positions) do
+    local button=find(form,function(el)return el.tags.action=='slot_anchor_pick' and el.tags.slot==i end)
+    remote.call('fabric-ui-test','click',p.index,button)
+    local entity=p.surface.find_entity('steel-chest',{host.center.x+pos[1],host.center.y+pos[2]})
+    remote.call('fabric-ui-test','opened',p.index,entity)
+  end
+  action(p,'metadata_save');assert(inspect(p).catalog[host.id].slot_count==3)
+  local parent=create(p,'QA Slotted Assembly',false)
+  action(p,'add');form=p.gui.screen.fabric_ui_add_template;choose(p,form.template_picker,host.id)
+  assert(#form.position_picker.items==2,'Old Left/Right presets are replaced by origin/custom')
+  action(p,'placement_confirm')
+  local row=find(p.gui.screen,function(el)return el.tags.fabric_ui_row and el.contents and el.contents.item_name.caption=='QA Slot Host' end)
+  assert(row and row.slots and #row.slots.children==3,'Host reference has three inline slot selectors')
+  for i=1,3 do
+    local picker=find(p.gui.screen,function(el)return el.tags.action=='slot_assign' and el.tags.slot==i end)
+    local index
+    for j,id in ipairs(picker.tags.ids) do assert(id~=host.id and id~=parent.id,'No subslots in choices');if id==origin_id then index=j end end
+    assert(index,'Anchored compatible filler offered');choose(p,picker,index);remote.call('fabric-ui-test','drain',p.index)
+  end
+  commit(p)
+  assert(inspect(p).catalog[parent.id].entities==0,'Slot contents are excluded from parent own snapshot')
+  action(p,'world');p.teleport({0,0},game.surfaces['Fabric World']);action(p,'edit_current')
+  action(p,'add');choose(p,p.gui.screen.fabric_ui_add_template.template_picker,parent.id);action(p,'placement_confirm')
+  for _,pos in ipairs(positions) do assert(p.surface.find_entity('iron-chest',pos),'Every slot aligns anchors in World') end
+  source(p,origin_id);action(p,'show_usages')
+  local slotted=false
+  for _,entry in ipairs(inspect(p).usages) do for _,via in ipairs(entry.via) do if via:find('Slot',1,true) then slotted=true end end end
+  assert(slotted,'Show Usages traverses slot assignments');action(p,'usages_close')
+  p.surface.find_entity('small-lamp',{filler.center.x+12.5,filler.center.y+12.5}).destroy()
+  p.surface.create_entity{name='constant-combinator',position={filler.center.x+12.5,filler.center.y+12.5},force=p.force}
+  commit(p)
+  assert(game.surfaces['Fabric World'].find_entity('constant-combinator',{12.5,12.5}),'Filler commits propagate through slot assignments and nested templates')
+  source(p,host.id);action(p,'metadata_open');form=p.gui.screen.fabric_ui_metadata;form.slot_count.text='2';action(p,'metadata_save')
+  assert(inspect(p).catalog[host.id].slot_count==2,'Slot count remains editable')
+  action(p,'world');p.teleport({480,0},game.surfaces['Fabric World']);action(p,'edit_current')
+  action(p,'create_instance')
+  local db=inspect(p);assert(#db.cells==5 and db.cells[5].center.x==480 and db.cells[5].items[1].origin,'Create instance snaps to World lattice and includes Grid')
+  action(p,'add');action(p,'placement_picker');local picker=p.gui.screen.fabric_template_picker
+  local common=find(picker,function(el)return el.type=='label' and el.caption=='Most common' end);assert(common)
+  picker.search.text='Universal';remote.call('fabric-ui-test','text',p.index,picker.search)
+  local matched=0
+  for _,el in ipairs(picker.results.children) do if el.tags.preview_template then assert(el.caption:lower():find('universal',1,true));matched=matched+1 end end
+  assert(matched>0,'Search filters templates');action(p,'placement_close')
+  log('SLOTS_ANCHORS_NESTING_CREATE_INSTANCE_SEARCH_PASS')
+end
 local reloaded=false
 script.on_load(function() reloaded=true end)
 script.on_event(defines.events.on_tick,function(e)
@@ -189,6 +250,7 @@ script.on_event(defines.events.on_tick,function(e)
   elseif step==7 and e.tick>storage.idle_tick+250 then
     assert(inspect(p).catalog[origin_id].captures==storage.idle_captures,'Idle editor does not periodically capture the padded island')
     log('RESPONSIVE_PREVIEW_USAGES_LIVE_DIFF_ASYNC_PASS')
+    test_slots(p)
     log('UI_INTEGRATION_PASS');script.finish_test(true);step=100
   end
 end)

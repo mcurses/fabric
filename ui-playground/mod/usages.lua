@@ -1,22 +1,33 @@
 local R=require('__fabric-ui-playground__/runtime')
 local S=require('__fabric-ui-playground__/snapshots')
 local W=require('__fabric-ui-playground__/workspaces')
+local Slots=require('__fabric-ui-playground__/slots')
 local C=require('__fabric-ui-playground__/components')
 local M={name='fabric_usages'}
 function M.close(player) local panel=player.gui.screen[M.name];if panel then panel.destroy() end end
 -- Return each physical placement, preserving the reference chain and transform.
-local function paths(id,target,seen)
+local function paths(id,target,seen,assignments)
   seen=seen or {};if seen[id] then return {} end
   if id==target then return {{position={x=0,y=0},via={}}} end
   seen[id]=true
   local result={}
   for _,ref in ipairs(R.template(id).committed_refs) do if not ref.preview_only then
-    for _,path in ipairs(paths(ref.template_id,target,seen)) do
+    for _,path in ipairs(paths(ref.template_id,target,seen,ref.slot_assignments)) do
       local position=S.point(path.position,ref)
       local via={R.template(id).name};for _,name in ipairs(path.via) do via[#via+1]=name end
       result[#result+1]={position=position,via=via}
     end
   end end
+  local host=R.template(id)
+  for i,slot in ipairs(host.slot_definitions or {}) do
+    local filler_id=assignments and assignments[i];local filler=filler_id and R.template(filler_id)
+    if Slots.compatible(host,slot,filler) then
+      for _,path in ipairs(paths(filler_id,target,seen)) do
+        local via={host.name..' · '..(slot.name or ('Slot '..i))};for _,name in ipairs(path.via) do via[#via+1]=name end
+        result[#result+1]={position=S.point(path.position,Slots.transform(slot,filler)),via=via}
+      end
+    end
+  end
   seen[id]=nil;return result
 end
 function M.list(target)
@@ -30,7 +41,7 @@ function M.list(target)
   end end
   for _,cell in ipairs(db.cells) do
     for _,ref in ipairs(cell.items) do if not ref.neighbor then
-      for _,path in ipairs(paths(ref.template_id,target)) do
+      for _,path in ipairs(paths(ref.template_id,target,nil,ref.slot_assignments)) do
         local position=S.point(path.position,ref)
         result[#result+1]={name=cell.name,icon=R.template(ref.template_id).icon,cell=cell.id,position=position,via=path.via,kind='World instances'}
       end

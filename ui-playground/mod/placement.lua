@@ -27,9 +27,6 @@ function M.refresh(player,state)
   if not template then panel.template_button.caption='Click to select';panel.hint.caption='';return end
   if panel.template_button then panel.template_button.caption="[img="..template.icon.."]  "..template.name end
   template.position_presets={{name="Cell origin",x=0,y=0}}
-  for _,slot in ipairs(template.slots or {}) do
-    template.position_presets[#template.position_presets+1]={name=slot.name,x=slot.dx,y=slot.dy}
-  end
   local choices={}
   for _,preset in ipairs(template.position_presets) do choices[#choices+1]=preset.name end
   choices[#choices+1]="Custom"
@@ -39,7 +36,7 @@ function M.refresh(player,state)
   panel.position_button.caption=choices[panel.position_picker.selected_index]
   local custom=panel.position_picker.selected_index==#choices
   panel.hint.caption=custom and "Choose a point in the world with the placement cursor."
-    or "Use this template's saved position preset."
+    or "Place at the cell origin, or choose Custom placement."
   panel.confirm.caption=custom and "Place freely" or (state.workspace=="collection" and "Reference Template" or "Add Template")
   M.preview(player,state,template.id,panel.position_picker.selected_index)
 end
@@ -69,27 +66,50 @@ function M.show(player,state)
   M.refresh(player,state)
   panel.auto_center=true
 end
+function M.fill_picker(player,state)
+  local panel=player.gui.screen.fabric_template_picker;if not panel or not state.placement then return end
+  local list=panel.results;list.clear()
+  local query=panel.search.text:lower()
+  local candidates={};local categories={}
+  for i,t in ipairs(state.placement.catalog) do
+    if query=='' or t.name:lower():find(query,1,true) or (t.category or 'Other'):lower():find(query,1,true) then
+      candidates[#candidates+1]={template=t,index=i};categories[t.category or 'Other']=true
+    end
+  end
+  local counts=runtime.usage_counts()
+  local common={};for _,entry in ipairs(candidates) do if (counts[entry.template.id] or 0)>0 then common[#common+1]=entry end end
+  table.sort(common,function(a,b)
+    local x,y=counts[a.template.id] or 0,counts[b.template.id] or 0
+    if x~=y then return x>y end;return a.template.name:lower()<b.template.name:lower()
+  end)
+  local function heading(name) list.add{type='label',caption=name,style='caption_label'}.style.top_margin=12 end
+  local function button(entry)
+    local t=entry.template
+    local button=list.add{type='button',caption='[img='..t.icon..']  '..t.name,raise_hover_events=true,tags={action='placement_pick',index=entry.index,preview_template=t.id}}
+    button.style.width=306;button.style.horizontal_align='left'
+  end
+  if #common>0 then heading('Most common');for i=1,math.min(5,#common) do button(common[i]) end end
+  local sorted={};for name in pairs(categories) do sorted[#sorted+1]=name end;table.sort(sorted)
+  for _,category in ipairs(sorted) do
+    heading(category)
+    for _,entry in ipairs(candidates) do if (entry.template.category or 'Other')==category then button(entry) end end
+  end
+  if #candidates==0 then list.add{type='label',caption='No matching templates'} end
+end
 function M.picker(player,state)
   local old=player.gui.screen.fabric_template_picker;if old then old.destroy();return end
   local panel=player.gui.screen.add{type='frame',name='fabric_template_picker',direction='vertical'};panel.style.width=360
   components.titlebar(panel,{title='Select Template',close_tags={action='placement_picker'}})
-  local list=panel.add{type='scroll-pane',direction='vertical',horizontal_scroll_policy='never',vertical_scroll_policy='auto'}
+  panel.add{type='label',caption='Search',style='caption_label'}
+  panel.add{type='textfield',name='search',text='',tags={action='placement_search'},tooltip='Search templates or categories'}.style.width=328
+  local list=panel.add{type='scroll-pane',name='results',direction='vertical',horizontal_scroll_policy='never',vertical_scroll_policy='auto'}
   list.style.width=328;list.style.maximal_height=440
-  local categories={};for _,t in ipairs(state.placement.catalog) do categories[t.category or 'Other']=true end
-  local sorted={};for c in pairs(categories) do sorted[#sorted+1]=c end;table.sort(sorted)
-  for _,category in ipairs(sorted) do
-    local label=list.add{type='label',caption=category,style='caption_label'};label.style.top_margin=12
-    for i,t in ipairs(state.placement.catalog) do if (t.category or 'Other')==category then
-      local button=list.add{type='button',caption='[img='..t.icon..']  '..t.name,raise_hover_events=true,tags={action='placement_pick',index=i,preview_template=t.id}}
-      button.style.width=306;button.style.horizontal_align='left'
-    end end
-  end
-  panel.auto_center=true
+  M.fill_picker(player,state);panel.auto_center=true;panel.search.focus()
 end
 function M.pick(player,state,index)
   world.clear(state)
   local picker=player.gui.screen.fabric_template_picker;if picker then picker.destroy() end
-  player.gui.screen[M.name].template_picker.selected_index=index;M.refresh(player,state)
+  player.gui.screen[M.name].template_picker.selected_index=index;player.gui.screen[M.name].position_picker.selected_index=1;M.refresh(player,state)
 end
 function M.preview(player,state,id,preset_index)
   world.clear(state)

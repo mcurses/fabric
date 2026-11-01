@@ -19,3 +19,5 @@ data:extend({
   {type="custom-input", name="fabric-ui-open", key_sequence="CONTROL + SHIFT + U", consuming="none"},
   {type="custom-input", name="fabric-ui-screenshot", key_sequence="CONTROL + SHIFT + P", consuming="none"},
 })
+
+data:extend({{type='sprite',name='fabric-ui-map-white',filename='__fabric-ui-playground__/graphics/map-white.png',width=64,height=64,scale=.5,flags={'gui-icon'}}})

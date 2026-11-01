@@ -6,6 +6,12 @@ local overrides=require("__fabric-ui-playground__/overrides")
 local highlight_styles=require("__fabric-ui-playground__/world").styles
 local M = {root="fabric_ui_playground", revision="34"}
 local ROW_HEIGHT, ROW_STEP, LIST_TOP = 36, 40, 52
+local Slots=require('__fabric-ui-playground__/slots')
+local function row_step(item)
+  local t=item.template_id and runtime.template(item.template_id)
+  return ROW_STEP+(t and #(t.slot_definitions or {})*30 or 0)
+end
+local function total_height(items) local n=0;for _,item in ipairs(items) do n=n+row_step(item) end;return n end
 local function visible_items(state)
   local items=(state.drag and state.drag.preview) or (state.pending_order and state.pending_order.preview) or state.items
   if state.workspace=='world' and state.camera_area and not state.camera_area.neighbors_expanded then
@@ -71,23 +77,25 @@ function M.layout(player, state, moving_id, raise_rows)
   if not root then return end
   local scale=player.display_scale
   local origin=root.location
+  local row_offset=0
   for i, item in ipairs(visible_items(state)) do
     local row=player.gui.screen[row_name(item.id)]
     if row then
       if item.id ~= moving_id then
         local x=math.floor(origin.x+12*scale)
-        local y=math.floor(origin.y+(list_top(state)+(i-1)*ROW_STEP)*scale)
+        local y=math.floor(origin.y+(list_top(state)+row_offset)*scale)
         if row.location.x ~= x or row.location.y ~= y then row.location={x=x,y=y} end
       end
     end
+    row_offset=row_offset+row_step(item)
   end
   local footer=player.gui.screen[M.root.."_footer"]
   if footer then
     footer.apply_order.visible=state.pending_order~=nil
     footer.style.height=state.pending_order and 76 or 36
-    root.style.height=(list_top(state)+52)+#visible_items(state)*ROW_STEP+(state.pending_order and 40 or 0)
+    root.style.height=(list_top(state)+52)+total_height(visible_items(state))+(state.pending_order and 40 or 0)
     footer.location={x=math.floor(origin.x+12*scale),
-      y=math.floor(origin.y+(list_top(state)+4+#visible_items(state)*ROW_STEP)*scale)}
+      y=math.floor(origin.y+(list_top(state)+4+total_height(visible_items(state)))*scale)}
   end
   local review=player.gui.screen[M.root.."_review"]
   if review then review.location={x=math.floor(origin.x+12*scale),y=math.floor(origin.y+72*scale)} end
@@ -97,7 +105,12 @@ end
 function M.move(player, state, id, y)
   local root=player.gui.screen[M.root]
   if not root then return end
-  local destination=math.floor(((y-root.location.y)/player.display_scale-list_top(state))/ROW_STEP+0.5)+1
+  local local_y=(y-root.location.y)/player.display_scale-list_top(state)
+  local destination,offset=1,0
+  for i,item in ipairs(visible_items(state)) do
+    if local_y>=offset+row_step(item)/2 then destination=i+1 end
+    offset=offset+row_step(item)
+  end
   destination=math.max(1,math.min(#visible_items(state),destination))
   state.drag=state.drag or {id=id,tick=game.tick}
   state.drag.destination=destination
@@ -205,10 +218,10 @@ function M.adjust(player,state,element)
 end
 
 local function create_row(player,item)
-    local row=player.gui.screen.add{type="frame", name=row_name(item.id), direction="horizontal", style="train_schedule_station_frame",
+    local row=player.gui.screen.add{type="frame", name=row_name(item.id), direction="vertical", style="train_schedule_station_frame",
       tags={fabric_ui_row=true, id=item.id}}
     row.style.width=ROW_WIDTH
-    row.style.height=ROW_HEIGHT
+    row.style.height=row_step(item)-4
     row.style.padding=4
     row.style.vertical_align="center"
     local contents=row.add{type="flow", name="contents", direction="horizontal"}
@@ -249,7 +262,26 @@ local function create_row(player,item)
       element.raise_hover_events=true
       for _, child in pairs(element.children) do enable_hover(child) end
     end
-    enable_hover(row)
+    local host=item.template_id and runtime.template(item.template_id)
+    if host and #(host.slot_definitions or {})>0 then
+      local slots=row.add{type='flow',name='slots',direction='vertical'};slots.style.left_margin=30;slots.style.vertical_spacing=2
+      for i,slot in ipairs(host.slot_definitions) do
+        local line=slots.add{type='flow',direction='horizontal'};line.style.height=28;line.style.vertical_align='center'
+        line.add{type='label',caption=slot.name or ('Slot '..i)}.style.width=56
+        local names={'Empty'};local ids={0};local selected=1
+        local assignment=item.slot_assignments and item.slot_assignments[i]
+        for _,t in ipairs(Slots.choices(host,slot)) do
+          names[#names+1]='[img='..t.icon..'] '..t.name;ids[#ids+1]=t.id
+          if t.id==assignment then selected=#ids end
+        end
+        if assignment and selected==1 then names[#names+1]='Unavailable · '..(runtime.template(assignment).name);ids[#ids+1]=assignment;selected=#ids end
+        local active=Slots.anchor_exists(host,slot.anchor)
+        if not active then names={slot.anchor and 'Commit or reselect the source anchor' or 'Select an anchor in the source template'};ids={0};selected=1 end
+        local picker=line.add{type='drop-down',items=names,selected_index=selected,enabled=active,tags={action='slot_assign',id=item.id,slot=i,ids=ids}}
+        picker.style.width=286
+      end
+    end
+    enable_hover(contents)
 end
 
 function M.refresh_summary(player,state)
@@ -271,7 +303,11 @@ function M.refresh_rows(player,state)
   local wanted={}
   for _, item in ipairs(visible_items(state)) do
     wanted[item.id]=true
-    if not player.gui.screen[row_name(item.id)] then create_row(player,item) end
+    local row=player.gui.screen[row_name(item.id)]
+    local host=item.template_id and runtime.template(item.template_id)
+    local revision=helpers.table_to_json({host and host.slot_definitions or {},item.slot_assignments or {},runtime.store().slot_revision or 0})
+    if row and row.tags.slot_revision~=revision then row.destroy();row=nil end
+    if not row then create_row(player,item);row=player.gui.screen[row_name(item.id)];row.tags={fabric_ui_row=true,id=item.id,slot_revision=revision} end
     local count=overrides.count(item)
     local label=player.gui.screen[row_name(item.id)].contents.item_name
     label.caption=item.name..(item.preview_only and " [color=0.55,0.8,1](Preview)[/color]" or "")..(count>0 and "  [color=1,0.72,0.3]•[/color]" or "")
@@ -281,8 +317,8 @@ function M.refresh_rows(player,state)
     if element.tags.fabric_ui_row and not wanted[element.tags.id] then element.destroy() end
   end
   if state.override_selected and not wanted[state.override_selected] and not state.reviewing_parent then overrides.close(player,state) end
-  root.style.height=(list_top(state)+52)+#visible_items(state)*ROW_STEP
-  root.list_space.style.height=#visible_items(state)*ROW_STEP+8
+  root.style.height=(list_top(state)+52)+total_height(visible_items(state))
+  root.list_space.style.height=total_height(visible_items(state))+8
   M.refresh_summary(player,state)
   M.apply_tuning(player,state)
   M.layout(player,state,nil,true)
@@ -296,11 +332,11 @@ function M.build(player, state)
   local root=player.gui.screen.add{type="frame", name=M.root, direction="vertical", raise_hover_events=true}
   root.style.width=WINDOW_WIDTH
   root.style.padding=12
-  local window_height=(list_top(state)+52)+#visible_items(state)*ROW_STEP
+  local window_height=(list_top(state)+52)+total_height(visible_items(state))
   root.style.height=window_height
   local actions={}
   if state.parent_template then
-    actions[#actions+1]={name='usages',sprite='utility/map',tags={action='show_usages'},tooltip='Show Usages'}
+    actions[#actions+1]={name='usages',sprite='fabric-ui-map-white',tags={action='show_usages'},tooltip='Show Usages'}
     actions[#actions+1]={name='underlay',sprite='fabric-ui-eye',tags={action='toggle_underlay'},tooltip='Toggle preview underlay'}
   elseif state.camera_area then
     actions[#actions+1]={name='neighbors',sprite='utility/list_view',tags={action='toggle_neighbors'},tooltip='Group or expand neighbors'}
@@ -350,7 +386,7 @@ function M.build(player, state)
     section.style.height=24
   end
   local list_space=root.add{type="empty-widget",name="list_space"}
-  list_space.style.height=#visible_items(state)*ROW_STEP+8
+  list_space.style.height=total_height(visible_items(state))+8
   -- A click raises its top-level frame before Lua handles the event. Keeping
   -- this footer separate prevents an Add click from covering every row.
   local footer=player.gui.screen.add{type="frame",name=M.root.."_footer",direction="vertical",style="invisible_frame"}
@@ -360,6 +396,7 @@ function M.build(player, state)
   apply.style.width=ROW_WIDTH;apply.style.height=36
   local add=footer.add{type="button", name="add_template", caption=state.workspace=="collection" and "+ Reference a Template" or "+ Add a Template",
     style="train_schedule_add_interrupt_station_button", tags={action="add"}}
+  if state.workspace=='world' and not state.camera_area then add.caption='Create instance';add.tags={action='create_instance'} end
   add.enabled=state.workspace~="collection" or state.parent_template~=nil
   add.style.width=ROW_WIDTH
   add.style.height=36

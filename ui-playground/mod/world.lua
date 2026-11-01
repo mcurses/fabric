@@ -45,7 +45,7 @@ function M.highlight(player,state,id)
     if state.workspace=='world' and state.camera_area then
       center=state.camera_area.center;snapshot=R.reference_snapshot(state.camera_area,ref)
     elseif state.parent_template and ref.template_id then
-      center=state.parent_template.area.center;snapshot=S.transform(R.flatten(ref.template_id),ref)
+      center=state.parent_template.area.center;snapshot=S.transform(R.flatten(ref.template_id,ref.slot_assignments),ref)
     end
     if snapshot then state.preview_ghosts=G.show(demo.surface,snapshot,center,function(e) return not S.find(demo.surface,e,center) end) end
   end

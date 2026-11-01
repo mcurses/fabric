@@ -69,6 +69,28 @@ Normal Factorio saves and mods remain separate. Save your playground after editi
    World Origin Template; a replacement must have the already-established cell
    dimensions. Applying it rebuilds World.
 
+## Slots and anchors
+
+In template metadata, set the slot count, then use **Select anchor** for each slot
+and click an owned entity in the editor. Save metadata and commit newly placed
+anchor entities. For a filler, use **Can be filled into a slot** and select its
+anchor the same way. A host cannot itself be a filler; subslots are not supported.
+
+Each placed host reference shows its slot dropdowns inline. Choose a compatible
+filler to align its anchor position and orientation with the slot anchor. These
+assignments belong to that placed reference. In a template, stitch the reference
+changes to publish them; in World, choosing a filler rebuilds that instance.
+
+Bay spine starts with three inactive slots because its imported blueprint has no
+train stops. Its anchors must be added/selected. Imported station templates with
+a single train stop already have filler anchors. The old Left/Right placement
+presets are replaced by **Cell origin** and **Custom**.
+
+The template picker has search and a **Most common** section seeded with Universal
+request, Bay spine, Trash sender, HT solid request, and HT solid provider. Successful
+placements and slot selections update that ranking. Outside any World cell,
+**Create instance** creates the cell on the fixed lattice and includes The Grid.
+
 ## Development and verification
 
 **Reload / Ctrl+Shift+R** reloads Lua. **Ctrl+Shift+U** or `/ui` opens the editor.

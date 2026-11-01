@@ -21,12 +21,12 @@ Functional prototype limits — updated 2026-11-01
   must not rebuild while a person is still holding a row.
 - Preview ghosts use an isolated force without construction bots. They are visual
   guides, never part of captures/commits, and are cleared when leaving the preview.
-- World cell dimensions remain fixed. The initial World has four cells; expanding
-  it arbitrarily is not yet a product flow. Origin/custom layout plus padding works.
+- World cell dimensions remain fixed. The initial World has four cells; Create instance adds a cell at the
+  camera position on that fixed lattice. Origin/custom layout plus padding works.
 - Neighbors are one group by default, expandable into whole-neighbor rows.
   Ownership is by entity center at the
-  receiving cell boundary. Fine-grained neighbor overrides and an anchors editor
-  remain future work. Source presets are imported; no slots editor yet.
+  receiving cell boundary. Fine-grained neighbor overrides remain future work. Slots are one level
+  deep and align committed anchor geometry; legacy position presets are hidden.
 - Source is the October 24 book, not the current multiplayer save. All 20 source
   modules, including small placeholders, remain. Unsupported isolated elevated
   rails remain captureable ghosts.
@@ -53,3 +53,18 @@ Responsiveness pass (2026-11-01)
   own additions. The header expands individual neighbors; this is saved per cell.
   Collapsing gathers them at the first neighbor's priority. Reordering the group
   moves all its neighbors together.
+
+Slots pass (2026-11-01)
+- Slot definitions and filler eligibility are template metadata. Assignments live
+  on each reference and follow normal reference commit/discard semantics.
+- Anchors match entity type and align position and cardinal orientation. They are
+  geometry based: commit a newly placed anchor before a slot activates; deleting
+  or moving it deactivates the slot until its anchor is selected again.
+- Fillers cannot contain slots, including through normal nested references.
+  Filled templates must be unassigned before adding slots or disabling eligibility.
+- Bay spine's imported blueprint has no train stops. It starts with three inactive
+  slots. Add/select its anchor entities in the collection. Imported station
+  templates with one train stop have that stop configured as their filler anchor.
+- Stitching world patches on a slot-filled host is disabled: edit the appropriate
+  filler source in the collection. Discard/reset remains available. Routing a
+  geometric patch to an individual slot source is not implemented.

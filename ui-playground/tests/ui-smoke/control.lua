@@ -1,3 +1,4 @@
+local Slots=require('__fabric-ui-playground__/slots')
 local D=require('__fabric-ui-playground__/diff')
 local G=require('__fabric-ui-playground__/ghosts')
 local review=require('__fabric-ui-playground__/overrides')
@@ -232,6 +233,19 @@ script.on_event(defines.events.on_tick,function()
   assert(#ghosts==1,'Overwritten buildings can be previewed through the winning building')
   G.clear(ghosts);physical.destroy()
   log('DIFF_PATCH_GHOST_PASS')
+  local host_anchor={name='train-stop',position={x=-3,y=5},direction=12}
+  local filler_anchor={name='train-stop',position={x=7,y=9},direction=4}
+  local host={id=900,snapshot={entities={host_anchor}}}
+  local filler={id=901,slot_eligible=true,slot_anchor=filler_anchor,snapshot={entities={filler_anchor}},committed_refs={},slot_definitions={}}
+  assert(Slots.compatible(host,{anchor=host_anchor},filler))
+  local transform=Slots.transform({anchor=host_anchor},filler)
+  local aligned=S.point(filler_anchor.position,transform)
+  assert(aligned.x==-3 and aligned.y==5 and transform.direction==8,'Anchor alignment rotates before translation')
+  filler.slot_definitions={{name='Subslot'}}
+  assert(not Slots.compatible(host,{anchor=host_anchor},filler),'Subslots are rejected even if eligibility is set')
+  filler.slot_definitions={};host.snapshot.entities={}
+  assert(not Slots.compatible(host,{anchor=host_anchor},filler),'Missing anchor deactivates slot')
+  log('SLOT_ALIGNMENT_AND_DEPTH_PASS')
   log('FUNCTIONAL_SMOKE_PASS')
   script.finish_test(true)
 end)

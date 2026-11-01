@@ -1,6 +1,7 @@
 local S=require('__fabric-ui-playground__/snapshots')
 local D=require('__fabric-ui-playground__/diff')
 local G=require('__fabric-ui-playground__/ghosts')
+local Slots=require('__fabric-ui-playground__/slots')
 local seeds=require('__fabric-ui-playground__/fixtures/library')
 local M={}
 local function queue(task)
@@ -57,29 +58,33 @@ end
 function M.catalog()
   local out={};for _,id in ipairs(M.store().order) do out[#out+1]=M.template(id) end;return out
 end
-function M.layers(id,seen)
+function M.layers(id,seen,assignments)
   seen=seen or {};assert(not seen[id],'Recursive template reference')
   local t=assert(M.template(id),'Missing template');seen[id]=true
   local out={{snapshot=t.snapshot}}
   for _,ref in ipairs(t.committed_refs) do
     if not ref.preview_only then
-    for _,layer in ipairs(M.layers(ref.template_id,seen)) do
+    for _,layer in ipairs(M.layers(ref.template_id,seen,ref.slot_assignments)) do
       out[#out+1]={snapshot=S.transform(layer.snapshot,ref),reference=ref.id}
     end
     end
   end
+  for _,layer in ipairs(Slots.layers(t,assignments,seen)) do out[#out+1]=layer end
   seen[id]=nil;return out
 end
 function M.depends(id,target,seen)
   if id==target then return true end
   seen=seen or {};if seen[id] then return false end;seen[id]=true
-  for _,ref in ipairs(M.template(id).children) do if M.depends(ref.template_id,target,seen) then return true end end
+  for _,ref in ipairs(M.template(id).children) do
+    if M.depends(ref.template_id,target,seen) then return true end
+    for _,filler in pairs(ref.slot_assignments or {}) do if M.depends(filler,target,seen) then return true end end
+  end
   return false
 end
-function M.flatten(id)
+function M.flatten(id,assignments)
   local db=M.store();db.preview_cache=db.preview_cache or {}
-  if db.preview_cache[id] then return S.copy(db.preview_cache[id]) end
-  local layers=M.layers(id)
+  if not assignments and db.preview_cache[id] then return S.copy(db.preview_cache[id]) end
+  local layers=M.layers(id,nil,assignments)
   if #layers==1 then return S.copy(layers[1].snapshot) end
   -- Resolve overlaps through the same native build rules as the editor before
   -- making a cursor blueprint; concatenation can contain colliding duplicates.
@@ -97,7 +102,7 @@ function M.flatten(id)
   S.settle(sf,game.forces.player)
   local result=S.capture(sf,game.forces.player,bounds,{x=0,y=0})
   S.clear(sf,bounds)
-  db.preview_cache[id]=S.copy(result)
+  if not assignments then db.preview_cache[id]=S.copy(result) end
   return result
 end
 local function stable(v)
@@ -133,7 +138,7 @@ local function ref_signature(refs)
   local out={}
   for _,ref in ipairs(refs or {}) do
     out[#out+1]={template_id=ref.template_id,x=ref.x,y=ref.y,direction=ref.direction,
-      flip_horizontal=ref.flip_horizontal,flip_vertical=ref.flip_vertical,preview_only=ref.preview_only}
+      flip_horizontal=ref.flip_horizontal,flip_vertical=ref.flip_vertical,preview_only=ref.preview_only,slot_assignments=ref.slot_assignments}
   end
   return stable(out)
 end
@@ -156,7 +161,7 @@ function M.underlay(player,t)
   if t.show_underlay~=false then
     if t.origin_id then area.underlay=G.show(M.store().collection_surface,M.flatten(t.origin_id),area.center) end
     for _,ref in ipairs(t.children) do if ref.preview_only then
-      for _,ghost in ipairs(G.show(M.store().collection_surface,S.transform(M.flatten(ref.template_id),ref),area.center)) do area.underlay[#area.underlay+1]=ghost end
+      for _,ghost in ipairs(G.show(M.store().collection_surface,S.transform(M.flatten(ref.template_id,ref.slot_assignments),ref),area.center)) do area.underlay[#area.underlay+1]=ghost end
     end end
   end
 end
@@ -180,7 +185,7 @@ function M.render_editor(player,t,own)
   S.place(sf,player.force,own or t.snapshot,area.center)
   for _,ref in ipairs(t.children) do
     prepare_ref(ref);local group={name=ref.name,icon=ref.icon,entities={}}
-    for _,layer in ipairs(ref.preview_only and {} or M.layers(ref.template_id)) do
+    for _,layer in ipairs(ref.preview_only and {} or M.layers(ref.template_id,nil,ref.slot_assignments)) do
       for _,e in ipairs(S.place(sf,player.force,S.transform(layer.snapshot,ref),area.center)) do
         group.entities[#group.entities+1]=e;area.excluded[S.entity_key(e)]=true
       end
@@ -211,7 +216,7 @@ local function cell_layers(cell)
   local layers={}
   for _,ref in ipairs(cell.items) do
     if not ref.neighbor then
-      for _,l in ipairs(M.layers(ref.template_id)) do layers[#layers+1]={snapshot=S.transform(l.snapshot,ref),key=ref.id} end
+      for _,l in ipairs(M.layers(ref.template_id,nil,ref.slot_assignments)) do layers[#layers+1]={snapshot=S.transform(l.snapshot,ref),key=ref.id} end
     end
   end
   return layers
@@ -275,7 +280,7 @@ function M.reference_snapshot(cell,ref)
     return result
   end
   local result=S.empty();result.wires={}
-  local layers=ref.neighbor and cell_layers(M.store().cells[ref.neighbor]) or M.layers(ref.template_id)
+  local layers=ref.neighbor and cell_layers(M.store().cells[ref.neighbor]) or M.layers(ref.template_id,nil,ref.slot_assignments)
   local center=ref.neighbor and M.store().cells[ref.neighbor].center or cell.center
   for _,layer in ipairs(layers) do
     local data=ref.neighbor and S.copy(layer.snapshot) or S.transform(layer.snapshot,ref)
@@ -334,6 +339,7 @@ end
 function M.patch_action(player,cell,ref,changes,commit)
   if commit then
     assert(not ref.neighbor,'Open the neighbor to edit its source templates.')
+    assert(not next(ref.slot_assignments or {}),'Edit the filled slot templates directly in the collection to stitch their changes.')
     local t=M.template(ref.template_id);local mapped={}
     local inverse={direction=(-(ref.direction or 0))%16}
     for _,c in ipairs(changes) do
@@ -382,7 +388,7 @@ function M.rebuild_world(player)
       local group={name=M.ref_name(ref),icon=ref.icon,entities={}}
       local layers,center
       if ref.neighbor then layers=cell_layers(db.cells[ref.neighbor]);center=db.cells[ref.neighbor].center
-      else layers=M.layers(ref.template_id);center=cell.center end
+      else layers=M.layers(ref.template_id,nil,ref.slot_assignments);center=cell.center end
       for _,layer in ipairs(layers) do
         local snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref)
         for _,e in ipairs(S.place(sf,player.force,snapshot,center,cell.bounds)) do group.entities[#group.entities+1]=e end
@@ -396,7 +402,7 @@ function M.rebuild_world(player)
     for _,layer in ipairs(cell_layers(cell)) do S.rewire(sf,layer.snapshot,cell.center) end
     for _,ref in ipairs(cell.items) do
       local group=cell.groups[ref.id];group.entities={}
-      local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id)
+      local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id,nil,ref.slot_assignments)
       local center=ref.neighbor and db.cells[ref.neighbor].center or cell.center
       for _,layer in ipairs(layers) do
         local snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref)
@@ -422,7 +428,8 @@ function M.rebuild_world(player)
 end
 function M.run_task(player,task)
   local db=M.store();local job=storage.fabric_job
-  if task.kind=='generate' then task.surface.request_to_generate_chunks(task.position,0);task.surface.force_generate_chunk_requests()
+  if task.kind=='generate_region' then generate(task.surface,task.bounds)
+  elseif task.kind=='generate' then task.surface.request_to_generate_chunks(task.position,0);task.surface.force_generate_chunk_requests()
   elseif task.kind=='floor' then floor(task.surface,task.bounds,task.name)
   elseif task.kind=='clear' then S.clear(task.surface,task.bounds)
   elseif task.kind=='editor' then
@@ -455,11 +462,18 @@ function M.run_task(player,task)
         extent.right_bottom.x=math.max(extent.right_bottom.x,b.right_bottom.x);extent.right_bottom.y=math.max(extent.right_bottom.y,b.right_bottom.y)
       end
     end
-    generate(sf,extent)
-    local tasks={}
-    if db.world_built_bounds then tasks[#tasks+1]={kind='clear',surface=sf,bounds=db.world_built_bounds} end
-    tasks[#tasks+1]={kind='clear',surface=sf,bounds=extent}
-    tile_tasks(tasks,sf,extent,'grass-1');db.world_built_bounds=extent
+    local tasks={};local regions={}
+    for _,bounds in ipairs(db.world_built_regions or (db.world_built_bounds and {db.world_built_bounds} or {})) do tasks[#tasks+1]={kind='clear',surface=sf,bounds=bounds} end
+    for _,cell in ipairs(db.cells) do
+      regions[#regions+1]=cell.bounds
+      for _,layer in ipairs(cell_layers(cell)) do regions[#regions+1]=S.shift_bounds(S.bounds(layer.snapshot),cell.center) end
+    end
+    for _,bounds in ipairs(regions) do
+      tasks[#tasks+1]={kind='generate_region',surface=sf,bounds=bounds}
+      tasks[#tasks+1]={kind='clear',surface=sf,bounds=bounds}
+      tile_tasks(tasks,sf,bounds,'grass-1')
+    end
+    db.world_built_regions=regions;db.world_built_bounds=extent
     for _,cell in ipairs(db.cells) do
       cell.groups={};tile_tasks(tasks,sf,cell.bounds,'refined-concrete')
       for _,layer in ipairs(cell_layers(cell)) do tasks[#tasks+1]={kind='place',snapshot=layer.snapshot,center=cell.center,outside=true} end
@@ -467,7 +481,7 @@ function M.run_task(player,task)
     for _,cell in ipairs(db.cells) do
       for _,ref in ipairs(cell.items) do
         cell.groups[ref.id]={name=M.ref_name(ref),icon=ref.icon,entities={}}
-        local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id)
+        local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id,nil,ref.slot_assignments)
         local center=ref.neighbor and db.cells[ref.neighbor].center or cell.center
         for _,layer in ipairs(layers) do
           tasks[#tasks+1]={kind='place',snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref),center=center,bounds=cell.bounds}
@@ -492,7 +506,7 @@ function M.run_task(player,task)
     for _,r in ipairs(cell.items) do if r.id==task.ref then ref=r end end
     if not ref then return end
     local group=cell.groups[ref.id]
-    local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id)
+    local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id,nil,ref.slot_assignments)
     local center=ref.neighbor and db.cells[ref.neighbor].center or cell.center
     for _,layer in ipairs(layers) do
       local snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref)
@@ -530,6 +544,18 @@ end
 function M.discard(player,t)
   t.children=S.copy(t.committed_refs);t.draft_dirty=false;M.render_editor(player,t)
 end
+function M.usage_counts()
+  local db=M.store()
+  if not db.usage_counts then
+    db.usage_counts={}
+    local defaults={['Universal request']=5,['Bay spine']=4,['Trash sender']=3,['HT solid request']=2,['HT solid provider']=1}
+    for _,t in ipairs(M.catalog()) do if defaults[t.name] then db.usage_counts[t.id]=defaults[t.name] end end
+  end
+  return db.usage_counts
+end
+function M.record_usage(id)
+  local counts=M.usage_counts();counts[id]=(counts[id] or 0)+1
+end
 function M.add_reference(player,state,template_id,position,transform)
   local db=M.store();local source=assert(M.template(template_id))
   local target=state.workspace=='collection' and state.parent_template or state.camera_area
@@ -539,7 +565,7 @@ function M.add_reference(player,state,template_id,position,transform)
   local ref=prepare_ref{id=db.next_ref,template_id=template_id,x=position.x-center.x,y=position.y-center.y,
     preview_only=state.workspace=='collection' and state.placement and state.placement.preview_only or false,
     direction=transform and transform.direction or 0,flip_horizontal=transform and transform.flip_horizontal or false,flip_vertical=transform and transform.flip_vertical or false}
-  db.next_ref=db.next_ref+1
+  db.next_ref=db.next_ref+1;M.record_usage(template_id)
   if state.workspace=='collection' then
     local own=M.capture(target);target.children[#target.children+1]=ref;target.draft_dirty=true
     M.render_editor(player,target,own)
@@ -593,7 +619,44 @@ function M.create(player,options)
     is_template=true,is_origin=options.is_origin or false,origin_id=options.origin_id,width=w,height=h,padding=padding,
     snapshot=S.empty(),children={},committed_refs={},version=1,edit_version=1,show_underlay=true}
   db.templates[id]=t;db.order[#db.order+1]=id
+  Slots.configure(t,options.slot_count or 0,options.slot_eligible)
   M.ensure_area(player,t);return t
+end
+function M.assign_slot(player,state,ref_id,slot_index,template_id)
+  local target=state.parent_template or state.camera_area;assert(target,'Choose an instance or template.')
+  local list=state.parent_template and target.children or target.items
+  local ref;for _,entry in ipairs(list) do if entry.id==ref_id then ref=entry end end
+  assert(ref and ref.template_id,'Missing host reference')
+  local host=M.template(ref.template_id);local slot=(host.slot_definitions or {})[slot_index]
+  assert(slot,'Missing slot')
+  if template_id and template_id~=0 then
+    local filler=M.template(template_id)
+    assert(Slots.compatible(host,slot,filler),'This template cannot fill this slot. Both anchors must exist and slot contents cannot have slots.')
+    if state.parent_template then assert(not M.depends(template_id,target.id),'This assignment would create a cycle.') end
+    M.record_usage(template_id)
+  end
+  local own=state.parent_template and M.capture(target)
+  ref.slot_assignments=ref.slot_assignments or {};ref.slot_assignments[slot_index]=template_id~=0 and template_id or nil
+  M.store().preview_cache={}
+  if own then target.draft_dirty=true;M.render_editor(player,target,own) else M.rebuild_world(player) end
+end
+function M.create_instance(player,position)
+  local db=M.store();local w,h=db.world_width,db.world_height
+  local center={x=math.floor((position.x+w/2)/w)*w,y=math.floor((position.y+h/2)/h)*h}
+  for _,cell in ipairs(db.cells) do if cell.center.x==center.x and cell.center.y==center.y then return cell end end
+  local id=#db.cells+1;local bounds=box(center,w,h)
+  local cell={id=id,name='Instance '..id,center=center,bounds=bounds,left_top=bounds.left_top,right_bottom=bounds.right_bottom,items={},groups={}}
+  cell.items[1]=prepare_ref{id=db.next_ref,template_id=db.world_origin,origin=true,x=0,y=0};db.next_ref=db.next_ref+1
+  db.cells[id]=cell
+  cell.border=rendering.draw_rectangle{surface=db.world_surface,left_top=bounds.left_top,right_bottom=bounds.right_bottom,color={.2,.9,1},width=2}
+  M.rebuild_world(player);return cell
+end
+function M.refresh_metadata(player,t)
+  M.store().preview_cache={};M.store().slot_revision=(M.store().slot_revision or 0)+1
+  for _,other in ipairs(M.catalog()) do
+    if other.area and M.depends(other.id,t.id) then local own=M.capture(other);M.render_editor(player,other,own) end
+  end
+  M.rebuild_world(player)
 end
 function M.configure_world(player,id)
   local db=M.store();local origin=assert(M.template(id));assert(origin.is_origin,'Select an Origin Template.')
@@ -657,7 +720,7 @@ function M.ensure(player)
     local db=storage.fabric_snapshot
     if db.placement_revision~=4 then M.rebuild_world(player);db.placement_revision=4 end
     if db.layout_revision~=2 then M.upgrade_layout(player) end
-    return db
+    Slots.seed();return db
   end
   for _,name in ipairs({'cybersyn2-combinator','ghost-scanner-ia','elevated-straight-rail','turbo-transport-belt'}) do
     assert(prototypes.entity[name],'Restart using play.sh to load the real library dependencies: '..name)
@@ -689,6 +752,7 @@ function M.ensure(player)
       t.committed_refs=S.copy(t.children)
     end
   end
+  Slots.seed()
   M.configure_world(player,1)
   db.placement_revision=4;db.ready=true;db.layout_revision=2;db.neighbor_ui_revision=1
   for _,t in ipairs(M.catalog()) do M.ensure_area(player,t) end
@@ -715,4 +779,5 @@ function M.on_chunk(surface,bounds)
   end
 end
 M.box=box
+Slots.bind(M)
 return M

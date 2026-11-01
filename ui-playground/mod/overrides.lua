@@ -39,7 +39,7 @@ function M.changes(t,force)
   t.draft_dirty=t.area and R.signature(current)~=t.area.baseline or false
   local changes=D.compare(t.snapshot,current)
   local ref_change=#t.children~=#t.committed_refs
-  for i,r in ipairs(t.children) do local old=t.committed_refs[i];if not old or old.id~=r.id or old.x~=r.x or old.y~=r.y or old.preview_only~=r.preview_only then ref_change=true end end
+  for i,r in ipairs(t.children) do local old=t.committed_refs[i];if not old or old.id~=r.id or old.x~=r.x or old.y~=r.y or old.preview_only~=r.preview_only or helpers.table_to_json(old.slot_assignments or {})~=helpers.table_to_json(r.slot_assignments or {}) then ref_change=true end end
   if ref_change then changes[#changes+1]={kind='References',reference=true} end
   t.review_cache=changes
   return changes
@@ -90,12 +90,13 @@ function M.show(player,state,id)
     local e=c.after or c.before
     if e then row.add{type='label',caption='('..e.position.x..', '..e.position.y..')'}.style.font_color={.7,.7,.7} end
     local gap=row.add{type='empty-widget'};gap.style.horizontally_stretchable=true
-    if not editing and not source.neighbor then row.add{type='sprite-button',sprite='utility/check_mark',style='tool_button',tags={action='patch_accept',id=id,change=i},tooltip='Stitch this change into the source template'} end
+    if not editing and not source.neighbor then row.add{type='sprite-button',sprite='utility/check_mark',style='tool_button',tags={action='patch_accept',id=id,change=i},enabled=not next(source.slot_assignments or {}),tooltip='Stitch this change into the source template'} end
     row.add{type='sprite-button',sprite='utility/reset',style='tool_button',tags={action='change_reset',id=id,change=i},tooltip='Discard this change'}
     local function hover(el) el.raise_hover_events=true;for _,child in ipairs(el.children) do hover(child) end end;hover(row)
   end
-  components.action_stack(panel,id,{{caption='Stitch into Template',icon='stitch',action=editing and 'edit_commit' or 'patch_commit'},
+  local actions=components.action_stack(panel,id,{{caption='Stitch into Template',icon='stitch',action=editing and 'edit_commit' or 'patch_commit'},
     {caption='Discard Changes',icon='reset',action=editing and 'edit_discard' or 'patch_discard'}},#state.review_changes>0 and not source.neighbor)
+  if not editing and next(source.slot_assignments or {}) then actions.children[1].enabled=false;actions.children[1].tooltip='Edit the filled slot templates directly in the collection to stitch their changes.' end
   panel.bring_to_front()
   M.preview(player,state,id)
 end

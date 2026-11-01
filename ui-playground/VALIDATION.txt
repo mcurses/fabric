@@ -55,3 +55,16 @@ The client was reloaded successfully; its unsaved draft remains open.
 - Live profile restarted with current edited save, custom icon loaded, neighbor
   migration completed; instance screenshot verified grouped neighbors and separate
   Apply order/Add controls. Original and fresh pre-migration backups retained.
+
+2026-11-01 slots/anchors pass:
+- FUNCTIONAL_SMOKE_PASS, including SLOT_ALIGNMENT_AND_DEPTH_PASS: anchor
+  translation/orientation, missing anchors, and rejection of subslots.
+- UI_INTEGRATION_PASS and SLOTS_ANCHORS_NESTING_CREATE_INSTANCE_SEARCH_PASS:
+  anchor selection through the GUI-open handler; editable slot counts; three
+  inline assignments inside a parent template; own-snapshot exclusion; committed
+  World alignment; filler commit propagation; slot-aware usages; new fixed-grid
+  instance with origin; search and Most common section.
+- Existing async/reload/live-diff integration and user-save reload still pass.
+- Latest integration rerun passes after slot-configuration validation and anchor
+  selection Cancel controls. Live profile restarted; white map icon visually
+  verified. The user's current edits and pre-slot backup are retained.
