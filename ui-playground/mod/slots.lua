@@ -82,6 +82,9 @@ end
 function M.remove(t,index)
   assert(t.slot_definitions[index],'Missing slot')
   table.remove(t.slot_definitions,index)
+  local previews={}
+  for i,id in pairs(t.slot_previews or {}) do if i~=index then previews[i>index and i-1 or i]=id end end
+  t.slot_previews=previews
   for i,slot in ipairs(t.slot_definitions) do slot.name='Slot '..i end
   local function shift(refs)
     for _,ref in ipairs(refs or {}) do if ref.template_id==t.id and ref.slot_assignments then
@@ -121,6 +124,52 @@ function M.picker(player,state,id,index)
   local host=runtime().template(ref.template_id)
   picker_ui.picker(player,state,{id=id,slot=index,catalog=M.choices(host,host.slot_definitions[index])})
 end
+-- Author previews never enter committed layers or instance assignments.
+local function author_host(t)
+  local host={snapshot={entities={}}}
+  if t.area then
+    for _,slot in ipairs(t.slot_definitions or {}) do
+      if slot.anchor and S.find(runtime().store().collection_surface,slot.anchor,t.area.center) then
+        host.snapshot.entities[#host.snapshot.entities+1]=slot.anchor
+      end
+    end
+  end
+  return host
+end
+function M.author_layers(t,assignments)
+  local host=author_host(t);host.slot_definitions=t.slot_definitions
+  return M.layers(host,assignments or t.slot_previews)
+end
+function M.author_picker(player,state,index)
+  local t=state.parent_template;local slot=t and t.slot_definitions[index]
+  if not slot or not slot.anchor then return end
+  picker_ui.picker(player,state,{author=true,id=t.id,slot=index,catalog=M.choices(author_host(t),slot)})
+end
+function M.author_select(player,state,index,id)
+  local t=state.parent_template;local slot=t and t.slot_definitions[index]
+  if not slot or not M.compatible(author_host(t),slot,runtime().template(id)) then return end
+  t.slot_previews=t.slot_previews or {};t.slot_previews[index]=id
+  clear_preview(state);runtime().underlay(player,t)
+end
+function M.highlight_anchor(player,state,index)
+  clear_preview(state)
+  local t=state.parent_template;if not t or not t.area then return end
+  local anchor=index==0 and t.slot_anchor or (t.slot_definitions[index] or {}).anchor
+  local entity=anchor and S.find(runtime().store().collection_surface,anchor,t.area.center)
+  state.highlight_objects={}
+  local function outline(box,color)
+    state.highlight_objects[#state.highlight_objects+1]=rendering.draw_rectangle{surface=player.surface,
+      left_top=box.left_top,right_bottom=box.right_bottom,color=color,width=3,filled=false,draw_on_ground=false,players={player.index}}
+  end
+  for _,layer in ipairs(M.author_layers(t)) do if layer.slot==index then
+    for _,e in ipairs(layer.snapshot.entities or {}) do
+      local box=prototypes.entity[e.name].selection_box
+      local p={x=t.area.center.x+e.position.x,y=t.area.center.y+e.position.y}
+      outline({left_top={x=p.x+box.left_top.x,y=p.y+box.left_top.y},right_bottom={x=p.x+box.right_bottom.x,y=p.y+box.right_bottom.y}},{0.2,0.8,1,1})
+    end
+  end end
+  if entity then outline(entity.bounding_box,{0.1,1,0.2,1}) end
+end
 function M.preview_drafts(player,state,hover)
   clear_preview(state)
   local target=state.parent_template and state.parent_template.area or state.camera_area
@@ -151,6 +200,13 @@ end
 function M.preview(player,state,tags)
   clear_preview(state)
   local R=runtime();local db=R.store()
+  if tags.author then
+    local t=state.parent_template;if not t or t.id~=tags.id then return end
+    local assignments=S.copy(t.slot_previews or {});assignments[tags.slot]=tags.preview_slot
+    R.underlay(player,t,assignments)
+    state.author_hover=true
+    return
+  end
   if tags.preview_create then
     local w,h=db.world_width,db.world_height
     local center={x=math.floor((player.position.x+w/2)/w)*w,y=math.floor((player.position.y+h/2)/h)*h}

@@ -33,7 +33,7 @@ local function visible_items(state)
   end
   return items
 end
-local function slot_height(state) local t=state.parent_template;return t and (96+#(t.slot_definitions or {})*36+(t.slot_eligible and 36 or 0)) or 0 end
+local function slot_height(state) local t=state.parent_template;return t and (96+#(t.slot_definitions or {})*44+(t.slot_eligible and 36 or 0)) or 0 end
 local function list_top(state) return LIST_TOP+((state.workspace=="collection" or state.world_camera_mode) and 28 or 0)+(state.parent_template and 92 or 0)+slot_height(state) end
 local WINDOW_WIDTH, ROW_WIDTH, NAME_WIDTH = 420, 396, 272
 local icons = {
@@ -226,8 +226,8 @@ function M.adjust(player,state,element)
 end
 
 local function create_row(player,item)
-    local row=player.gui.screen.add{type="frame", name=row_name(item.id), direction="vertical", style="train_schedule_station_frame",
-      tags={fabric_ui_row=true, id=item.id}}
+    local row=components.reference_frame(player.gui.screen,{name=row_name(item.id), direction="vertical",
+      tags={fabric_ui_row=true, id=item.id}})
     row.style.width=ROW_WIDTH
     row.style.height=row_step(item)-4
     row.style.padding=4
@@ -259,8 +259,8 @@ local function create_row(player,item)
     grip.style.width=60
     grip.style.height=28
     grip.drag_target=row
-    local remove=contents.add{type="sprite-button", name="remove", sprite="utility/close", style="train_schedule_delete_button",
-      tags={action="remove", id=item.id}, tooltip="Remove "..item.name}
+    local remove=components.reference_remove(contents,{name="remove",
+      tags={action="remove", id=item.id}, tooltip="Remove "..item.name})
     remove.style.margin=0
     remove.style.width=16
     remove.style.height=28
@@ -398,10 +398,14 @@ function M.build(player, state)
     local manager=root.add{type='flow',direction='vertical'};manager.style.height=slot_height(state);manager.style.vertical_spacing=4
     manager.add{type='label',caption='Slots',style='caption_label'}.style.height=24
     local function anchor_row(i,anchor,label)
-      local line=manager.add{type='flow',direction='horizontal'};line.style.height=32;line.style.vertical_align='center'
-      line.add{type='label',caption=label..(anchor and ('  [entity='..anchor.name..']') or ' · inactive')}.style.width=176
-      line.add{type='button',caption=anchor and 'Change anchor' or 'Select anchor',tags={action='slot_anchor_pick',slot=i}}.style.width=170
-      if i>0 then line.add{type='sprite-button',sprite='utility/close',tags={action='slot_delete',slot=i},tooltip='Delete slot and its assignments'}.style.size=28 end
+      local line
+      if i>0 then line=components.reference_frame(manager,{direction='horizontal',raise_hover_events=true,tags={preview_anchor=i}});line.style.width=396;line.style.height=40
+      else line=manager.add{type='flow',direction='horizontal',tags={preview_anchor=i}};line.style.height=32 end
+      line.style.vertical_align='center'
+      line.add{type='label',caption=label..(anchor and ('  [entity='..anchor.name..']') or ' · inactive'),style='bold_label',raise_hover_events=true,tags={preview_anchor=i}}.style.width=i>0 and 130 or 176
+      line.add{type='button',caption=anchor and 'Change anchor' or 'Select anchor',raise_hover_events=true,tags={action='slot_anchor_pick',slot=i,preview_anchor=i}}.style.width=i>0 and 130 or 170
+      if i>0 then line.add{type='button',caption='Preview',enabled=anchor~=nil,raise_hover_events=true,tags={action='slot_preview_open',slot=i,preview_anchor=i}}.style.width=90 end
+      if i>0 then components.reference_remove(line,{tags={action='slot_delete',slot=i,preview_anchor=i},raise_hover_events=true,tooltip='Delete slot and its assignments'}) end
     end
     for i,slot in ipairs(t.slot_definitions or {}) do anchor_row(i,slot.anchor,'Slot '..i) end
     manager.add{type='button',caption='+ Add a Slot',enabled=#(t.slot_definitions or {})<32,tags={action='slot_add'}}.style.width=396

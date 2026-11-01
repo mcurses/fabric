@@ -58,6 +58,8 @@ local function test_slots(p)
   for _,pos in ipairs(positions) do p.surface.create_entity{name='steel-chest',position={host.center.x+pos[1],host.center.y+pos[2]},force=p.force} end
   commit(p);action(p,'edit_exit')
   for i=1,3 do action(p,'slot_add') end
+  local preview=find(p.gui.screen,function(el)return el.tags.action=='slot_preview_open' and el.tags.slot==1 end)
+  assert(preview and not preview.enabled,'Preview requires an anchor')
   for i,pos in ipairs(positions) do
     local button=find(p.gui.screen,function(el)return el.tags.action=='slot_anchor_pick' and el.tags.slot==i end)
     remote.call('fabric-ui-test','click',p.index,button)
@@ -65,6 +67,19 @@ local function test_slots(p)
     remote.call('fabric-ui-test','opened',p.index,entity);remote.call('fabric-ui-test','drain',p.index)
   end
   assert(inspect(p).catalog[host.id].slot_count==3)
+  local preview=find(p.gui.screen,function(el)return el.tags.action=='slot_preview_open' and el.tags.slot==1 end)
+  assert(preview.enabled,'Anchored slot enables preview')
+  remote.call('fabric-ui-test','click',p.index,preview)
+  local option=find(p.gui.screen.fabric_template_picker,function(el)return el.tags.action=='slot_preview_pick' and el.tags.value==origin_id end)
+  assert(option,'Author picker filters to compatible fillers')
+  remote.call('fabric-ui-test','click',p.index,option)
+  assert(not remote.call('fabric-ui-test','busy'),'Author preview must not rebuild')
+  assert(inspect(p).catalog[host.id].underlay>0,'Author filler appears as ghosts')
+  remote.call('fabric-ui-test','hover',p.index,preview)
+  assert(inspect(p).highlight_count>1,'Slot hover outlines anchor and preview')
+  remote.call('fabric-ui-test','leave',p.index,preview)
+  assert(inspect(p).highlight_count==0 and inspect(p).catalog[host.id].underlay>0,'Leaving clears outlines but keeps preview')
+  log('AUTHOR_SLOT_PREVIEW_HIGHLIGHT_PASS')
   local parent=create(p,'QA Slotted Assembly',false)
   action(p,'add');form=p.gui.screen.fabric_ui_add_template;choose(p,form.template_picker,host.id)
   assert(#form.position_picker.items==2,'Old Left/Right presets are replaced by origin/custom')
@@ -383,6 +398,13 @@ script.on_event(defines.events.on_tick,function(e)
     remote.call('fabric-ui-test','leave',p.index,storage.preview_element)
     assert(inspect(p).preview_count==storage.draft_ghost_count,'Leaving restores the persistent draft ghosts')
     log('PERSISTENT_MULTI_SLOT_HOVER_PASS')
+    local button=p.gui.top.add{type='button',caption='Cleanup test templates',tags={action='cleanup_templates'}}
+    remote.call('fabric-ui-test','click',p.index,button);remote.call('fabric-ui-test','drain',p.index)
+    for _,t in ipairs(inspect(p).catalog) do assert(not t.name:lower():find('test',1,true),'Test templates removed') end
+    local retained={};for _,t in ipairs(inspect(p).catalog) do retained[t.id]=t.name end
+    local fresh=create(p,'Fresh after cleanup',false)
+    for _,t in ipairs(inspect(p).catalog) do if retained[t.id] then assert(t.name==retained[t.id],'Creating after cleanup preserves existing IDs') end end
+    log('TEMPLATE_CLEANUP_AND_CREATE_PASS')
     log('UI_INTEGRATION_PASS');script.finish_test(true);step=100
   end
 end)

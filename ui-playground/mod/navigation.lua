@@ -72,15 +72,16 @@ function M.show(player,state)
 end
 function M.instance_status(player,state)
   local panel=player.gui.screen.fabric_instance_status
-  if state.workspace~='world' then if panel then panel.visible=false end;return end
+  if state.workspace~='world' and not state.parent_template then if panel then panel.visible=false end;return end
   if not panel then
     panel=player.gui.screen.add{type='frame',name='fabric_instance_status',direction='vertical'};panel.style.width=244
     panel.add{type='label',name='subject',caption='',style='bold_label'}.style.maximal_width=220
     panel.add{type='button',name='edit',caption='Edit instance',raise_hover_events=true}.style.width=220
   end
-  local cell=state.camera_area;panel.visible=true
+  local template=state.workspace=='collection' and state.parent_template
+  local cell=template or state.camera_area;panel.visible=true
   panel.subject.caption=cell and ((cell.icon and ('[img='..cell.icon..'] ') or '')..cell.name) or 'No Instance'
-  panel.edit.caption=cell and 'Edit instance' or 'Create instance'
+  panel.edit.caption=template and 'Edit template' or (cell and 'Edit instance' or 'Create instance')
   panel.edit.tags=cell and {action='edit_current'} or {action='create_instance',preview_create=true}
   panel.location={x=math.max(0,player.display_resolution.width-248*player.display_scale),y=400*player.display_scale}
 end

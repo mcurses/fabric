@@ -1,3 +1,4 @@
+local cleanup=require('__fabric-ui-playground__/cleanup')
 local R=require('runtime')
 local S=require('snapshots')
 local W=require('workspaces')
@@ -69,7 +70,15 @@ script.on_event(defines.events.on_tick,function(e)
       for _,cell in ipairs(R.store().cells) do R.update_instance_tag(p,cell) end
       if s.parent_template then R.underlay(p,s.parent_template);s.template_dirty=true end;components.meta_bar(p);navigation.show(p,s)
       if not storage.fabric_job and p.gui.screen[ui.root] then ui.build(p,s) end
-      if storage.fabric_job then storage.fabric_job.error=nil end
+      if storage.fabric_job then
+        if storage.fabric_job.error and storage.fabric_job.action=='cleanup_templates' and not R.store().test_cleanup_done then storage.fabric_job.command=true end
+        storage.fabric_job.error=nil
+      end
+      if not script.active_mods['fabric-ui-test-driver'] and not R.store().test_cleanup_done and not storage.fabric_job then
+        game.auto_save('fabric-before-template-cleanup')
+        local button=p.gui.top.fabric_cleanup_templates or p.gui.top.add{type='button',name='fabric_cleanup_templates',caption='Cleaning template library',visible=false,tags={action='cleanup_templates'}}
+        jobs.start(p,button)
+      end
       if not R.store().neighbor_ui_revision and not storage.fabric_job then
         local button=p.gui.top.fabric_neighbor_upgrade or p.gui.top.add{type='button',name='fabric_neighbor_upgrade',caption='Updating neighbor priorities',visible=false,tags={action='neighbor_defaults'}}
         jobs.start(p,button)
@@ -131,7 +140,7 @@ handle_click=function(e)
     if job and not job.executing then return end
     if t.action=='slot_eligible' and not e.data then return end
     if t.action=='slot_assign' and not e.data then e.data={value=t.value} end
-    local expensive={edit_commit=true,edit_discard=true,change_reset=true,patch_accept=true,patch_commit=true,patch_discard=true,
+    local expensive={cleanup_templates=true,edit_commit=true,edit_discard=true,change_reset=true,patch_accept=true,patch_commit=true,patch_discard=true,
       placement_confirm=true,apply_order=true,remove_confirm=true,metadata_save=true,rebuild_instance=true,create_instance=true,slot_apply=true,slot_delete=true,anchor_apply=true}
     if not job and (t.action=='slot_add' or t.action=='slot_eligible') then local count=#(s.parent_template.slot_definitions or {})+(t.action=='slot_add' and 1 or 0);local eligible=t.action=='slot_eligible' and e.data.value or false;local ok,reason=Slots.can_configure(s.parent_template,count,eligible);if not ok then p.print(reason);refresh(p,s);return end end
     if t.action=='metadata_save' and not job then local ok,reason=metadata.validate(p);if not ok then p.print(reason);return end end
@@ -150,6 +159,9 @@ handle_click=function(e)
     end
     local a=t.action
     if a=='neighbor_defaults' then R.neighbors();R.rebuild_world(p);R.store().neighbor_ui_revision=1
+    elseif a=='cleanup_templates' then
+      placement.close(p,s);world.clear(s);ui.close(p);s.override_selected=nil;s.reviewing_parent=nil;s.pending_slots=nil;s.pending_order=nil
+      cleanup.run(p);sync(p,s)
     elseif a=='reload' then game.reload_mods()
     elseif a=='world' or a=='collection' then placement.close(p,s);s.pending_slots=nil;s.pending_order=nil;s.pending_neighbors=nil;W.switch(p,s,a);ui.close(p)
     elseif a=='edit_current' then open_editor(p,s)
@@ -157,6 +169,10 @@ handle_click=function(e)
     elseif a=='anchor_cancel' then Slots.cancel(p,s)
     elseif a=='slot_anchor_pick' then Slots.pick(p,s,t.slot)
     elseif a=='slot_patches' then s.reviewing_parent=nil;s.review_slot=t.slot;review.show(p,s,t.id)
+    elseif a=='slot_preview_open' then Slots.author_picker(p,s,t.slot)
+    elseif a=='slot_preview_pick' then
+      local panel=p.gui.screen.fabric_template_picker;if panel then panel.destroy() end;s.slot_picker=nil
+      Slots.author_select(p,s,t.slot,t.value)
     elseif a=='slot_open' then Slots.picker(p,s,t.id,t.slot)
     elseif a=='slot_picker_close' then local panel=p.gui.screen.fabric_template_picker;if panel then panel.destroy() end;s.slot_picker=nil;Slots.preview_drafts(p,s)
     elseif a=='slot_assign' then
@@ -253,6 +269,7 @@ script.on_event(defines.events.on_gui_hover,function(e)
   if el.tags.preview_slot or el.tags.preview_create then s.preview_pending={element=el,slot_tags=el.tags,tick=game.tick+20};return end
   if el.tags.preview_template then s.preview_pending={element=el,id=el.tags.preview_template,position=el.tags.preview_position,tick=game.tick+20};return end
   while el and el.valid do
+    if el.tags.preview_anchor~=nil then safe(p,function() Slots.highlight_anchor(p,s,el.tags.preview_anchor);s.hover_element=e.element.index end);return end
     if el.tags.fabric_ui_row and s.pending_slots and next(s.pending_slots) then Slots.preview_drafts(p,s);s.hover_element=e.element.index;return end
     if el.tags.fabric_ui_row and s.placement then return end
     if el.tags.fabric_ui_row then safe(p,function() world.highlight(p,s,el.tags.id);s.hover_element=e.element.index end);return
@@ -269,6 +286,7 @@ script.on_event(defines.events.on_gui_leave,function(e)
       local p=game.get_player(e.player_index)
       safe(p,function()
       world.clear(s)
+      if s.author_hover and s.parent_template then s.author_hover=nil;R.underlay(p,s.parent_template) end
       if s.pending_slots and next(s.pending_slots) then Slots.preview_drafts(p,s)
       elseif s.placement then placement.restore_preview(p,s)
       elseif s.override_selected then review.preview(p,s,s.override_selected) end

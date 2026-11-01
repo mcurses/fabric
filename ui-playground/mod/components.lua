@@ -1,5 +1,15 @@
 -- Shared runtime GUI primitives; use Factorio's native title/action styles.
 local M={icons={stitch="fabric-ui-stitch",submit="utility/export_slot",reset="utility/reset",reset_white="utility/reset_white",apply_white="utility/check_mark_white"}}
+function M.reference_frame(parent,options)
+  options=options or {};options.type='frame';options.style='train_schedule_station_frame'
+  local row=parent.add(options);row.style.padding=4
+  return row
+end
+function M.reference_remove(parent,options)
+  options=options or {};options.type='sprite-button';options.sprite='utility/close';options.style='train_schedule_delete_button'
+  local button=parent.add(options);button.style.margin=0;button.style.width=16;button.style.height=28
+  return button
+end
 function M.titlebar(frame,options)
   local bar=frame.add{type="flow",name="titlebar",direction="horizontal",raise_hover_events=true}
   bar.style.height=28

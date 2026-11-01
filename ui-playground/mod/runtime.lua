@@ -155,7 +155,7 @@ end
 local function clear_underlay(area)
   G.clear(area.underlay);area.underlay={}
 end
-function M.underlay(player,t)
+function M.underlay(player,t,previews)
   local area=t.area;if not area then return end
   clear_underlay(area)
   if t.show_underlay~=false then
@@ -164,8 +164,16 @@ function M.underlay(player,t)
       for _,ghost in ipairs(G.show(M.store().collection_surface,S.transform(M.flatten(ref.template_id,ref.slot_assignments),ref),area.center)) do area.underlay[#area.underlay+1]=ghost end
     end end
   end
+  for _,layer in ipairs(Slots.author_layers(t,previews)) do
+    for _,ghost in ipairs(G.show(M.store().collection_surface,layer.snapshot,area.center)) do area.underlay[#area.underlay+1]=ghost end
+  end
 end
 function M.center_for(t)
+  if M.store().catalog_compacted then
+    local bottom=0
+    for _,other in ipairs(M.catalog()) do if other.area then bottom=math.max(bottom,other.area.edit_bounds.right_bottom.y) end end
+    return {x=t.width/2+t.padding,y=bottom+32+t.height/2+t.padding}
+  end
   local x,y,row_height=0,0,0
   for i,id in ipairs(M.store().order) do
     local item=M.template(id);local w=item.width+2*item.padding;local h=item.height+2*item.padding
@@ -684,7 +692,9 @@ function M.create(player,options)
   local padding=options.padding or 32
   assert(w>=16 and w<=512 and h>=16 and h<=512 and w%2==0 and h%2==0,'Dimensions must be even numbers between 16 and 512.')
   assert(padding>=0 and padding<=256 and padding%2==0,'Padding must be an even number between 0 and 256.')
-  local id=#db.order+1
+  local id=db.next_template_id or 1
+  for existing in pairs(db.templates) do id=math.max(id,existing+1) end
+  db.next_template_id=id+1
   local t={id=id,name=options.name,icon=options.icon or 'item/blueprint',category=options.category or 'Other',
     is_template=true,is_origin=options.is_origin or false,origin_id=options.origin_id,width=w,height=h,padding=padding,
     snapshot=S.empty(),children={},committed_refs={},version=1,edit_version=1,show_underlay=true}

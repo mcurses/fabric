@@ -86,7 +86,7 @@ function M.fill_picker(player,state)
   local function heading(name) list.add{type='label',caption=name,style='caption_label'}.style.top_margin=12 end
   local function button(entry)
     local t=entry.template
-    local button=list.add{type='button',caption='[img='..t.icon..']  '..t.name,raise_hover_events=true,tags=state.slot_picker and {action='slot_assign',id=state.slot_picker.id,slot=state.slot_picker.slot,value=t.id,preview_slot=t.id} or {action='placement_pick',index=entry.index,preview_template=t.id}}
+    local button=list.add{type='button',caption='[img='..t.icon..']  '..t.name,raise_hover_events=true,tags=state.slot_picker and {action=state.slot_picker.author and 'slot_preview_pick' or 'slot_assign',author=state.slot_picker.author,id=state.slot_picker.id,slot=state.slot_picker.slot,value=t.id,preview_slot=t.id} or {action='placement_pick',index=entry.index,preview_template=t.id}}
     button.style.width=306;button.style.horizontal_align='left'
   end
   if #common>0 then heading('Most common');for i=1,math.min(5,#common) do button(common[i]) end end
