@@ -1,3 +1,4 @@
+local handover=require('handover')
 local cleanup=require('__fabric-ui-playground__/cleanup')
 local R=require('runtime')
 local S=require('snapshots')
@@ -380,6 +381,9 @@ end)
 -- Enabled only by the disposable integration-test profile.
 if script.active_mods['fabric-ui-test-driver'] then
   remote.add_interface('fabric-ui-test',{
+    prepare_handover=function(index)
+      local p=game.get_player(index);local catalog=handover.prepare(p);open_editor(p,state(p));return catalog
+    end,
     drain=function(index)
       local n=0
       while storage.fabric_job do

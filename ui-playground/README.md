@@ -1,3 +1,18 @@
+# Current handover — 2026-11-01
+
+The clean starter drop and its setup instructions are described in
+[handovers/2026-11-01/README.txt](handovers/2026-11-01/README.txt).
+It includes the current library in a save, one grid-only instance, and unconfigured
+Bayspine anchors/fillers. The template map is explored. The playable archive is
+encrypted; access is sent directly to Max over AXOS.
+
+The source checkout's regular `play.sh` launcher still seeds the original imported
+library when creating a new game. Use the supplied starter save for this exercise.
+`LIMITATIONS.txt` describes the current mechanics and open work.
+
+The older development notes below describe the initial fixture-backed prototype;
+they are not the handover's startup configuration.
+
 # Fabric functional UI prototype
 
 A playable Factorio prototype using the 20 modules from **Gradus ad Parnassum
