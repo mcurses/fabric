@@ -93,12 +93,13 @@ function M.remove(t,index)
   for _,cell in ipairs(runtime().store().cells) do shift(cell.items) end
 end
 function M.seed()
-  local R=runtime();local db=R.store();if db.slots_schema==2 then return end
+  local R=runtime();local db=R.store();if db.slots_schema==3 then return end
   for _,t in ipairs(R.catalog()) do
     t.slot_definitions=t.slot_definitions or {}
     if not db.slots_schema and t.source_label=='Bay spine' then M.configure(t,3,false) end
     -- Imported station templates already have an unambiguous physical anchor.
-    local station=t.source_label=='HT solid request' or t.source_label=='HT solid provider'
+    local source=(t.source_label or ''):gsub('%[[^%]]+%]',''):match('^%s*(.-)%s*$')
+    local station=source=='HT solid request' or source=='HT solid provider'
     if not station then t.slot_eligible=false end
     if station and #(t.slot_definitions or {})==0 then
       local stops={}
@@ -107,10 +108,11 @@ function M.seed()
     end
   end
   for _,t in ipairs(R.catalog()) do
-    if t.source_label=='HT solid request' then t.name='Bayspine Requester';t.icon='item/requester-chest'
-    elseif t.source_label=='HT solid provider' then t.name='Bayspine Provider';t.icon='item/passive-provider-chest' end
+    local source=(t.source_label or ''):gsub('%[[^%]]+%]',''):match('^%s*(.-)%s*$')
+    if source=='HT solid request' then t.name='Bayspine Requester';t.icon='item/requester-chest'
+    elseif source=='HT solid provider' then t.name='Bayspine Provider';t.icon='item/passive-provider-chest' end
   end
-  db.slots_schema=2
+  db.slots_schema=3
 end
 function M.picker(player,state,id,index)
   local old=player.gui.screen.fabric_slot_picker;if old then old.destroy() end
