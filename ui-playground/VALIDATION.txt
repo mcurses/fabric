@@ -25,3 +25,16 @@ and native blueprint build API tests are not a claim that every mouse path was t
 The launch save and functional-20261031.zip were preserved in the isolated profile.
 The previous launch save was backed up; normal Factorio saves were not replaced.
 See LIMITATIONS.txt for destructive snapshot semantics and remaining prototype scope.
+
+Review restoration — 2026-11-01
+Command: FABRIC_TEST_SAVE=<today backup> ./ui-playground/smoke.sh
+Passed all source/native transform tests plus:
+- Geometric Added/Moved/Replaced/Deleted rows and world deletion attribution.
+- World deletion survives rebuilding; discard restores; stitch updates source.
+- Preview ghosts never enter captures and do not block real construction.
+- An overwritten building can be ghost-previewed through the winning building.
+- Grouped icon picker preview and remove/cancel/confirm UI handlers.
+- Drag does not mutate applied order; Apply order updates it once.
+- Fresh world has no false patches from overlapping rails or generated outputs.
+- Today's client save migrates to packed islands and the explicit Grid row.
+The client was reloaded successfully; its unsaved draft remains open.

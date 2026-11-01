@@ -39,13 +39,18 @@ Normal Factorio saves and mods remain separate. Save your playground after editi
 3. Choosing an Origin Template copies its cell dimensions and shows a toggleable
    visual underlay. It does **not** add a reference or include origin contents in
    commits. The title-bar underlay button toggles it. Padding is editable space
-   outside the logical cell and is included in snapshot capture.
+   outside the logical cell and is included in snapshot capture. Islands are packed
+   into nearby rows with 32 tiles of void between their padded bounds. The underlay
+   uses actual ghost entities on an isolated preview force, excluded from captures.
 4. Build or change entities in the island using the native map editor. **View
    Changes → Stitch into Template** captures the real draft, increments its
-   version, and immediately rebuilds dependent templates and World references.
+   version, and immediately rebuilds dependent templates and World references. The
+   changes panel lists Added, Deleted, Moved, Replaced, Changed, and tile changes
+   with icons, hover ghosts, and individual reset actions. Versions stay out of that UI.
    **Discard Changes** restores the last committed contents and reference order.
 5. **+ Reference a Template** and **+ Add a Template** use the same placement
-   dialog. Choose a saved source-book preset or **Custom → Place freely** for
+   dialog. Its grouped template picker includes icons and native ghost previews on
+   hover. Choose a saved source-book preset or **Custom → Place freely** for
    the native blueprint cursor, rotation/mirroring, and click placement. Q cancels.
 6. In **World**, **Edit on Map** opens the instance beneath the camera. The four
    initial cells use The Grid's fixed 160 × 160 dimensions and real station,
@@ -53,9 +58,14 @@ Normal Factorio saves and mods remain separate. Save your playground after editi
    cells remain present. Hover rows to highlight their contributions.
 7. Neighbor contributions appear as distinct blue rows, one per neighbor, without
    a remove button. Drag rows into order alongside your references: top to bottom,
-   last wins inside the receiving cell. Click a template row to inspect it; the
+   last wins inside the receiving cell. Dragging only previews the new order;
+   **Apply order** performs one rebuild. The Grid is an explicit, non-removable
+   ordered row too. Click a template row to inspect it; the
    small source button opens its template for editing.
-8. The pencil edits names, icons, and categories. **Fabric Settings** chooses the
+8. World edits appear as patches on their contributing reference. Reset a patch to
+   restore the world entity, or stitch it into its source template. Patches survive
+   rebuilding/reordering. Removing a reference requires confirmation.
+9. The pencil edits names, icons, and categories. **Fabric Settings** chooses the
    World Origin Template; a replacement must have the already-established cell
    dimensions. Applying it rebuilds World.
 

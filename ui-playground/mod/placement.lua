@@ -4,10 +4,14 @@ local world_areas=require("__fabric-ui-playground__/world_areas")
 -- Shared add/reference dialog using native blueprint placement.
 local components=require("__fabric-ui-playground__/components")
 local workspaces=require("__fabric-ui-playground__/workspaces")
+local ghosts=require('__fabric-ui-playground__/ghosts')
+local world=require('__fabric-ui-playground__/world')
 local M={name="fabric_ui_add_template",tool="blueprint"}
 function M.close(player,state)
   local panel=player.gui.screen[M.name]
   if panel then panel.destroy() end
+  local picker=player.gui.screen.fabric_template_picker;if picker then picker.destroy() end
+  world.clear(state)
   state.placement=nil
 end
 function M.refresh(player,state)
@@ -16,6 +20,7 @@ function M.refresh(player,state)
   if not panel or not draft then return end
   local template=draft.catalog[panel.template_picker.selected_index]
   draft.template=template
+  if panel.template_button then panel.template_button.caption="[img="..template.icon.."]  "..template.name end
   template.position_presets={{name="Cell origin",x=0,y=0}}
   for _,slot in ipairs(template.slots or {}) do
     template.position_presets[#template.position_presets+1]={name=slot.name,x=slot.dx,y=slot.dy}
@@ -43,6 +48,8 @@ function M.show(player,state)
   local names={}
   for _,template in ipairs(state.placement.catalog) do names[#names+1]=template.name end
   panel.add{type="drop-down",name="template_picker",items=names,selected_index=1,tags={action="placement_template"}}.style.width=348
+  panel.template_picker.visible=false
+  panel.add{type='button',name='template_button',caption='Select Template',tags={action='placement_picker'}}.style.width=348
   panel.add{type="label",caption="Position",style="caption_label"}.style.top_margin=12
   panel.add{type="drop-down",name="position_picker",items={"Center"},selected_index=1,tags={action="placement_position"}}.style.width=348
   local hint=panel.add{type="label",name="hint",caption=""}
@@ -51,6 +58,34 @@ function M.show(player,state)
   button.style.width=348; button.style.height=36; button.style.top_margin=12
   M.refresh(player,state)
   panel.auto_center=true
+end
+function M.picker(player,state)
+  local old=player.gui.screen.fabric_template_picker;if old then old.destroy();return end
+  local panel=player.gui.screen.add{type='frame',name='fabric_template_picker',direction='vertical'};panel.style.width=360
+  components.titlebar(panel,{title='Select Template',close_tags={action='placement_picker'}})
+  local list=panel.add{type='scroll-pane',direction='vertical',horizontal_scroll_policy='never',vertical_scroll_policy='auto'}
+  list.style.width=328;list.style.maximal_height=440
+  local categories={};for _,t in ipairs(state.placement.catalog) do categories[t.category or 'Other']=true end
+  local sorted={};for c in pairs(categories) do sorted[#sorted+1]=c end;table.sort(sorted)
+  for _,category in ipairs(sorted) do
+    local label=list.add{type='label',caption=category,style='caption_label'};label.style.top_margin=12
+    for i,t in ipairs(state.placement.catalog) do if (t.category or 'Other')==category then
+      local button=list.add{type='button',caption='[img='..t.icon..']  '..t.name,raise_hover_events=true,tags={action='placement_pick',index=i,preview_template=t.id}}
+      button.style.width=306;button.style.horizontal_align='left'
+    end end
+  end
+  panel.auto_center=true
+end
+function M.pick(player,state,index)
+  world.clear(state)
+  local picker=player.gui.screen.fabric_template_picker;if picker then picker.destroy() end
+  player.gui.screen[M.name].template_picker.selected_index=index;M.refresh(player,state)
+end
+function M.preview(player,state,id)
+  world.clear(state)
+  local draft=state.placement;if not draft then return end
+  local target=draft.parent and draft.parent.area or draft.cell
+  if target then state.preview_ghosts=ghosts.show(player.surface,runtime.flatten(id),target.center) end
 end
 function M.finish(player,state,position)
   local draft=state.placement

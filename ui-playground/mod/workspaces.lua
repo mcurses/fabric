@@ -61,7 +61,9 @@ function M.select_camera(player,state)
   state.next_id=db.next_ref
   state.contexts[state.workspace].items=state.items
   if old_template~=state.parent_template or old_area~=state.camera_area then
-    world.clear(state);state.override_selected=nil;state.editing_id=nil;state.reviewing_parent=nil;state.drag=nil
+    if old_template and old_template.area then for _,g in ipairs(old_template.area.underlay or {}) do if g.valid then g.destroy() end end;old_template.area.underlay={} end
+    if state.parent_template then R.underlay(player,state.parent_template) end
+    world.clear(state);state.override_selected=nil;state.editing_id=nil;state.reviewing_parent=nil;state.drag=nil;state.pending_order=nil
     return true
   end
   return false

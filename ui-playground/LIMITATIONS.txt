@@ -1,33 +1,35 @@
-Functional prototype limits — agreed 2026-10-31
+Functional prototype limits — updated 2026-11-01
 
-- No persistent entity IDs, matching, granular entity diffs, or per-piece patch
-  preservation. Blueprint entity numbers and Things metadata indices are local
-  serialization references only; Fabric does not track entity identity.
-- Commit replaces the whole own snapshot and committed reference list. It updates
-  nested dependents immediately and rebuilds World. Rebuilds are destructive:
-  manual World edits, inventories, running machine state, and untracked additions
-  within the rebuilt footprint can be lost. This was explicitly accepted for now.
-- Edit a referenced template through its source button. Direct edits to a nested
-  reference's materialized entities are not tracked as overrides. Source contents
-  and the ordered reference list are the durable authoring inputs.
-- The changes panel reports whole snapshots and reference counts. It does not
-  pretend to offer the old mock's individual moved/replaced/deleted patch actions.
-- World cell dimensions are fixed after setup. There is no smooth resize/migration.
-  The initial playable World has four cells; creating an arbitrary expanding grid
-  of instances is not yet a product flow.
-- One neighbor row represents the whole neighbor. Precedence uses entity-center
-  ownership at cell boundaries and tile ownership for tiles. Fine-grained neighbor
-  overrides and an anchors editor remain future work.
-- The Origin Template underlay is a translucent visual guide made of entity icons,
-  not collision-bearing buildings or a reference. It is not a full ghost rendering
-  of every rail's artwork. It never enters captured template contents.
-- Source presets are imported. There is no slots/anchors editing UI yet.
-- The source book is the October 24 snapshot, not the current multiplayer save.
-  Its intentionally small placeholder modules are preserved. A piece that needs
-  support absent from its standalone source remains a ghost (for example three
-  elevated rails in CS2 Requester); it is retained during capture.
-- This is an editor/placement prototype, not a powered, supplied logistics factory.
-  Train operations, station throughput, multiplayer concurrent editing, exhaustive
-  exotic prototype transforms, and production-scale performance are not certified.
-- Native blueprint capture excludes trains and the default refined-concrete editor
-  floor. Save the Factorio playground to persist templates and layout changes.
+- No persistent entity identity. Changes are compared geometrically: same-position
+  replacements/settings, unambiguous equal-settings moves, otherwise add/delete.
+  Ambiguous moves can appear as an addition and a deletion. Blueprint and Things
+  IDs are local serialization indices only.
+- Template commit still replaces the own snapshot and committed references, then
+  rebuilds usages. World entities and running inventory/machine state can be
+  recreated. Geometric world patches are retained and reapplied during rebuilds.
+- World patches are assigned to the visible contributing reference; new entities
+  use the nearest local reference footprint. Overlapping/ambiguous additions may
+  need source editing instead. This is approximate ownership, not an ID system.
+- Stitching a patch edits the selected template's own snapshot. Nested-reference
+  override editing and stitching a whole neighbor to multiple source templates are
+  not implemented. Neighbor patches can be individually discarded.
+- Circuit-generated filters/scanner output and Cybersyn's generated combinator
+  control behavior are excluded from change detection. Cybersyn user settings in
+  metadata are compared. Wire-only changes are not separate review rows yet.
+- Dragging previews ordering; Apply order performs the expensive rebuild once.
+  The Factorio GUI API does not expose a reliable drag-release event, so a timeout
+  must not rebuild while a person is still holding a row.
+- Preview ghosts use an isolated force without construction bots. They are visual
+  guides, never part of captures/commits, and are cleared when leaving the preview.
+- World cell dimensions remain fixed. The initial World has four cells; expanding
+  it arbitrarily is not yet a product flow. Origin/custom layout plus padding works.
+- One row represents each whole neighbor. Ownership is by entity center at the
+  receiving cell boundary. Fine-grained neighbor overrides and an anchors editor
+  remain future work. Source presets are imported; no slots editor yet.
+- Source is the October 24 book, not the current multiplayer save. All 20 source
+  modules, including small placeholders, remain. Unsupported isolated elevated
+  rails remain captureable ghosts.
+- This is an editor/placement prototype, not a supplied logistics factory. Train
+  operations, throughput, concurrent multiplayer edits, exotic prototype transforms,
+  and production-scale performance are not certified. Native capture excludes
+  trains and the default refined-concrete editor floor. Save to persist your edits.

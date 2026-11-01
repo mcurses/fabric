@@ -1,4 +1,6 @@
 local S=require('__fabric-ui-playground__/snapshots')
+local D=require('__fabric-ui-playground__/diff')
+local G=require('__fabric-ui-playground__/ghosts')
 local seeds=require('__fabric-ui-playground__/fixtures/library')
 local M={}
 local function box(center,w,h,pad)
@@ -90,8 +92,8 @@ function M.signature(snapshot)
     local e=S.copy(entity);e.entity_number=nil
     -- Circuit-driven outputs are simulation state, not authored configuration.
     if e.control_behavior and e.control_behavior.circuit_set_filters then e.filters=nil end
-    if e.name=='ghost-scanner-ia' then e.control_behavior=nil end
-    if e.tags then e.tags['@i']=nil end
+    if e.name=='ghost-scanner-ia' or e.name=='cybersyn2-combinator' then e.control_behavior=nil end
+    if e.tags then e.tags['@i']=nil;e.tags['@e']=nil end
     local text=stable(e);names[entity.entity_number]=text;parts[#parts+1]=text
   end
   for _,wire in ipairs(snapshot.wires or {}) do
@@ -124,26 +126,22 @@ function M.check_dirty(t)
   return M.dirty(t)
 end
 local function clear_underlay(area)
-  for _,obj in ipairs(area.underlay or {}) do if obj.valid then obj.destroy() end end;area.underlay={}
+  G.clear(area.underlay);area.underlay={}
 end
 function M.underlay(player,t)
   local area=t.area;if not area then return end
   clear_underlay(area)
-  if not t.origin_id or t.show_underlay==false then return end
-  -- Rendering sprites have no collision, cannot be mined or captured, and never
-  -- become children. They are deliberately below actual editable entities.
-  for _,layer in ipairs(M.layers(t.origin_id)) do
-    for _,e in ipairs(layer.snapshot.entities or {}) do
-      local proto=prototypes.entity[e.name]
-      if proto then
-        local sprite='entity/'..e.name
-        local ok,obj=pcall(rendering.draw_sprite,{sprite=sprite,surface=M.store().collection_surface,
-          target={x=area.center.x+e.position.x,y=area.center.y+e.position.y},
-          tint={r=0.25,g=0.5,b=0.65,a=0.25},x_scale=0.65,y_scale=0.65,
-          render_layer='floor',players={player.index}})
-        if ok then area.underlay[#area.underlay+1]=obj end
-      end
-    end
+  if t.origin_id and t.show_underlay~=false then
+    area.underlay=G.show(M.store().collection_surface,M.flatten(t.origin_id),area.center)
+  end
+end
+function M.center_for(t)
+  local x,y,row_height=0,0,0
+  for i,id in ipairs(M.store().order) do
+    local item=M.template(id);local w=item.width+2*item.padding;local h=item.height+2*item.padding
+    if (i-1)%4==0 and i>1 then x=0;y=y+row_height+32;row_height=0 end
+    if item==t then return {x=x+w/2,y=y+h/2} end
+    x=x+w+32;row_height=math.max(row_height,h)
   end
 end
 function M.render_editor(player,t,own)
@@ -166,12 +164,12 @@ function M.render_editor(player,t,own)
   -- Normalize the original snapshot through the engine once for stable comparison.
   if not own or not area.baseline then area.baseline=M.signature(S.capture(sf,player.force,area.edit_bounds,area.center,area.excluded)) end
   t.draft_dirty=was_dirty
-  M.underlay(player,t)
+  if player.surface==sf and S.inside(player.position,area.edit_bounds) then M.underlay(player,t) else clear_underlay(area) end
 end
 function M.ensure_area(player,t)
   if t.area then return t.area end
   local sf=M.store().collection_surface
-  local n=t.id-1;local center={x=(n%5)*1536,y=math.floor(n/5)*1536}
+  local center=M.center_for(t)
   local edit=box(center,t.width,t.height,t.padding)
   local bounds=box(center,t.width,t.height)
   t.area={template=t,center=center,left_top=bounds.left_top,right_bottom=bounds.right_bottom,edit_bounds=edit,groups={}}
@@ -184,9 +182,6 @@ function M.ensure_area(player,t)
 end
 local function cell_layers(cell)
   local layers={}
-  if M.store().world_origin then
-    for _,l in ipairs(M.layers(M.store().world_origin)) do layers[#layers+1]={snapshot=l.snapshot,key='origin'} end
-  end
   for _,ref in ipairs(cell.items) do
     if not ref.neighbor then
       for _,l in ipairs(M.layers(ref.template_id)) do layers[#layers+1]={snapshot=S.transform(l.snapshot,ref),key=ref.id} end
@@ -218,8 +213,88 @@ function M.neighbors()
     cell.items=keep
   end
 end
+function M.reference_snapshot(cell,ref)
+  local result=S.empty();result.wires={}
+  local layers=ref.neighbor and cell_layers(M.store().cells[ref.neighbor]) or M.layers(ref.template_id)
+  local center=ref.neighbor and M.store().cells[ref.neighbor].center or cell.center
+  for _,layer in ipairs(layers) do
+    local data=ref.neighbor and S.copy(layer.snapshot) or S.transform(layer.snapshot,ref)
+    for _,e in ipairs(data.entities or {}) do
+      local copy=S.copy(e);copy.position.x=copy.position.x+center.x-cell.center.x;copy.position.y=copy.position.y+center.y-cell.center.y
+      if S.inside({x=copy.position.x+cell.center.x,y=copy.position.y+cell.center.y},cell.bounds) then copy.entity_number=#result.entities+1;result.entities[#result.entities+1]=copy end
+    end
+  end
+  return result
+end
+function M.scan_patches()
+  local db=M.store()
+  for _,cell in ipairs(db.cells) do
+    if cell.baseline then
+      local current=S.capture(db.world_surface,game.forces.player,cell.bounds,cell.center)
+      local changes=D.compare(cell.baseline,current)
+      local old={};local footprints={}
+      for _,ref in ipairs(cell.items) do if not ref.neighbor then footprints[ref.id]=S.bounds(M.reference_snapshot(cell,ref)) end end
+      for _,ref in ipairs(cell.items) do
+        for _,c in ipairs(ref.patches or {}) do old[D.key(c.after or c.before)]=ref.id end
+        ref.patches={}
+      end
+      for _,c in ipairs(changes) do
+        local e=c.before or c.after
+        local owner=cell.owners and cell.owners[e.name..'@'..D.key(e)] or old[D.key(e)]
+        if not owner then
+          local distance=math.huge
+          for _,ref in ipairs(cell.items) do if not ref.neighbor then
+            local b=footprints[ref.id]
+            local dx=math.max(b.left_top.x-e.position.x,0,e.position.x-b.right_bottom.x)
+            local dy=math.max(b.left_top.y-e.position.y,0,e.position.y-b.right_bottom.y)
+            local candidate=dx*dx+dy*dy+(ref.origin and 1000000 or 0)
+            if candidate<=distance then distance=candidate;owner=ref.id end
+          end end
+        end
+        for _,ref in ipairs(cell.items) do if ref.id==owner then ref.patches[#ref.patches+1]=c;break end end
+      end
+    end
+  end
+end
+function M.apply_world_changes(cell,changes,reverse)
+  local sf=M.store().world_surface
+  for _,c in ipairs(changes) do
+    local before,after=c.before,c.after;if reverse then before,after=after,before end
+    if c.tile then
+      local e=after or before
+      sf.set_tiles{{name=after and after.name or 'refined-concrete',position={cell.center.x+e.position.x,cell.center.y+e.position.y}}}
+    else
+      if before then
+        for _,real in ipairs(sf.find_entities_filtered{name=before.name,position={cell.center.x+before.position.x,cell.center.y+before.position.y},radius=.05}) do real.destroy{raise_destroy=true} end
+      end
+      if after then local data=S.empty();data.entities={S.copy(after)};data.entities[1].entity_number=1;S.place(sf,game.forces.player,data,cell.center) end
+    end
+  end
+end
+function M.patch_action(player,cell,ref,changes,commit)
+  if commit then
+    assert(not ref.neighbor,'Open the neighbor to edit its source templates.')
+    local t=M.template(ref.template_id);local mapped={}
+    local inverse={direction=(-(ref.direction or 0))%16}
+    for _,c in ipairs(changes) do
+      local copy=S.copy(c)
+      for _,key in ipairs({'before','after'}) do if c[key] then
+        local data=S.empty();data.entities={S.copy(c[key])}
+        data.entities[1].position.x=data.entities[1].position.x-(ref.x or 0);data.entities[1].position.y=data.entities[1].position.y-(ref.y or 0)
+        data=S.transform(data,inverse);data=S.transform(data,{flip_horizontal=ref.flip_horizontal,flip_vertical=ref.flip_vertical})
+        copy[key]=data.entities[1]
+      end end
+      mapped[#mapped+1]=copy
+    end
+    local own=D.apply(t.snapshot,mapped)
+    M.ensure_area(player,t);M.render_editor(player,t,own)
+    M.apply_world_changes(cell,changes,true);ref.patches={}
+    M.commit(player,t)
+  else M.apply_world_changes(cell,changes,true);M.scan_patches() end
+end
 function M.rebuild_world(player)
   local db=M.store();if not db.world_origin then return end
+  M.scan_patches()
   M.neighbors()
   local sf=db.world_surface
   local extent={left_top={x=db.cells[1].left_top.x,y=db.cells[1].left_top.y},right_bottom={x=db.cells[1].right_bottom.x,y=db.cells[1].right_bottom.y}}
@@ -242,7 +317,6 @@ function M.rebuild_world(player)
     for _,layer in ipairs(cell_layers(cell)) do S.place(sf,player.force,layer.snapshot,cell.center,outside) end
   end
   for _,cell in ipairs(db.cells) do
-    for _,layer in ipairs(M.layers(db.world_origin)) do S.place(sf,player.force,layer.snapshot,cell.center,cell.bounds) end
     for _,ref in ipairs(cell.items) do
       local group={name=M.ref_name(ref),icon=ref.icon,entities={}}
       local layers,center
@@ -273,6 +347,16 @@ function M.rebuild_world(player)
         end
       end
     end
+  end
+  for _,cell in ipairs(db.cells) do
+    cell.baseline=S.capture(sf,player.force,cell.bounds,cell.center)
+    cell.owners={}
+    for _,ref in ipairs(cell.items) do
+      for _,entity in ipairs((cell.groups[ref.id] or {}).entities or {}) do
+        if entity.valid then local key=entity.name..'@'..(entity.position.x-cell.center.x)..','..(entity.position.y-cell.center.y);if not ref.neighbor or not cell.owners[key] then cell.owners[key]=ref.id end end
+      end
+    end
+    for _,ref in ipairs(cell.items) do M.apply_world_changes(cell,ref.patches or {}) end
   end
 end
 function M.commit(player,t)
@@ -312,7 +396,7 @@ function M.remove_reference(player,state,id)
   if not target then return end
   local list=state.workspace=='collection' and target.children or target.items
   local own=state.workspace=='collection' and M.capture(target)
-  for i,ref in ipairs(list) do if ref.id==id and not ref.neighbor then table.remove(list,i);break end end
+  for i,ref in ipairs(list) do if ref.id==id and not ref.neighbor and not ref.origin then table.remove(list,i);break end end
   if own then target.draft_dirty=true;M.render_editor(player,target,own) else M.rebuild_world(player) end
 end
 function M.reorder(player,state,id,index)
@@ -325,6 +409,17 @@ function M.reorder(player,state,id,index)
   local own=state.workspace=='collection' and M.capture(target)
   for i,ref in ipairs(list) do if ref.id==id then table.remove(list,i);table.insert(list,math.max(1,math.min(#list+1,index)),ref);break end end
   if own then target.draft_dirty=true;M.render_editor(player,target,own) else M.rebuild_world(player) end
+end
+function M.apply_order(player,state,order)
+  local target=state.workspace=='collection' and state.parent_template or state.camera_area
+  if not target then return end
+  local list=state.workspace=='collection' and target.children or target.items
+  local own=state.workspace=='collection' and M.capture(target)
+  local by_id={};for _,ref in ipairs(list) do by_id[ref.id]=ref end
+  local sorted={};for _,ref in ipairs(order) do if by_id[ref.id] then sorted[#sorted+1]=by_id[ref.id];by_id[ref.id]=nil end end
+  for _,ref in ipairs(list) do if by_id[ref.id] then sorted[#sorted+1]=ref end end
+  if own then target.children=sorted;target.draft_dirty=true;M.render_editor(player,target,own)
+  else target.items=sorted;M.rebuild_world(player) end
 end
 function M.create(player,options)
   local db=M.store();local origin=options.origin_id and M.template(options.origin_id)
@@ -359,12 +454,50 @@ function M.configure_world(player,id)
       db.cells[i].items[#db.cells[i].items+1]=prepare_ref{id=db.next_ref,template_id=template_id,x=0,y=0};db.next_ref=db.next_ref+1
     end end
   end
+  for _,cell in ipairs(db.cells) do
+    local origin_ref
+    for _,ref in ipairs(cell.items) do if ref.origin then origin_ref=ref end end
+    if origin_ref then origin_ref.template_id=id or origin.id;prepare_ref(origin_ref)
+    else table.insert(cell.items,1,prepare_ref{id=db.next_ref,template_id=origin.id,origin=true,x=0,y=0});db.next_ref=db.next_ref+1 end
+  end
   M.rebuild_world(player)
+end
+function M.upgrade_layout(player)
+  local db=M.store();local drafts={};local selected
+  local current={}
+  for _,cell in ipairs(db.cells) do current[cell.id]=S.capture(db.world_surface,player.force,cell.bounds,cell.center) end
+  for _,t in ipairs(M.catalog()) do
+    local b=S.bounds(t.snapshot)
+    if t.source_version then t.padding=math.max(16,math.ceil(math.max(0,-t.width/2-b.left_top.x,-t.height/2-b.left_top.y,b.right_bottom.x-t.width/2,b.right_bottom.y-t.height/2)/2)*2) end
+    if t.area then
+      local own=M.capture(t);drafts[t.id]={own=own,dirty=t.draft_dirty}
+      if player.surface==db.collection_surface and S.inside(player.position,t.area.edit_bounds) then selected=t end
+      G.clear(t.area.underlay)
+      if t.area.border.valid then t.area.border.destroy() end
+      if t.area.padding_border.valid then t.area.padding_border.destroy() end
+      S.clear(db.collection_surface,t.area.edit_bounds);floor(db.collection_surface,t.area.edit_bounds,'out-of-map');t.area=nil
+    end
+  end
+  for _,t in ipairs(M.catalog()) do
+    M.ensure_area(player,t)
+    local draft=drafts[t.id];if draft then M.render_editor(player,t,draft.own);t.draft_dirty=draft.dirty end
+  end
+  if selected then player.teleport(selected.area.center,db.collection_surface) end
+  for _,cell in ipairs(db.cells) do
+    local found=false;for _,ref in ipairs(cell.items) do if ref.origin then found=true end end
+    if not found then table.insert(cell.items,1,prepare_ref{id=db.next_ref,template_id=db.world_origin,origin=true,x=0,y=0});db.next_ref=db.next_ref+1 end
+  end
+  db.layout_revision=2
+  for _,cell in ipairs(db.cells) do cell.baseline=nil end
+  M.rebuild_world(player)
+  for _,cell in ipairs(db.cells) do M.apply_world_changes(cell,D.compare(cell.baseline,current[cell.id])) end
+  M.scan_patches()
 end
 function M.ensure(player)
   if storage.fabric_snapshot and storage.fabric_snapshot.ready then
     local db=storage.fabric_snapshot
     if db.placement_revision~=4 then M.rebuild_world(player);db.placement_revision=4 end
+    if db.layout_revision~=2 then M.upgrade_layout(player) end
     return db
   end
   for _,name in ipairs({'cybersyn2-combinator','ghost-scanner-ia','elevated-straight-rail','turbo-transport-belt'}) do
@@ -377,10 +510,10 @@ function M.ensure(player)
   for _,seed in ipairs(seeds) do
     local snapshot=S.transform(S.decode(seed.bp),{x=-80,y=-80})
     local b=S.bounds(snapshot)
-    local padding=math.ceil(math.max(32,-80-b.left_top.x,-80-b.left_top.y,b.right_bottom.x-80,b.right_bottom.y-80)/2)*2
+    local padding=math.ceil(math.max(16,-80-b.left_top.x,-80-b.left_top.y,b.right_bottom.x-80,b.right_bottom.y-80)/2)*2
     local t={id=seed.id,name=seed.name,source_label=seed.source_label,source_version=seed.source_version,
       icon=seed.icon,category=seed.category,is_template=true,is_origin=seed.id==1,origin_id=seed.id~=1 and 1 or nil,
-      width=160,height=160,padding=math.max(160,padding),snapshot=snapshot,children={},committed_refs={},
+      width=160,height=160,padding=math.max(16,padding),snapshot=snapshot,children={},committed_refs={},
       version=seed.source_version,edit_version=seed.source_version,slots=S.copy(seed.slots),description=seed.description,show_underlay=true}
     db.templates[t.id]=t;db.order[#db.order+1]=t.id
   end
@@ -398,12 +531,20 @@ function M.ensure(player)
     end
   end
   M.configure_world(player,1)
-  db.placement_revision=4;db.ready=true
+  db.placement_revision=4;db.ready=true;db.layout_revision=2
+  for _,t in ipairs(M.catalog()) do M.ensure_area(player,t) end
   return db
 end
 function M.on_chunk(surface,bounds)
   local db=M.store();if not db then return end
-  if surface==db.world_surface then floor(surface,bounds,'grass-1');return end
+  if surface==db.world_surface then
+    floor(surface,bounds,'grass-1')
+    for _,cell in ipairs(db.cells) do if S.intersects(cell.bounds,bounds) then
+      local a=cell.bounds
+      floor(surface,{left_top={x=math.max(a.left_top.x,bounds.left_top.x),y=math.max(a.left_top.y,bounds.left_top.y)},right_bottom={x=math.min(a.right_bottom.x,bounds.right_bottom.x),y=math.min(a.right_bottom.y,bounds.right_bottom.y)}},'refined-concrete')
+    end end
+    return
+  end
   if surface~=db.collection_surface then return end
   floor(surface,bounds,'out-of-map')
   for _,t in ipairs(M.catalog()) do

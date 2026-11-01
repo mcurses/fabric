@@ -7,6 +7,8 @@ local highlight_styles=require("__fabric-ui-playground__/world").styles
 local M = {root="fabric_ui_playground", revision="34"}
 local ROW_HEIGHT, ROW_STEP, LIST_TOP = 36, 40, 52
 local function visible_items(state)
+  if state.drag and state.drag.preview then return state.drag.preview end
+  if state.pending_order then return state.pending_order.preview end
   if state.workspace=="world" and state.world_camera_mode then
     return world_areas.items(state)
   end
@@ -71,6 +73,10 @@ function M.layout(player, state, moving_id, raise_rows)
   end
   local footer=player.gui.screen[M.root.."_footer"]
   if footer then
+    if footer.add_template then
+      footer.add_template.caption=state.pending_order and 'Apply order' or (state.workspace=='collection' and '+ Reference a Template' or '+ Add a Template')
+      footer.add_template.tags={action=state.pending_order and 'apply_order' or 'add'}
+    end
     footer.location={x=math.floor(origin.x+12*scale),
       y=math.floor(origin.y+(list_top(state)+4+#visible_items(state)*ROW_STEP)*scale)}
   end
@@ -84,7 +90,11 @@ function M.move(player, state, id, y)
   if not root then return end
   local destination=math.floor(((y-root.location.y)/player.display_scale-list_top(state))/ROW_STEP+0.5)+1
   destination=math.max(1,math.min(#visible_items(state),destination))
-  runtime.reorder(player,state,id,destination)
+  state.drag=state.drag or {id=id,tick=game.tick}
+  state.drag.destination=destination
+  state.drag.preview=state.drag.preview or {table.unpack(state.pending_order and state.pending_order.preview or state.items)}
+  local list=state.drag.preview
+  for i,item in ipairs(list) do if item.id==id then table.remove(list,i);table.insert(list,destination,item);break end end
   local target=state.workspace=="collection" and state.parent_template or state.camera_area
   state.items=target and (state.workspace=="collection" and target.children or target.items) or {}
   state.world_demo.groups=target and (state.workspace=="collection" and target.area.groups or target.groups) or {}
@@ -224,7 +234,7 @@ local function create_row(player,item)
     remove.style.margin=0
     remove.style.width=16
     remove.style.height=28
-    remove.visible=not item.neighbor
+    remove.visible=not item.neighbor and not item.origin
     if item.neighbor then name.style.font_color={0.55,0.8,1};name.tooltip="Neighbor contribution · reorder to control precedence inside this cell" end
     local function enable_hover(element)
       element.raise_hover_events=true

@@ -21,10 +21,12 @@ python3 - "$QA/mods/mod-list.json" <<'PYMOD'
 import json,sys
 p=sys.argv[1];j=json.load(open(p));j['mods'].append({'name':'fabric-ui-test-driver','enabled':True});open(p,'w').write(json.dumps(j))
 PYMOD
-if [[ "${1:-}" != integration ]]; then
-  "$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-scenario ui-smoke --test-ticks 1200
+if [[ "${1:-}" != integration && "${1:-}" != persistence ]]; then
+  "$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-scenario ui-smoke --test-arg unit --test-ticks 1200
 fi
-"$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-scenario ui-integration --test-ticks 1200
+if [[ "${1:-}" != persistence ]]; then
+  "$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-scenario ui-integration --test-ticks 1200
+fi
 if [[ -n "${FABRIC_TEST_SAVE:-}" ]]; then
   "$BIN" --config "$QA/config.ini" --mod-directory "$QA/mods" --test-save "$FABRIC_TEST_SAVE" --test-arg persistence --test-ticks 180
 fi

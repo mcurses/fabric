@@ -113,6 +113,15 @@ function M.place(surface,force,snapshot,offset,clip)
     if accepts(p) then entities[#entities+1]=e; allowed[e.entity_number]=true end
   end
   data.entities=entities
+  -- Things graph links use blueprint-local IDs. Clipping or applying a single
+  -- patch must not leave edges to entities absent from this blueprint.
+  local local_ids={}
+  for _,e in ipairs(entities) do if e.tags and e.tags['@i'] then local_ids[tostring(e.tags['@i'])]=true end end
+  for _,e in ipairs(entities) do
+    if e.tags and e.tags['@e'] then
+      for _,targets in pairs(e.tags['@e']) do for target in pairs(targets) do if not local_ids[tostring(target)] then targets[target]=nil end end end
+    end
+  end
   if data.wires then
     local wires={}
     for _,w in ipairs(data.wires) do if allowed[w[1]] and allowed[w[3]] then wires[#wires+1]=w end end
@@ -199,7 +208,7 @@ function M.settle(surface,force)
   for _=1,100 do
     local progress=false
     for _,g in ipairs(ghosts) do
-      if g.valid then local _,real=g.silent_revive{raise_revive=true};if real then progress=true end end
+      if g.valid and not (g.tags and g.tags.fabric_preview) then local _,real=g.silent_revive{raise_revive=true};if real then progress=true end end
     end
     if not progress then break end
   end
@@ -229,7 +238,7 @@ function M.capture(surface,force,bounds,center,exclude)
   local kept,allowed={},{}
   for _,e in ipairs(data.entities or {}) do
     local source=mapping[e.entity_number]
-    if source and source.valid and not (exclude and exclude[M.entity_key(source)]) then
+    if source and source.valid and not (source.type=='entity-ghost' and source.tags and source.tags.fabric_preview) and not (exclude and exclude[M.entity_key(source)]) then
       if not e.tags then e.tags=M.copy(tags_cache()[tag_key(surface,source)]) end
       e.position={x=source.position.x-center.x,y=source.position.y-center.y}
       kept[#kept+1]=e;allowed[e.entity_number]=true

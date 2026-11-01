@@ -1,3 +1,5 @@
+local D=require('__fabric-ui-playground__/diff')
+local G=require('__fabric-ui-playground__/ghosts')
 local review=require('__fabric-ui-playground__/overrides')
 local R=require('__fabric-ui-playground__/runtime')
 local S=require('__fabric-ui-playground__/snapshots')
@@ -51,7 +53,7 @@ script.on_event(defines.events.on_tick,function()
   assert(not R.check_dirty(R.template(5)), 'Fresh template must remain clean after mod registration')
   log('COOPERATIVE_METADATA_PASS')
   local initial={}
-  for _,cell in ipairs(db.cells) do initial[cell.id]=cell.items;cell.items={} end
+  for _,cell in ipairs(db.cells) do initial[cell.id]=cell.items;local origin;for _,r in ipairs(cell.items) do if r.origin then origin=r end end;cell.items={origin} end
   R.rebuild_world(p)
   local grid_missing=0
   for _,cell in ipairs(db.cells) do
@@ -172,7 +174,7 @@ script.on_event(defines.events.on_tick,function()
   -- Underlays are rendering only: their content never appears in a new snapshot.
   local under=R.create(p,{name='Underlay child',origin_id=own_origin.id,padding=12})
   assert(under.width==160 and under.padding==12 and #under.children==0)
-  R.commit(p,under);assert(#under.snapshot.entities==0)
+  W.focus_template(p,s,under.id);R.commit(p,under);assert(#under.snapshot.entities==0)
   -- Neighbor precedence is local to the receiving cell; last row wins.
   local other=R.create(p,{name='Other chest',width=32,height=32,padding=8})
   sf.create_entity{name='steel-chest',position={other.area.center.x+3.5,other.area.center.y+3.5},force=p.force}
@@ -200,6 +202,36 @@ script.on_event(defines.events.on_tick,function()
   W.focus_template(p,s,t.id);s.reviewing_parent=true
   review.show(p,s,t.id);review.apply_tuning(p,s);review.close(p,s)
   assert(not p.gui.screen[review.panel_name] and not s.reviewing_parent,'Review closes once')
+  local original=S.empty();original.entities={{entity_number=1,name='steel-chest',position={x=.5,y=.5}}}
+  local newer=S.copy(original);newer.entities[1].position.x=2.5
+  assert(D.compare(original,newer)[1].kind=='Moved')
+  newer.entities[1].name='iron-chest';newer.entities[1].position.x=.5
+  assert(D.compare(original,newer)[1].kind=='Replaced')
+  local patch_source=R.create(p,{name='Patch QA',width=32,height=32,padding=8})
+  sf.create_entity{name='constant-combinator',position={patch_source.area.center.x+4.5,patch_source.area.center.y+4.5},force=p.force}
+  assert(review.changes(patch_source)[1].kind=='Added')
+  R.commit(p,patch_source)
+  W.switch(p,s,'world');p.teleport(db.cells[1].center,db.world_surface);W.select_camera(p,s)
+  local ref=R.add_reference(p,s,patch_source.id,{x=-20,y=-20})
+  local real=db.world_surface.find_entity('constant-combinator',{-15.5,-15.5});assert(real);real.destroy()
+  R.scan_patches();assert(#ref.patches==1 and ref.patches[1].kind=='Deleted','World deletion is attributed to its source')
+  R.rebuild_world(p);assert(not db.world_surface.find_entity('constant-combinator',{-15.5,-15.5}),'Rebuild preserves patches')
+  R.patch_action(p,db.cells[1],ref,ref.patches,false)
+  assert(db.world_surface.find_entity('constant-combinator',{-15.5,-15.5}),'Discard restores deleted entity')
+  db.world_surface.find_entity('constant-combinator',{-15.5,-15.5}).destroy();R.scan_patches()
+  R.patch_action(p,db.cells[1],ref,ref.patches,true)
+  assert(#patch_source.snapshot.entities==0,'Stitch world deletion updates source')
+  local ghosts=G.show(db.world_surface,original,{x=0,y=0})
+  assert(#ghosts==1 and ghosts[1].type=='entity-ghost' and ghosts[1].ghost_name=='steel-chest')
+  local captured=S.capture(db.world_surface,p.force,{left_top={x=0,y=0},right_bottom={x=1,y=1}},{x=0,y=0})
+  assert(#captured.entities==0,'Preview ghosts are excluded from authoring')
+  local physical=db.world_surface.create_entity{name='iron-chest',position={.5,.5},force=p.force}
+  assert(physical,'Underlay ghosts do not block real construction')
+  G.clear(ghosts)
+  ghosts=G.show(db.world_surface,original,{x=0,y=0})
+  assert(#ghosts==1,'Overwritten buildings can be previewed through the winning building')
+  G.clear(ghosts);physical.destroy()
+  log('DIFF_PATCH_GHOST_PASS')
   log('FUNCTIONAL_SMOKE_PASS')
   script.finish_test(true)
 end)

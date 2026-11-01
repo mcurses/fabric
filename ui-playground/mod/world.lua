@@ -1,3 +1,6 @@
+local R=require('__fabric-ui-playground__/runtime')
+local S=require('__fabric-ui-playground__/snapshots')
+local G=require('__fabric-ui-playground__/ghosts')
 -- Hover feedback and camera focus for real template references.
 local M={styles={"Border", "Soft fill", "Border + fill", "Group area", "Pulsing soft fill", "Markers"}}
 function M.clear(state)
@@ -29,6 +32,17 @@ function M.highlight(player,state,id)
   local demo=state.world_demo
   local group=demo and demo.groups[id]
   if not group or not demo.surface.valid or player.surface.index~=demo.surface.index then return end
+  local ref
+  for _,item in ipairs(state.items or {}) do if item.id==id then ref=item;break end end
+  if ref then
+    local center,snapshot
+    if state.workspace=='world' and state.camera_area then
+      center=state.camera_area.center;snapshot=R.reference_snapshot(state.camera_area,ref)
+    elseif state.parent_template and ref.template_id then
+      center=state.parent_template.area.center;snapshot=S.transform(R.flatten(ref.template_id),ref)
+    end
+    if snapshot then state.preview_ghosts=G.show(demo.surface,snapshot,center,function(e) return not S.find(demo.surface,e,center) end) end
+  end
   state.highlight_id=id
   state.highlight_objects={}
   state.highlight_fills={}
