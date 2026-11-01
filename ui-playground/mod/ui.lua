@@ -4,16 +4,18 @@ local navigation=require("__fabric-ui-playground__/navigation")
 local components=require("__fabric-ui-playground__/components")
 local overrides=require("__fabric-ui-playground__/overrides")
 local highlight_styles=require("__fabric-ui-playground__/world").styles
-local M = {root="fabric_ui_playground", revision="34"}
+local M = {root="fabric_ui_playground", revision="35"}
 local ROW_HEIGHT, ROW_STEP, LIST_TOP = 36, 40, 52
 local Slots=require('__fabric-ui-playground__/slots')
 local function row_step(item)
   local t=item.template_id and runtime.template(item.template_id)
-  return ROW_STEP+(t and #(t.slot_definitions or {})*30 or 0)
+  return ROW_STEP+(t and #(t.slot_definitions or {})>0 and (8+#t.slot_definitions*32) or 0)
 end
 local function total_height(items) local n=0;for _,item in ipairs(items) do n=n+row_step(item) end;return n end
 local function visible_items(state)
   local items=(state.drag and state.drag.preview) or (state.pending_order and state.pending_order.preview) or state.items
+  local actual={};for _,ref in ipairs(state.items or {}) do actual[ref.id]=ref end
+  local resolved={};for _,ref in ipairs(items) do resolved[#resolved+1]=actual[ref.id] or ref end;items=resolved
   if state.workspace=='world' and state.camera_area and not state.camera_area.neighbors_expanded then
     local out={};local group
     for _,ref in ipairs(items) do
@@ -27,7 +29,8 @@ local function visible_items(state)
   end
   return items
 end
-local function list_top(state) return LIST_TOP+((state.workspace=="collection" or state.world_camera_mode) and 28 or 0)+(state.parent_template and 92 or 0) end
+local function slot_height(state) local t=state.parent_template;return t and (96+#(t.slot_definitions or {})*36+(t.slot_eligible and 36 or 0)) or 0 end
+local function list_top(state) return LIST_TOP+((state.workspace=="collection" or state.world_camera_mode) and 28 or 0)+(state.parent_template and 92 or 0)+slot_height(state) end
 local WINDOW_WIDTH, ROW_WIDTH, NAME_WIDTH = 420, 396, 272
 local icons = {
   ["Iron Plate Pickup"]="item/iron-plate",
@@ -67,7 +70,7 @@ function M.raise_rows(player,state)
   if panel then panel.bring_to_front() end
   local detail=player.gui.screen[overrides.panel_name]
   if detail then detail.bring_to_front() end
-  for _,name in ipairs({'fabric_ui_metadata','fabric_ui_category','fabric_ui_add_template','fabric_template_picker','fabric_position_picker','fabric_remove_confirm','fabric_usages'}) do
+  for _,name in ipairs({'fabric_ui_metadata','fabric_ui_category','fabric_ui_add_template','fabric_template_picker','fabric_position_picker','fabric_remove_confirm','fabric_usages','fabric_slot_picker','fabric_anchor_prompt'}) do
     local modal=player.gui.screen[name];if modal then modal.bring_to_front() end
   end
 end
@@ -223,7 +226,7 @@ local function create_row(player,item)
     row.style.width=ROW_WIDTH
     row.style.height=row_step(item)-4
     row.style.padding=4
-    row.style.vertical_align="center"
+    row.style.vertical_align="top"
     local contents=row.add{type="flow", name="contents", direction="horizontal"}
     contents.style.margin=0
     contents.style.padding=0
@@ -264,7 +267,7 @@ local function create_row(player,item)
     end
     local host=item.template_id and runtime.template(item.template_id)
     if host and #(host.slot_definitions or {})>0 then
-      local slots=row.add{type='flow',name='slots',direction='vertical'};slots.style.left_margin=30;slots.style.vertical_spacing=2
+      local slots=row.add{type='flow',name='slots',direction='vertical'};slots.style.left_margin=24;slots.style.vertical_spacing=4;slots.style.top_margin=4
       for i,slot in ipairs(host.slot_definitions) do
         local line=slots.add{type='flow',direction='horizontal'};line.style.height=28;line.style.vertical_align='center'
         line.add{type='label',caption=slot.name or ('Slot '..i)}.style.width=56
@@ -277,8 +280,8 @@ local function create_row(player,item)
         if assignment and selected==1 then names[#names+1]='Unavailable · '..(runtime.template(assignment).name);ids[#ids+1]=assignment;selected=#ids end
         local active=Slots.anchor_exists(host,slot.anchor)
         if not active then names={slot.anchor and 'Commit or reselect the source anchor' or 'Select an anchor in the source template'};ids={0};selected=1 end
-        local picker=line.add{type='drop-down',items=names,selected_index=selected,enabled=active,tags={action='slot_assign',id=item.id,slot=i,ids=ids}}
-        picker.style.width=286
+        local picker=line.add{type='button',caption=names[selected]..'  ▾',enabled=active,raise_hover_events=true,tags={action='slot_open',id=item.id,slot=i}}
+        picker.style.width=280;picker.style.horizontal_align='left'
       end
     end
     enable_hover(contents)
@@ -339,7 +342,7 @@ function M.build(player, state)
     actions[#actions+1]={name='usages',sprite='fabric-ui-map-white',tags={action='show_usages'},tooltip='Show Usages'}
     actions[#actions+1]={name='underlay',sprite='fabric-ui-eye',tags={action='toggle_underlay'},tooltip='Toggle preview underlay'}
   elseif state.camera_area then
-    actions[#actions+1]={name='neighbors',sprite='utility/list_view',tags={action='toggle_neighbors'},tooltip='Group or expand neighbors'}
+    actions[#actions+1]={name='neighbors',sprite='fabric-ui-neighbors-white',tags={action='toggle_neighbors'},tooltip='Group or expand neighbors'}
   end
   components.titlebar(root,{title=state.workspace=='collection' and 'Edit Template' or 'Edit Instance',close_tags={action='close'},icon_actions=actions})
   components.meta_bar(player)
@@ -382,6 +385,19 @@ function M.build(player, state)
     local review=review_frame.add{type="button",name="review_changes",caption="[img="..components.icons.submit.."]  View Changes",tags={action="template_changes"}}
     review.style.width=ROW_WIDTH
     review.style.height=36
+    local t=state.parent_template
+    local manager=root.add{type='flow',direction='vertical'};manager.style.height=slot_height(state);manager.style.vertical_spacing=4
+    manager.add{type='label',caption='Slots',style='caption_label'}.style.height=24
+    local function anchor_row(i,anchor,label)
+      local line=manager.add{type='flow',direction='horizontal'};line.style.height=32;line.style.vertical_align='center'
+      line.add{type='label',caption=label..(anchor and ('  [entity='..anchor.name..']') or ' · inactive')}.style.width=176
+      line.add{type='button',caption=anchor and 'Change anchor' or 'Select anchor',tags={action='slot_anchor_pick',slot=i}}.style.width=170
+      if i>0 then line.add{type='sprite-button',sprite='utility/close',tags={action='slot_delete',slot=i},tooltip='Delete slot and its assignments'}.style.size=28 end
+    end
+    for i,slot in ipairs(t.slot_definitions or {}) do anchor_row(i,slot.anchor,'Slot '..i) end
+    manager.add{type='button',caption='+ Add a Slot',enabled=#(t.slot_definitions or {})<32,tags={action='slot_add'}}.style.width=396
+    manager.add{type='checkbox',caption='Can be filled into a slot',state=t.slot_eligible or false,enabled=#(t.slot_definitions or {})==0,tags={action='slot_eligible'}}
+    if t.slot_eligible then anchor_row(0,t.slot_anchor,'Template anchor') end
     local section=root.add{type="label",caption="References",style="caption_label"}
     section.style.height=24
   end
@@ -396,7 +412,7 @@ function M.build(player, state)
   apply.style.width=ROW_WIDTH;apply.style.height=36
   local add=footer.add{type="button", name="add_template", caption=state.workspace=="collection" and "+ Reference a Template" or "+ Add a Template",
     style="train_schedule_add_interrupt_station_button", tags={action="add"}}
-  if state.workspace=='world' and not state.camera_area then add.caption='Create instance';add.tags={action='create_instance'} end
+  if state.workspace=='world' and not state.camera_area then add.caption='Create instance';add.tags={action='create_instance',preview_create=true};add.raise_hover_events=true end
   add.enabled=state.workspace~="collection" or state.parent_template~=nil
   add.style.width=ROW_WIDTH
   add.style.height=36

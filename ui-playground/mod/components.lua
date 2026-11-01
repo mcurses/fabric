@@ -13,7 +13,7 @@ function M.titlebar(frame,options)
   drag.style.height=24
   drag.drag_target=frame
   for _,action in ipairs(options.icon_actions or {}) do
-    bar.add{type="sprite-button",name=action.name,sprite=((action.sprite=="fabric-ui-eye" or action.sprite=="fabric-ui-map-white") and not helpers.is_valid_sprite_path(action.sprite)) and "utility/search" or action.sprite,
+    bar.add{type="sprite-button",name=action.name,sprite=((action.sprite=="fabric-ui-eye" or action.sprite=="fabric-ui-map-white" or action.sprite=="fabric-ui-neighbors-white") and not helpers.is_valid_sprite_path(action.sprite)) and "utility/search" or action.sprite,
       style="frame_action_button",tags=action.tags,tooltip=action.tooltip}
   end
   bar.add{type="sprite-button",name="close_window",sprite="utility/close",

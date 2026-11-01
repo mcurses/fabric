@@ -21,3 +21,5 @@ data:extend({
 })
 
 data:extend({{type='sprite',name='fabric-ui-map-white',filename='__fabric-ui-playground__/graphics/map-white.png',width=64,height=64,scale=.5,flags={'gui-icon'}}})
+
+data:extend({{type='sprite',name='fabric-ui-neighbors-white',filename='__fabric-ui-playground__/graphics/neighbors-white.png',width=64,height=64,scale=.5,flags={'gui-icon'}}})

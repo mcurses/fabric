@@ -71,23 +71,22 @@ Normal Factorio saves and mods remain separate. Save your playground after editi
 
 ## Slots and anchors
 
-In template metadata, set the slot count, then use **Select anchor** for each slot
-and click an owned entity in the editor. Save metadata and commit newly placed
+After creating a template, use **Slots → + Add a Slot** above References, then **Select anchor** for each slot
+and click an owned entity in the editor. Anchor selection saves immediately; commit newly placed
 anchor entities. For a filler, use **Can be filled into a slot** and select its
 anchor the same way. A host cannot itself be a filler; subslots are not supported.
 
-Each placed host reference shows its slot dropdowns inline. Choose a compatible
+Each placed host reference shows its slot pickers inline. Opening a picker does not rebuild; hovering a choice previews it at the anchor. Choose a compatible
 filler to align its anchor position and orientation with the slot anchor. These
 assignments belong to that placed reference. In a template, stitch the reference
 changes to publish them; in World, choosing a filler rebuilds that instance.
 
 Bay spine starts with three inactive slots because its imported blueprint has no
-train stops. Its anchors must be added/selected. Imported station templates with
-a single train stop already have filler anchors. The old Left/Right placement
+train stops. Its anchors must be added/selected. Bayspine Requester and Bayspine Provider start with filler anchors. Other templates can be enabled later. The old Left/Right placement
 presets are replaced by **Cell origin** and **Custom**.
 
 The template picker has search and a **Most common** section seeded with Universal
-request, Bay spine, Trash sender, HT solid request, and HT solid provider. Successful
+request, Bay spine, Trash sender, Bayspine Requester, and Bayspine Provider. Successful
 placements and slot selections update that ranking. Outside any World cell,
 **Create instance** creates the cell on the fixed lattice and includes The Grid.
 
@@ -119,3 +118,5 @@ review; passing a scripted test is not a claim of complete gameplay coverage.
 owns blueprint capture, transforms, placement, and wire restoration. Shared UI
 components remain in `components.lua`, `ui.lua`, `metadata.lua`, `placement.lua`,
 `library.lua`, `navigation.lua`, and `overrides.lua`.
+
+World rebuilds skip unchanged disconnected groups of cells. Intersecting cell and extension bounds rebuild together to preserve rails and neighbor precedence; a connected group may still rebuild in full. No entity identity tracking is used.

@@ -20,6 +20,7 @@ local function create(p,name,origin)
   action(p,'template_new')
   local form=p.gui.screen.fabric_ui_metadata
   assert(form and form.template_icon and form.category and form.padding)
+  assert(not form.slot_count and not form.slot_eligible,"Slots are configured after creation")
   form.template_name.text=name
   form.template_icon.elem_value={type='item',name='steel-chest'}
   form.padding.text='16'
@@ -43,27 +44,27 @@ local function commit(p)
 end
 local function test_slots(p)
   -- Configure a slot-compatible template by selecting a real owned entity.
-  source(p,origin_id);action(p,'metadata_open')
-  local form=p.gui.screen.fabric_ui_metadata;form.slot_eligible.state=true
-  remote.call('fabric-ui-test','text',p.index,form.slot_count)
+  source(p,origin_id)
+  local form
+  local eligible=find(p.gui.screen,function(el)return el.tags.action=='slot_eligible' end);eligible.state=true
+  remote.call('fabric-ui-test','checked',p.index,eligible);remote.call('fabric-ui-test','drain',p.index)
   action(p,'slot_anchor_pick')
   local filler=inspect(p).catalog[origin_id]
   local anchor=p.surface.find_entity('iron-chest',{filler.center.x+3.5,filler.center.y+3.5})
-  assert(anchor);remote.call('fabric-ui-test','opened',p.index,anchor);action(p,'metadata_save')
+  assert(anchor);remote.call('fabric-ui-test','opened',p.index,anchor);remote.call('fabric-ui-test','drain',p.index)
   assert(inspect(p).catalog[origin_id].slot_anchor,'Selected filler anchor persists')
   local host=create(p,'QA Slot Host',false)
   local positions={{3.5,3.5},{3.5,9.5},{9.5,3.5}}
   for _,pos in ipairs(positions) do p.surface.create_entity{name='steel-chest',position={host.center.x+pos[1],host.center.y+pos[2]},force=p.force} end
-  commit(p);action(p,'edit_exit');action(p,'metadata_open')
-  form=p.gui.screen.fabric_ui_metadata;form.slot_count.text='3';remote.call('fabric-ui-test','text',p.index,form.slot_count)
-  assert(not form.slot_eligible.enabled,'Hosts cannot be marked as fillers')
+  commit(p);action(p,'edit_exit')
+  for i=1,3 do action(p,'slot_add') end
   for i,pos in ipairs(positions) do
-    local button=find(form,function(el)return el.tags.action=='slot_anchor_pick' and el.tags.slot==i end)
+    local button=find(p.gui.screen,function(el)return el.tags.action=='slot_anchor_pick' and el.tags.slot==i end)
     remote.call('fabric-ui-test','click',p.index,button)
     local entity=p.surface.find_entity('steel-chest',{host.center.x+pos[1],host.center.y+pos[2]})
-    remote.call('fabric-ui-test','opened',p.index,entity)
+    remote.call('fabric-ui-test','opened',p.index,entity);remote.call('fabric-ui-test','drain',p.index)
   end
-  action(p,'metadata_save');assert(inspect(p).catalog[host.id].slot_count==3)
+  assert(inspect(p).catalog[host.id].slot_count==3)
   local parent=create(p,'QA Slotted Assembly',false)
   action(p,'add');form=p.gui.screen.fabric_ui_add_template;choose(p,form.template_picker,host.id)
   assert(#form.position_picker.items==2,'Old Left/Right presets are replaced by origin/custom')
@@ -71,10 +72,15 @@ local function test_slots(p)
   local row=find(p.gui.screen,function(el)return el.tags.fabric_ui_row and el.contents and el.contents.item_name.caption=='QA Slot Host' end)
   assert(row and row.slots and #row.slots.children==3,'Host reference has three inline slot selectors')
   for i=1,3 do
-    local picker=find(p.gui.screen,function(el)return el.tags.action=='slot_assign' and el.tags.slot==i end)
-    local index
-    for j,id in ipairs(picker.tags.ids) do assert(id~=host.id and id~=parent.id,'No subslots in choices');if id==origin_id then index=j end end
-    assert(index,'Anchored compatible filler offered');choose(p,picker,index);remote.call('fabric-ui-test','drain',p.index)
+    local open=find(p.gui.screen,function(el)return el.tags.action=='slot_open' and el.tags.slot==i end)
+    remote.call('fabric-ui-test','click',p.index,open)
+    assert(not remote.call('fabric-ui-test','busy'),'Opening a slot picker must not rebuild')
+    local picker=p.gui.screen.fabric_slot_picker
+    local option=find(picker,function(el)return el.tags.action=='slot_assign' and el.tags.value==origin_id end)
+    assert(option,'Anchored compatible filler offered')
+    remote.call('fabric-ui-test','click',p.index,option);remote.call('fabric-ui-test','drain',p.index)
+    local selected=find(p.gui.screen,function(el)return el.tags.action=='slot_open' and el.tags.slot==i end)
+    assert(selected.caption:find('QA',1,true),'Selected filler remains visible after rebuild')
   end
   commit(p)
   assert(inspect(p).catalog[parent.id].entities==0,'Slot contents are excluded from parent own snapshot')
@@ -89,11 +95,15 @@ local function test_slots(p)
   p.surface.create_entity{name='constant-combinator',position={filler.center.x+12.5,filler.center.y+12.5},force=p.force}
   commit(p)
   assert(game.surfaces['Fabric World'].find_entity('constant-combinator',{12.5,12.5}),'Filler commits propagate through slot assignments and nested templates')
-  source(p,host.id);action(p,'metadata_open');form=p.gui.screen.fabric_ui_metadata;form.slot_count.text='2';action(p,'metadata_save')
+  source(p,host.id);action(p,'slot_delete')
   assert(inspect(p).catalog[host.id].slot_count==2,'Slot count remains editable')
-  action(p,'world');p.teleport({480,0},game.surfaces['Fabric World']);action(p,'edit_current')
+  action(p,'world');p.teleport({1600,0},game.surfaces['Fabric World']);action(p,'edit_current')
   action(p,'create_instance')
-  local db=inspect(p);assert(#db.cells==5 and db.cells[5].center.x==480 and db.cells[5].items[1].origin,'Create instance snaps to World lattice and includes Grid')
+  assert(inspect(p).last_rebuilt_cells==1,'Creating an isolated instance leaves existing cells untouched')
+  local rebuild=p.gui.top.add{type='button',tags={action='rebuild_instance'}}
+  action(p,'rebuild_instance');rebuild.destroy()
+  assert(inspect(p).last_rebuilt_cells==0,'An unchanged composition skips world rebuild')
+  local db=inspect(p);assert(#db.cells==5 and db.cells[5].center.x==1600 and db.cells[5].items[1].origin,'Create instance snaps to World lattice and includes Grid')
   action(p,'add');action(p,'placement_picker');local picker=p.gui.screen.fabric_template_picker
   local common=find(picker,function(el)return el.type=='label' and el.caption=='Most common' end);assert(common)
   picker.search.text='Universal';remote.call('fabric-ui-test','text',p.index,picker.search)
@@ -101,6 +111,7 @@ local function test_slots(p)
   for _,el in ipairs(picker.results.children) do if el.tags.preview_template then assert(el.caption:lower():find('universal',1,true));matched=matched+1 end end
   assert(matched>0,'Search filters templates');action(p,'placement_close')
   log('SLOTS_ANCHORS_NESTING_CREATE_INSTANCE_SEARCH_PASS')
+  return parent.id
 end
 local reloaded=false
 script.on_load(function() reloaded=true end)
@@ -250,7 +261,23 @@ script.on_event(defines.events.on_tick,function(e)
   elseif step==7 and e.tick>storage.idle_tick+250 then
     assert(inspect(p).catalog[origin_id].captures==storage.idle_captures,'Idle editor does not periodically capture the padded island')
     log('RESPONSIVE_PREVIEW_USAGES_LIVE_DIFF_ASYNC_PASS')
-    test_slots(p)
+    local parent=test_slots(p)
+    source(p,parent);action(p,'slot_open')
+    local option=find(p.gui.screen.fabric_slot_picker,function(el)return el.tags.preview_slot==origin_id end)
+    assert(option);remote.call('fabric-ui-test','hover',p.index,option)
+    storage.preview_element=option;storage.preview_tick=e.tick;step=8
+  elseif step==8 and e.tick>storage.preview_tick+25 then
+    assert(inspect(p).preview_count>0,'Slot choice hover shows anchored ghosts')
+    remote.call('fabric-ui-test','leave',p.index,storage.preview_element)
+    assert(inspect(p).preview_count==0,'Slot hover ghosts clear on leave')
+    action(p,'slot_picker_close');action(p,'world');p.teleport({3200,0},game.surfaces['Fabric World']);action(p,'edit_current')
+    local button=find(p.gui.screen,function(el)return el.tags.action=='create_instance' end)
+    remote.call('fabric-ui-test','hover',p.index,button);storage.preview_element=button;storage.preview_tick=e.tick;step=9
+  elseif step==9 and e.tick>storage.preview_tick+25 then
+    assert(inspect(p).preview_count>0,'Create instance hover previews the Grid')
+    remote.call('fabric-ui-test','leave',p.index,storage.preview_element)
+    assert(inspect(p).preview_count==0,'Instance preview clears on leave')
+    log('SLOT_AND_INSTANCE_HOVER_PASS')
     log('UI_INTEGRATION_PASS');script.finish_test(true);step=100
   end
 end)

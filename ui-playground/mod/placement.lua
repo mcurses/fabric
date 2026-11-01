@@ -36,7 +36,7 @@ function M.refresh(player,state)
   panel.position_button.caption=choices[panel.position_picker.selected_index]
   local custom=panel.position_picker.selected_index==#choices
   panel.hint.caption=custom and "Choose a point in the world with the placement cursor."
-    or "Place at the cell origin, or choose Custom placement."
+    or ""
   panel.confirm.caption=custom and "Place freely" or (state.workspace=="collection" and "Reference Template" or "Add Template")
   M.preview(player,state,template.id,panel.position_picker.selected_index)
 end
@@ -100,6 +100,7 @@ function M.picker(player,state)
   local old=player.gui.screen.fabric_template_picker;if old then old.destroy();return end
   local panel=player.gui.screen.add{type='frame',name='fabric_template_picker',direction='vertical'};panel.style.width=360
   components.titlebar(panel,{title='Select Template',close_tags={action='placement_picker'}})
+  panel.add{type='label',caption='Hover for preview'}
   panel.add{type='label',caption='Search',style='caption_label'}
   panel.add{type='textfield',name='search',text='',tags={action='placement_search'},tooltip='Search templates or categories'}.style.width=328
   local list=panel.add{type='scroll-pane',name='results',direction='vertical',horizontal_scroll_policy='never',vertical_scroll_policy='auto'}

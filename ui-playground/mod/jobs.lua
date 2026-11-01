@@ -2,9 +2,9 @@
 -- bounded floor batch; no coroutine or closure is stored in the save file.
 local R=require('__fabric-ui-playground__/runtime')
 local M={}
-function M.start(player,element)
+function M.start(player,element,data)
   if storage.fabric_job then return false end
-  storage.fabric_job={player=player.index,element=element,action=element.tags.action,tasks={},index=1,started=game.tick,command=true,close_panels={}}
+  storage.fabric_job={player=player.index,element=element,action=element.tags.action,data=data,tasks={},index=1,started=game.tick,command=true,close_panels={}}
   if element.type=='button' then storage.fabric_job.caption=element.caption;element.enabled=false;element.caption='Working…  0%' end
   local old=player.gui.screen.fabric_loading;if old then old.destroy() end
   local panel=player.gui.screen.add{type='frame',name='fabric_loading',direction='vertical'}
@@ -19,7 +19,7 @@ function M.tick(dispatch,complete)
   local ok,err=pcall(function()
     if job.command then
       job.command=false;job.executing=true
-      dispatch{player_index=player.index,element=job.element}
+      dispatch{player_index=player.index,element=job.element,data=job.data}
       job.executing=nil
       return
     end

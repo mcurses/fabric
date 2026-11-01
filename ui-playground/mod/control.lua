@@ -13,6 +13,7 @@ local settings=require('fabric_settings')
 local jobs=require('jobs')
 local usages=require('usages')
 local Slots=require('slots')
+Slots.bind_preview(world.clear)
 local handle_click
 local pending=true
 local function state(p)
@@ -59,6 +60,7 @@ script.on_event(defines.events.on_tick,function(e)
     pending=false
     for _,p in pairs(game.connected_players) do safe(p,function()
       sandbox(p);local s=state(p);sync(p,s);
+      if not script.active_mods['fabric-ui-test-driver'] and R.store().slots_fix_backup~=2 then R.store().slots_fix_backup=2;game.auto_save('fabric-slot-fixes') end
       if not script.active_mods['fabric-ui-test-driver'] and not R.store().slots_ui_backup then R.store().slots_ui_backup=true;game.auto_save('fabric-before-slots') end
       if not script.active_mods['fabric-ui-test-driver'] and not R.store().responsive_backup then R.store().responsive_backup=true;game.auto_save('fabric-responsive-backup') end
       if s.parent_template then R.underlay(p,s.parent_template);s.template_dirty=true end;components.meta_bar(p);navigation.show(p,s)
@@ -87,7 +89,7 @@ script.on_event(defines.events.on_tick,function(e)
       library.tick(p,s)
       if s.preview_pending and e.tick>=s.preview_pending.tick then
         local hover=s.preview_pending;s.preview_pending=nil
-        if hover.element.valid then safe(p,function() placement.preview(p,s,hover.id,hover.position);s.hover_element=hover.element.index end) end
+        if hover.element.valid then safe(p,function() if hover.slot_tags then Slots.preview(p,s,hover.slot_tags) else placement.preview(p,s,hover.id,hover.position) end;s.hover_element=hover.element.index end) end
       end
       if s.template_dirty and s.parent_template then
         s.template_dirty=nil
@@ -121,10 +123,13 @@ handle_click=function(e)
     local s=state(p);local t=e.element.tags
     local job=storage.fabric_job
     if job and not job.executing then return end
+    if t.action=='slot_eligible' and not e.data then return end
+    if t.action=='slot_assign' and not e.data then e.data={value=t.value} end
     local expensive={edit_commit=true,edit_discard=true,change_reset=true,patch_accept=true,patch_commit=true,patch_discard=true,
-      placement_confirm=true,apply_order=true,remove_confirm=true,metadata_save=true,rebuild_instance=true,toggle_neighbors=true,create_instance=true,slot_assign=true}
+      placement_confirm=true,apply_order=true,remove_confirm=true,metadata_save=true,rebuild_instance=true,toggle_neighbors=true,create_instance=true,slot_assign=true,slot_add=true,slot_delete=true,slot_eligible=true,anchor_apply=true}
+    if not job and (t.action=='slot_add' or t.action=='slot_eligible') then local count=#(s.parent_template.slot_definitions or {})+(t.action=='slot_add' and 1 or 0);local eligible=t.action=='slot_eligible' and e.data.value or false;local ok,reason=Slots.can_configure(s.parent_template,count,eligible);if not ok then p.print(reason);refresh(p,s);return end end
     if t.action=='metadata_save' and not job then local ok,reason=metadata.validate(p);if not ok then p.print(reason);return end end
-    if expensive[t.action] and not job then jobs.start(p,e.element);return end
+    if expensive[t.action] and not job then jobs.start(p,e.element,e.data);return end
     if not t.action then
       local el=e.element
       while el and el.valid do
@@ -144,8 +149,15 @@ handle_click=function(e)
     elseif a=='fabric_controls_close' then navigation.close(p,s)
     elseif a=='anchor_cancel' then Slots.cancel(p,s)
     elseif a=='slot_anchor_pick' then Slots.pick(p,s,t.slot)
+    elseif a=='slot_open' then Slots.picker(p,s,t.id,t.slot)
+    elseif a=='slot_picker_close' then local panel=p.gui.screen.fabric_slot_picker;if panel then panel.destroy() end;world.clear(s)
     elseif a=='slot_assign' then
-      local value=e.element.tags.ids[e.element.selected_index];R.assign_slot(p,s,t.id,t.slot,value);refresh(p,s)
+      local panel=p.gui.screen.fabric_slot_picker;if panel then panel.destroy() end;world.clear(s)
+      R.assign_slot(p,s,t.id,t.slot,e.data.value);refresh(p,s)
+    elseif a=='slot_add' then Slots.configure(s.parent_template,#(s.parent_template.slot_definitions or {})+1,false);R.refresh_metadata(p,s.parent_template)
+    elseif a=='slot_delete' then Slots.remove(s.parent_template,t.slot);R.refresh_metadata(p,s.parent_template)
+    elseif a=='slot_eligible' then Slots.configure(s.parent_template,#(s.parent_template.slot_definitions or {}),e.data.value);R.refresh_metadata(p,s.parent_template)
+    elseif a=='anchor_apply' then R.refresh_metadata(p,R.template(e.data.id))
     elseif a=='create_instance' then R.create_instance(p,p.position);sync(p,s);refresh(p,s)
     elseif a=='show_usages' then usages.show(p,s)
     elseif a=='usages_close' then usages.close(p)
@@ -221,6 +233,7 @@ script.on_event(defines.events.on_gui_hover,function(e)
   local p=game.get_player(e.player_index);local s=storage.players and storage.players[p.index];if not s then return end
   local el=e.element
   if storage.fabric_job then return end
+  if el.tags.preview_slot or el.tags.preview_create then s.preview_pending={element=el,slot_tags=el.tags,tick=game.tick+20};return end
   if el.tags.preview_template then s.preview_pending={element=el,id=el.tags.preview_template,position=el.tags.preview_position,tick=game.tick+20};return end
   while el and el.valid do
     if el.tags.fabric_ui_row then safe(p,function() world.highlight(p,s,el.tags.id);s.hover_element=e.element.index end);return
@@ -245,7 +258,7 @@ script.on_event(defines.events.on_gui_selection_state_changed,function(e)
   if not e.element.valid then return end
   local p=game.get_player(e.player_index);safe(p,function()
     local s=state(p);local a=e.element.tags.action
-    if a=='slot_assign' then jobs.start(p,e.element)
+    if a=='slot_assign' then jobs.start(p,e.element,{value=e.element.tags.ids[e.element.selected_index]})
     elseif a=='placement_template' or a=='placement_position' then placement.refresh(p,s)
     elseif a=='metadata_layout' then metadata.layout(p)
     elseif a=='tuning_target' then ui.select_tuning(p,s,e.element.selected_index)
@@ -257,15 +270,15 @@ script.on_event(defines.events.on_gui_text_changed,function(e)
   local p=game.get_player(e.player_index);local s=state(p)
   safe(p,function()
     if e.element.tags.action=='placement_search' then s.preview_pending=nil;placement.fill_picker(p,s)
-    elseif e.element.tags.action=='slot_count' then metadata.anchors(p,s) end
+ end
   end)
 end)
 script.on_event(defines.events.on_gui_checked_state_changed,function(e)
-  if e.element.valid and e.element.tags.action=='slot_eligible' then local p=game.get_player(e.player_index);metadata.anchors(p,state(p)) end
+  if e.element.valid and e.element.tags.action=='slot_eligible' then local p=game.get_player(e.player_index);jobs.start(p,e.element,{value=e.element.state}) end
 end)
 script.on_event(defines.events.on_gui_opened,function(e)
   local s=storage.players and storage.players[e.player_index]
-  if s and s.anchor_pick and e.entity then local p=game.get_player(e.player_index);safe(p,function() if Slots.select(p,s,e.entity) then metadata.anchors(p,s) end end) end
+  if s and s.anchor_pick and e.entity then local p=game.get_player(e.player_index);safe(p,function() local id=Slots.select(p,s,e.entity);if id then local button=p.gui.top.fabric_anchor_apply or p.gui.top.add{type='button',name='fabric_anchor_apply',visible=false,tags={action='anchor_apply'}};jobs.start(p,button,{id=id}) end end) end
 end)
 script.on_event(defines.events.on_gui_location_changed,function(e)
   if not e.element.valid then return end
@@ -335,6 +348,7 @@ if script.active_mods['fabric-ui-test-driver'] then
       return n
     end,
     text=function(index,element) script.get_event_handler(defines.events.on_gui_text_changed){player_index=index,element=element} end,
+    checked=function(index,element) script.get_event_handler(defines.events.on_gui_checked_state_changed){player_index=index,element=element} end,
     opened=function(index,entity) script.get_event_handler(defines.events.on_gui_opened){player_index=index,entity=entity} end,
     busy=function() return storage.fabric_job~=nil end,
 
@@ -348,7 +362,7 @@ if script.active_mods['fabric-ui-test-driver'] then
       script.get_event_handler(defines.events.on_gui_selection_state_changed){player_index=index,element=element}
     end,
     inspect=function(index)
-      local s=state(game.get_player(index));local db=R.store();local out={catalog={},cells={},selected=s.parent_template and s.parent_template.id,review_count=#(s.review_changes or {}),highlight_count=#(s.highlight_objects or {}),usages=s.usages,job=storage.fabric_job and {index=storage.fabric_job.index,total=#storage.fabric_job.tasks}}
+      local s=state(game.get_player(index));local db=R.store();local out={preview_count=#(s.preview_ghosts or {}),last_rebuilt_cells=db.last_rebuilt_cells,catalog={},cells={},selected=s.parent_template and s.parent_template.id,review_count=#(s.review_changes or {}),highlight_count=#(s.highlight_objects or {}),usages=s.usages,job=storage.fabric_job and {index=storage.fabric_job.index,total=#storage.fabric_job.tasks}}
       for _,t in ipairs(R.catalog()) do
         out.catalog[#out.catalog+1]={id=t.id,name=t.name,category=t.category,icon=t.icon,width=t.width,height=t.height,padding=t.padding,
           origin_id=t.origin_id,is_origin=t.is_origin,entities=#(t.snapshot.entities or {}),refs=#t.children,committed_refs=#t.committed_refs,

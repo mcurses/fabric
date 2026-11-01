@@ -2,8 +2,6 @@ local runtime=require("__fabric-ui-playground__/runtime")
 local world_areas=require("__fabric-ui-playground__/world_areas")
 local components=require("__fabric-ui-playground__/components")
 local workspaces=require("__fabric-ui-playground__/workspaces")
-local slots=require('__fabric-ui-playground__/slots')
-local snapshots=require('__fabric-ui-playground__/snapshots')
 local M={name="fabric_ui_metadata",category_name="fabric_ui_category"}
 local function destroy(player,name)
   local panel=player.gui.screen[name]
@@ -20,8 +18,6 @@ function M.show(player,state,creating)
   M.close(player)
   workspaces.catalog(player,state)
   local template=creating and {name="New Template"} or instance or state.parent_template
-  state.anchor_draft={[0]=snapshots.copy(template.slot_anchor)}
-  for i,slot in ipairs(template.slot_definitions or {}) do state.anchor_draft[i]=snapshots.copy(slot.anchor) end
   local panel=player.gui.screen.add{type="frame",name=M.name,direction="vertical",tags={id=template.id,creating=creating or false,instance=instance~=nil and instance~=false}}
   panel.style.width=380
   components.titlebar(panel,{title=creating and "Sew new Template" or (instance and "Edit Instance Name" or "Edit Metadata"),close_tags={action="metadata_close"}})
@@ -57,33 +53,12 @@ function M.show(player,state,creating)
   elseif template.width then
     panel.add{type="label",caption=template.width.." × "..template.height.." · padding "..template.padding..(template.is_origin and " · Origin Template" or "")}
   end
-  panel.add{type='label',caption='Slots',style='caption_label'}.style.top_margin=8
-  local count=panel.add{type='textfield',name='slot_count',text=tostring(#(template.slot_definitions or {})),numeric=true,allow_decimal=false,allow_negative=false,tags={action='slot_count'}}
-  count.style.width=64;count.tooltip='Number of slots (0–32). Reducing this removes assignments in deleted slots.'
-  panel.add{type='checkbox',name='slot_eligible',caption='Can be filled into a slot',state=template.slot_eligible or false,tags={action='slot_eligible'}}
-  local anchors=panel.add{type='scroll-pane',name='slot_anchors',direction='vertical',horizontal_scroll_policy='never',vertical_scroll_policy='auto'}
-  anchors.style.width=348;anchors.style.maximal_height=150
-  M.anchors(player,state)
+
   end
   local save=panel.add{type="button",caption=creating and "Sew new Template" or "Save",tags={action="metadata_save"}}
   save.style.width=348; save.style.height=36; save.style.top_margin=12
   panel.auto_center=true
   if creating then M.layout(player) end
-end
-function M.anchors(player,state)
-  local panel=player.gui.screen[M.name];if not panel or not panel.slot_count then return end
-  local count=tonumber(panel.slot_count.text) or 0;count=math.max(0,math.min(32,math.floor(count)))
-  panel.slot_eligible.enabled=count==0
-  if count>0 then panel.slot_eligible.state=false end
-  local list=panel.slot_anchors;list.clear()
-  local function anchor_row(index,label)
-    local row=list.add{type='flow',direction='horizontal'};row.style.vertical_align='center'
-    local anchor=state.anchor_draft and state.anchor_draft[index]
-    row.add{type='label',caption=label..(anchor and ('  [entity='..anchor.name..']') or ' · inactive')}.style.width=190
-    row.add{type='button',caption=anchor and 'Change anchor' or 'Select anchor',enabled=not panel.tags.creating,tags={action='slot_anchor_pick',slot=index},tooltip=panel.tags.creating and 'Create this template first, then select its anchor entity.' or 'Click an owned entity in the template editor.'}
-  end
-  for i=1,count do anchor_row(i,'Slot '..i) end
-  if panel.slot_eligible.state then anchor_row(0,'Template anchor') end
 end
 function M.layout(player)
   local panel=player.gui.screen[M.name]
@@ -118,12 +93,7 @@ function M.create_category(player,state)
   M.close_category(player)
   return true
 end
-function M.validate(player)
-  local panel=player.gui.screen[M.name]
-  if not panel or panel.tags.instance then return true end
-  local t=not panel.tags.creating and runtime.template(panel.tags.id) or nil
-  return slots.can_configure(t,tonumber(panel.slot_count.text),panel.slot_eligible.state)
-end
+function M.validate(player) return true end
 function M.save(player,state)
   local panel=player.gui.screen[M.name]
   if not panel then return false end
@@ -143,13 +113,11 @@ function M.save(player,state)
   local category=workspaces.categories(state)[panel.category.selected_index]
   local signal=panel.template_icon.elem_value
   local icon=signal and ((signal.type=="virtual" and "virtual-signal" or (signal.type or "item")).."/"..signal.name) or "item/blueprint"
-  local slot_count=tonumber(panel.slot_count.text)
-  assert(slot_count and slot_count%1==0 and slot_count>=0 and slot_count<=32,'Choose between 0 and 32 slots.')
   if panel.tags.creating then
     local origin=panel.origin_picker.tags.ids[panel.origin_picker.selected_index]
     local options={origin_id=origin~=0 and origin or nil,is_origin=panel.origin_template.state,
       width=tonumber(panel.sizes.cell_width.text),height=tonumber(panel.sizes.cell_height.text),
-      padding=tonumber(panel.padding.text),category=category,icon=icon,slot_count=slot_count,slot_eligible=panel.slot_eligible.state}
+      padding=tonumber(panel.padding.text),category=category,icon=icon}
     if not options.width or not options.height or not options.padding then player.print("Enter dimensions and padding.");return false end
     local template=workspaces.create_template(player,state,name,options)
     template.category=category
@@ -162,11 +130,6 @@ function M.save(player,state)
     if entry.id==panel.tags.id then template=entry; break end
   end
   if not template then return false end
-  local previous=helpers.table_to_json({template.slot_definitions,template.slot_eligible or false,template.slot_anchor})
-  slots.configure(template,slot_count,panel.slot_eligible.state)
-  template.slot_anchor=snapshots.copy(state.anchor_draft and state.anchor_draft[0])
-  for i,slot in ipairs(template.slot_definitions) do slot.anchor=snapshots.copy(state.anchor_draft and state.anchor_draft[i]) end
-  local changed=previous~=helpers.table_to_json({template.slot_definitions,template.slot_eligible or false,template.slot_anchor})
   local old_name=template.name
   template.name=name
   template.category=category
@@ -191,7 +154,6 @@ function M.save(player,state)
       end
     end
   end
-  if changed then runtime.refresh_metadata(player,template) end
   M.close(player)
   return true
 end
