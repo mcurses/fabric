@@ -36,12 +36,12 @@ end
 -- Session navigation stays outside content windows, including when they close.
 function M.meta_bar(player)
   local existing=player.gui.top.fabric_ui_meta
-  if existing and existing.tags.version==3 then return existing end
+  if existing and existing.tags.version==4 then return existing end
   if existing then existing.destroy() end
-  local bar=player.gui.top.add{type="frame",name="fabric_ui_meta",direction="horizontal",tags={version=3}}
+  local bar=player.gui.top.add{type="frame",name="fabric_ui_meta",direction="horizontal",tags={version=4}}
   bar.style.padding=4
   for _,spec in ipairs({
-    {"World","world"},{"Template Collection","collection"},{"Library","library"},{"Tune","tuning"},{"Reload","reload"},
+    {"World","world"},{"Template Library","collection"},{"Tune","tuning"},{"Reload","reload"},
   }) do
     local button=bar.add{type="button",caption=spec[1],tags={action=spec[2]}}
     button.style.height=28

@@ -20,15 +20,15 @@ function M.show(player,state,creating)
   local template=creating and {name="New Template"} or instance or state.parent_template
   local panel=player.gui.screen.add{type="frame",name=M.name,direction="vertical",tags={id=template.id,creating=creating or false,instance=instance~=nil and instance~=false}}
   panel.style.width=380
-  components.titlebar(panel,{title=creating and "Sew new Template" or (instance and "Edit Instance Name" or "Edit Metadata"),close_tags={action="metadata_close"}})
+  components.titlebar(panel,{title=creating and "Sew new Template" or (instance and "Edit Instance" or "Edit Metadata"),close_tags={action="metadata_close"}})
   panel.add{type="label",caption="Name",style="caption_label"}
   panel.add{type="textfield",name="template_name",text=template.name}.style.width=348
-  if not instance then
   panel.add{type="label",caption="Icon",style="caption_label"}.style.top_margin=8
   local kind,icon_name=(template.icon or "item/blueprint"):match("^([^/]+)/(.+)$")
   local picker=panel.add{type="choose-elem-button",name="template_icon",elem_type="signal",
     tooltip="Choose template icon"}
   picker.elem_value={type=kind=="virtual-signal" and "virtual" or kind,name=icon_name}
+  if not instance then
   panel.add{type="label",caption="Category",style="caption_label"}.style.top_margin=8
   local categories=workspaces.categories(state)
   local selected=1
@@ -104,6 +104,9 @@ function M.save(player,state)
     for _,area in ipairs(runtime.store().cells) do
       if area.id==panel.tags.id then
         world_areas.rename(demo,area,name)
+        local signal=panel.template_icon.elem_value
+        area.icon=signal and ((signal.type=='virtual' and 'virtual-signal' or (signal.type or 'item'))..'/'..signal.name) or 'item/blueprint'
+        runtime.update_instance_tag(player,area)
         M.close(player)
         return true
       end

@@ -4,7 +4,8 @@ local S=require('__fabric-ui-playground__/snapshots')
 local ghosts=require('__fabric-ui-playground__/ghosts')
 local C=require('__fabric-ui-playground__/components')
 local M={}
-local R,clear_preview
+local R,clear_preview,picker_ui
+function M.bind_picker(value) picker_ui=value end
 function M.bind_preview(fn) clear_preview=fn end
 function M.bind(value) R=value end
 local function runtime() return R end
@@ -115,19 +116,37 @@ function M.seed()
   db.slots_schema=3
 end
 function M.picker(player,state,id,index)
-  local old=player.gui.screen.fabric_slot_picker;if old then old.destroy() end
   local ref;for _,r in ipairs(state.items) do if r.id==id then ref=r end end
   if not ref then return end
   local host=runtime().template(ref.template_id)
-  local panel=player.gui.screen.add{type='frame',name='fabric_slot_picker',direction='vertical'}
-  C.titlebar(panel,{title='Slot '..index,close_tags={action='slot_picker_close'}})
-  panel.add{type='label',caption='Hover for preview'}
-  local function option(t)
-    panel.add{type='button',caption=t and ('[img='..t.icon..'] '..t.name) or 'Empty',raise_hover_events=true,
-      tags={action='slot_assign',id=id,slot=index,value=t and t.id or 0,preview_slot=t and t.id or nil}}.style.width=310
+  picker_ui.picker(player,state,{id=id,slot=index,catalog=M.choices(host,host.slot_definitions[index])})
+end
+function M.preview_drafts(player,state,hover)
+  clear_preview(state)
+  local target=state.parent_template and state.parent_template.area or state.camera_area
+  if not target then return end
+  state.preview_ghosts={}
+  for _,ref in ipairs(state.items or {}) do
+    local draft=state.pending_slots and state.pending_slots[ref.id]
+    if draft or (hover and hover.id==ref.id) then
+      local assignments=S.copy(draft and draft.assignments or ref.slot_assignments or {})
+      if hover and hover.id==ref.id then assignments[hover.slot]=hover.preview_slot~=0 and hover.preview_slot or nil end
+      local host=runtime().template(ref.template_id)
+      for _,layer in ipairs(M.layers(host,assignments)) do
+        for _,ghost in ipairs(ghosts.show(player.surface,S.transform(layer.snapshot,ref),target.center)) do state.preview_ghosts[#state.preview_ghosts+1]=ghost end
+      end
+    end
   end
-  option();for _,t in ipairs(M.choices(host,host.slot_definitions[index])) do option(t) end
-  panel.auto_center=true
+end
+function M.draft(player,state,id,index,value)
+  local ref;for _,r in ipairs(state.items or {}) do if r.id==id then ref=r end end
+  if not ref then return end
+  state.pending_slots=state.pending_slots or {}
+  local draft=state.pending_slots[id] or {assignments=S.copy(ref.slot_assignments or {})}
+  draft.assignments[index]=value~=0 and value or nil
+  state.pending_slots[id]=draft
+  if helpers.table_to_json(draft.assignments)==helpers.table_to_json(ref.slot_assignments or {}) then state.pending_slots[id]=nil end
+  M.preview_drafts(player,state)
 end
 function M.preview(player,state,tags)
   clear_preview(state)
@@ -137,13 +156,7 @@ function M.preview(player,state,tags)
     local center={x=math.floor((player.position.x+w/2)/w)*w,y=math.floor((player.position.y+h/2)/h)*h}
     state.preview_ghosts=ghosts.show(player.surface,R.flatten(db.world_origin),center);return
   end
-  local ref;for _,r in ipairs(state.items) do if r.id==tags.id then ref=r end end
-  if not ref then return end
-  local host=R.template(ref.template_id);local filler=R.template(tags.preview_slot)
-  local transform=M.transform(host.slot_definitions[tags.slot],filler)
-  local snapshot=S.transform(S.transform(R.flatten(filler.id),transform),ref)
-  local target=state.parent_template and state.parent_template.area or state.camera_area
-  if target then state.preview_ghosts=ghosts.show(player.surface,snapshot,target.center) end
+  M.preview_drafts(player,state,tags)
 end
 function M.pick(player,state,slot)
   local t=state.parent_template;if not t then return end

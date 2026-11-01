@@ -6,6 +6,16 @@ function M.start(player,element,data)
   if storage.fabric_job then return false end
   storage.fabric_job={player=player.index,element=element,action=element.tags.action,data=data,tasks={},index=1,started=game.tick,command=true,close_panels={}}
   if element.type=='button' then storage.fabric_job.caption=element.caption;element.enabled=false;element.caption='Working…  0%' end
+  if element.type=='button' then
+    local parent=element.parent
+    if (parent.type=='flow' or parent.type=='frame') and parent.direction=='vertical' then
+      local bar=parent.add{type='progressbar',value=0}
+      bar.style.width=math.max(32,element.style.minimal_width or 300);bar.style.height=4;bar.style.top_margin=-8;bar.style.color={.2,.8,.3}
+      local index;for i,child in ipairs(parent.children) do if child==element then index=i;break end end
+      for i=#parent.children,index+2,-1 do parent.swap_children(i,i-1) end
+      storage.fabric_job.button_progress=bar
+    end
+  end
   local old=player.gui.screen.fabric_loading;if old then old.destroy() end
   local panel=player.gui.screen.add{type='frame',name='fabric_loading',direction='vertical'}
   panel.add{type='label',name='status',caption='Preparing…'}
@@ -27,6 +37,7 @@ function M.tick(dispatch,complete)
       local task=job.tasks[job.index]
       if not task then
         job.finishing=true
+        if job.button_progress and job.button_progress.valid then job.button_progress.destroy() end
         complete(player,job)
         if job.element and job.element.valid then job.element.enabled=true;if job.caption then job.element.caption=job.caption end end
         local panel=player.gui.screen.fabric_loading;if panel then panel.destroy() end
@@ -38,6 +49,7 @@ function M.tick(dispatch,complete)
     end
     local fraction=(job.index-1)/math.max(1,#job.tasks)
     job.progress=math.max(job.progress or 0,math.min(.99,fraction))
+    if job.button_progress and job.button_progress.valid then job.button_progress.value=job.progress end
     local percent=math.floor(job.progress*100)
     if job.element.valid and job.element.type=='button' then job.element.caption={'',job.caption,'  ',percent,'%'} end
     local panel=player.gui.screen.fabric_loading

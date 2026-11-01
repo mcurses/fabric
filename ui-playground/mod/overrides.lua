@@ -32,7 +32,7 @@ local S=require('__fabric-ui-playground__/snapshots')
 local D=require('__fabric-ui-playground__/diff')
 local G=require('__fabric-ui-playground__/ghosts')
 function M.apply_tuning(player,state) end
-function M.count(item) return #(item.patches or {}) end
+function M.count(item) local n=0;for _,c in ipairs(item.patches or {}) do if not c.slot then n=n+1 end end;return n end
 function M.changes(t,force)
   if t.review_cache and not force then return t.review_cache end
   local current=R.capture(t)
@@ -47,17 +47,22 @@ end
 function M.pending_count(template) return #(template.review_cache or {}) end
 function M.close(player,state)
   local panel=player.gui.screen[M.panel_name];if panel then panel.destroy() end
-  state.override_selected=nil;state.editing_id=nil;state.reviewing_parent=nil;state.review_changes=nil
+  state.override_selected=nil;state.review_slot=nil;state.editing_id=nil;state.reviewing_parent=nil;state.review_changes=nil
   components.sample_action(player,nil);world.clear(state)
 end
 local function source_for(state,id)
   if id<0 and state.camera_area then return R.neighbor_group(state.camera_area),false end
   if state.reviewing_parent and state.parent_template and state.parent_template.id==id then return state.parent_template,true end
-  for _,ref in ipairs(state.items) do if ref.id==id then return ref,false end end
+  for _,ref in ipairs(state.items) do if ref.id==id then
+    if state.review_slot then return R.slot_reference(ref,state.review_slot),false end
+    local copy={};for k,v in pairs(ref) do copy[k]=v end;copy.patches={}
+    for _,c in ipairs(ref.patches or {}) do if not c.slot then copy.patches[#copy.patches+1]=c end end
+    return copy,false
+  end end
 end
 function M.show(player,state,id)
   local source,editing=source_for(state,id);if not source then return end
-  if editing then M.changes(source,true) elseif state.workspace=='world' then R.scan_patches() end
+  if editing then M.changes(source,true) elseif state.workspace=='world' then R.scan_patches({state.camera_area});source=source_for(state,id);if not source then return end end
   state.override_selected=id
   state.review_changes=editing and M.changes(source) or source.patches or {}
   local panel=player.gui.screen[M.panel_name]

@@ -23,11 +23,11 @@ local function box(center,w,h,pad)
   pad=pad or 0
   return {left_top={x=center.x-w/2-pad,y=center.y-h/2-pad},right_bottom={x=center.x+w/2+pad,y=center.y+h/2+pad}}
 end
-local function floor(surface,bounds,name)
+local function floor(surface,bounds,name,filter)
   local tiles={}
   for x=math.floor(bounds.left_top.x),math.ceil(bounds.right_bottom.x)-1 do
     for y=math.floor(bounds.left_top.y),math.ceil(bounds.right_bottom.y)-1 do
-      tiles[#tiles+1]={name=name,position={x,y}}
+      if not filter or filter({x=x,y=y}) then tiles[#tiles+1]={name=name,position={x,y}} end
       if #tiles==8192 then surface.set_tiles(tiles,false,false,true,false);tiles={} end
     end
   end
@@ -291,6 +291,32 @@ function M.reference_snapshot(cell,ref)
   end
   return result
 end
+function M.slot_reference(ref,index)
+  local host=M.template(ref.template_id)
+  local id=ref.slot_assignments and ref.slot_assignments[index]
+  local slot=(host.slot_definitions or {})[index]
+  if not id or not slot then return nil end
+  local filler=M.template(id);if not slot.anchor or not filler.slot_anchor then return nil end
+  local proxy=S.copy(ref);proxy.template_id=id;proxy.name='Slot '..index..' · '..filler.name;proxy.icon=filler.icon
+  proxy.slot_assignments=nil;proxy.slot_transform=Slots.transform(slot,filler);proxy.patches={}
+  for _,c in ipairs(ref.patches or {}) do if c.slot==index then proxy.patches[#proxy.patches+1]=c end end
+  return proxy
+end
+local function classify_slots(cell,ref)
+  if not next(ref.slot_assignments or {}) then return end
+  local footprints={};local exact={}
+  local host=M.template(ref.template_id)
+  for _,layer in ipairs(Slots.layers(host,ref.slot_assignments)) do
+    local data=S.transform(layer.snapshot,ref);footprints[layer.slot]=S.bounds(data)
+    for _,e in ipairs(data.entities or {}) do exact[e.name..'@'..D.key(e)]=layer.slot end
+  end
+  for _,change in ipairs(ref.patches or {}) do
+    local e=change.before or change.after;change.slot=exact[e.name..'@'..D.key(e)]
+    if not change.slot and change.kind=='Added' then
+      for index,bounds in pairs(footprints) do if S.inside(e.position,bounds) then change.slot=index end end
+    end
+  end
+end
 function M.scan_patches(cells)
   local db=M.store()
   for _,cell in ipairs(cells or db.cells) do
@@ -318,6 +344,7 @@ function M.scan_patches(cells)
         end
         for _,ref in ipairs(cell.items) do if ref.id==owner then ref.patches[#ref.patches+1]=c;break end end
       end
+      for _,ref in ipairs(cell.items) do if not ref.neighbor then classify_slots(cell,ref) end end
     end
   end
 end
@@ -348,6 +375,11 @@ function M.patch_action(player,cell,ref,changes,commit)
         local data=S.empty();data.entities={S.copy(c[key])}
         data.entities[1].position.x=data.entities[1].position.x-(ref.x or 0);data.entities[1].position.y=data.entities[1].position.y-(ref.y or 0)
         data=S.transform(data,inverse);data=S.transform(data,{flip_horizontal=ref.flip_horizontal,flip_vertical=ref.flip_vertical})
+        if ref.slot_transform then
+          local tr=ref.slot_transform
+          data.entities[1].position.x=data.entities[1].position.x-tr.x;data.entities[1].position.y=data.entities[1].position.y-tr.y
+          data=S.transform(data,{direction=(-(tr.direction or 0))%16})
+        end
         copy[key]=data.entities[1]
       end end
       mapped[#mapped+1]=copy
@@ -361,7 +393,7 @@ end
 function M.rebuild_world(player)
   if storage.fabric_job and not storage.fabric_job.in_task then queue{kind='world'};return end
   local db=M.store();if not db.world_origin then return end
-  db.world_cell_cache=nil
+  db.world_cell_cache=nil;db.world_cell_cache_v2=nil;db.world_outer_signature=nil
   M.scan_patches()
   M.neighbors()
   local sf=db.world_surface
@@ -453,86 +485,85 @@ function M.run_task(player,task)
     if not db.world_origin then return end
     M.neighbors()
     local sf=db.world_surface
-    local candidates={};local changed={};local cache=db.world_cell_cache or {}
+    local cache=db.world_cell_cache_v2 or {};local candidates={};local cells={};local plans={}
+    local function clipped(snapshot,center,accept)
+      local data=S.copy(snapshot);data.entities={};data.tiles={}
+      for _,entity in ipairs(snapshot.entities or {}) do
+        if accept({x=center.x+entity.position.x,y=center.y+entity.position.y}) then data.entities[#data.entities+1]=entity end
+      end
+      for _,tile in ipairs(snapshot.tiles or {}) do
+        if accept({x=center.x+tile.position.x,y=center.y+tile.position.y}) then data.tiles[#data.tiles+1]=tile end
+      end
+      if #data.entities==0 and #data.tiles==0 then return nil end
+      return data
+    end
+    local function outside(pos)
+      for _,cell in ipairs(db.cells) do if S.inside(pos,cell.bounds) then return false end end
+      return true
+    end
+    local outer={};local regions={}
     for _,cell in ipairs(db.cells) do
-      local layers=cell_layers(cell)
-      local bounds=S.copy(cell.bounds)
-      for _,layer in ipairs(layers) do
-        local b=S.shift_bounds(S.bounds(layer.snapshot),cell.center)
-        bounds.left_top.x=math.min(bounds.left_top.x,b.left_top.x);bounds.left_top.y=math.min(bounds.left_top.y,b.left_top.y)
-        bounds.right_bottom.x=math.max(bounds.right_bottom.x,b.right_bottom.x);bounds.right_bottom.y=math.max(bounds.right_bottom.y,b.right_bottom.y)
-      end
-      local refs={};for _,ref in ipairs(cell.items) do refs[#refs+1]={ref.id,ref.template_id,ref.neighbor,ref.x,ref.y,ref.direction,ref.slot_assignments} end
-      local signature=helpers.table_to_json({layers,refs})
-      candidates[cell.id]={signature=signature,bounds=bounds}
-      if not cache[cell.id] or cache[cell.id].signature~=signature then changed[cell.id]=true end
-    end
-    -- Rebuild whole intersecting components. This keeps boundary rails and
-    -- neighbor precedence correct without introducing entity-level tracking.
-    local function touches(a,b)
-      return S.intersects(a.bounds,b.bounds)
-    end
-    local grew=true
-    while grew do
-      grew=false
-      for _,a in ipairs(db.cells) do if changed[a.id] then
-        for _,b in ipairs(db.cells) do if not changed[b.id] and
-          (touches(candidates[a.id],candidates[b.id]) or
-           (cache[a.id] and touches(cache[a.id],candidates[b.id])) or
-           (cache[b.id] and touches(candidates[a.id],cache[b.id]))) then changed[b.id]=true;grew=true end end
-      end end
-    end
-    local cells={};for _,cell in ipairs(db.cells) do if changed[cell.id] then cells[#cells+1]=cell end end
-    if #cells==0 then db.last_rebuilt_cells=0;return end
-    M.scan_patches(cells)
-    local extent={left_top={x=db.cells[1].left_top.x,y=db.cells[1].left_top.y},right_bottom={x=db.cells[1].right_bottom.x,y=db.cells[1].right_bottom.y}}
-    for _,cell in ipairs(cells) do
-      extent.left_top.x=math.min(extent.left_top.x,cell.left_top.x);extent.left_top.y=math.min(extent.left_top.y,cell.left_top.y)
-      extent.right_bottom.x=math.max(extent.right_bottom.x,cell.right_bottom.x);extent.right_bottom.y=math.max(extent.right_bottom.y,cell.right_bottom.y)
-      for _,layer in ipairs(cell_layers(cell)) do
-        local b=S.shift_bounds(S.bounds(layer.snapshot),cell.center)
-        extent.left_top.x=math.min(extent.left_top.x,b.left_top.x);extent.left_top.y=math.min(extent.left_top.y,b.left_top.y)
-        extent.right_bottom.x=math.max(extent.right_bottom.x,b.right_bottom.x);extent.right_bottom.y=math.max(extent.right_bottom.y,b.right_bottom.y)
-      end
-    end
-    local tasks={};local regions={}
-    if not db.world_cell_cache then
-    for _,bounds in ipairs(db.world_built_regions or (db.world_built_bounds and {db.world_built_bounds} or {})) do tasks[#tasks+1]={kind='clear',surface=sf,bounds=bounds} end
-    else for _,cell in ipairs(cells) do local old=cache[cell.id];if old then tasks[#tasks+1]={kind='clear',surface=sf,bounds=old.bounds};tile_tasks(tasks,sf,old.bounds,'grass-1') end end end
-    for _,cell in ipairs(cells) do
-      regions[#regions+1]=cell.bounds
-      for _,layer in ipairs(cell_layers(cell)) do regions[#regions+1]=S.shift_bounds(S.bounds(layer.snapshot),cell.center) end
-    end
-    for _,bounds in ipairs(regions) do
-      tasks[#tasks+1]={kind='generate_region',surface=sf,bounds=bounds}
-      tasks[#tasks+1]={kind='clear',surface=sf,bounds=bounds}
-      tile_tasks(tasks,sf,bounds,'grass-1')
-    end
-    db.world_built_regions=regions;db.world_built_bounds=extent
-    for _,cell in ipairs(cells) do
-      cell.groups={};tile_tasks(tasks,sf,cell.bounds,'refined-concrete')
-      for _,layer in ipairs(cell_layers(cell)) do tasks[#tasks+1]={kind='place',snapshot=layer.snapshot,center=cell.center,outside=true} end
-    end
-    for _,cell in ipairs(cells) do
+      local parts={};local plan={};plans[cell.id]=plan
       for _,ref in ipairs(cell.items) do
-        cell.groups[ref.id]={name=M.ref_name(ref),icon=ref.icon,entities={}}
         local layers=ref.neighbor and cell_layers(db.cells[ref.neighbor]) or M.layers(ref.template_id,nil,ref.slot_assignments)
         local center=ref.neighbor and db.cells[ref.neighbor].center or cell.center
         for _,layer in ipairs(layers) do
-          tasks[#tasks+1]={kind='place',snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref),center=center,bounds=cell.bounds}
+          local snapshot=ref.neighbor and layer.snapshot or S.transform(layer.snapshot,ref)
+          local data=clipped(snapshot,center,function(pos)return S.inside(pos,cell.bounds) end)
+          if data then
+            parts[#parts+1]={ref=ref.id,snapshot=data,center=center}
+            plan[#plan+1]={kind='place',snapshot=snapshot,center=center,bounds=cell.bounds}
+          end
+        end
+      end
+      local signature=helpers.table_to_json(parts)
+      candidates[cell.id]=signature
+      if cache[cell.id]~=signature then cells[#cells+1]=cell end
+      for _,layer in ipairs(cell_layers(cell)) do
+        local data=clipped(layer.snapshot,cell.center,outside)
+        if data then
+          outer[#outer+1]={snapshot=data,center=cell.center}
+          regions[#regions+1]=S.shift_bounds(S.bounds(data),cell.center)
         end
       end
     end
-    tasks[#tasks+1]={kind='settle'}
+    local outer_signature=helpers.table_to_json(outer)
+    if task.prime then db.world_cell_cache_v2=candidates;db.world_outer_signature=outer_signature;db.world_outer_regions=regions;return end
+    local outer_changed=outer_signature~=db.world_outer_signature
+    db.last_rebuilt_cells=#cells
+    if #cells==0 and not outer_changed then return end
+    M.scan_patches(cells)
+    local tasks={}
+    if outer_changed then
+      for _,bounds in ipairs(db.world_outer_regions or db.world_built_regions or {}) do tasks[#tasks+1]={kind='outside_clear',bounds=bounds} end
+      for _,bounds in ipairs(regions) do
+        tasks[#tasks+1]={kind='generate_region',surface=sf,bounds=bounds}
+        tasks[#tasks+1]={kind='outside_clear',bounds=bounds}
+      end
+    end
     for _,cell in ipairs(cells) do
-      for _,layer in ipairs(cell_layers(cell)) do tasks[#tasks+1]={kind='rewire',snapshot=layer.snapshot,center=cell.center} end
+      if not cache[cell.id] then tasks[#tasks+1]={kind='generate_region',surface=sf,bounds=cell.bounds} end
+      tasks[#tasks+1]={kind='clear',surface=sf,bounds=cell.bounds}
+      tile_tasks(tasks,sf,cell.bounds,'refined-concrete')
+      cell.groups={}
+      for _,ref in ipairs(cell.items) do cell.groups[ref.id]={name=M.ref_name(ref),icon=ref.icon,entities={}} end
+    end
+    if outer_changed then for _,layer in ipairs(outer) do tasks[#tasks+1]={kind='place',snapshot=layer.snapshot,center=layer.center,outside=true} end end
+    for _,cell in ipairs(cells) do for _,task in ipairs(plans[cell.id]) do tasks[#tasks+1]=task end end
+    tasks[#tasks+1]={kind='settle'}
+    -- Rewire boundary links without replacing unchanged neighbors.
+    for _,cell in ipairs(db.cells) do for _,layer in ipairs(cell_layers(cell)) do tasks[#tasks+1]={kind='rewire',snapshot=layer.snapshot,center=cell.center} end end
+    for _,cell in ipairs(cells) do
       for _,ref in ipairs(cell.items) do tasks[#tasks+1]={kind='group',cell=cell.id,ref=ref.id} end
       tasks[#tasks+1]={kind='baseline',cell=cell.id}
     end
-    tasks[#tasks+1]={kind='world_cache',cache=candidates}
-    db.last_rebuilt_cells=#cells
+    tasks[#tasks+1]={kind='world_cache',cache=candidates,outer_signature=outer_signature,regions=regions}
     insert_tasks(tasks)
-  elseif task.kind=='world_cache' then db.world_cell_cache=task.cache
+  elseif task.kind=='world_cache' then db.world_cell_cache_v2=task.cache;db.world_outer_signature=task.outer_signature;db.world_outer_regions=task.regions
+  elseif task.kind=='outside_clear' then
+    local function outside(pos) for _,cell in ipairs(db.cells) do if S.inside(pos,cell.bounds) then return false end end;return true end
+    for _,entity in ipairs(db.world_surface.find_entities_filtered{area=task.bounds}) do if entity.valid and entity.type~='character' and S.inside(entity.position,task.bounds) and outside(entity.position) then entity.destroy{raise_destroy=true} end end
+    floor(db.world_surface,task.bounds,'grass-1',outside)
   elseif task.kind=='place' then
     local clip=task.bounds
     if task.outside then clip=function(pos) for _,cell in ipairs(db.cells) do if S.inside(pos,cell.bounds) then return false end end;return true end end
@@ -555,7 +586,7 @@ function M.run_task(player,task)
       end
     end
   elseif task.kind=='baseline' then
-    local cell=db.cells[task.cell];cell.baseline=S.capture(db.world_surface,player.force,cell.bounds,cell.center);cell.owners={}
+    local cell=db.cells[task.cell];M.update_instance_tag(player,cell);cell.baseline=S.capture(db.world_surface,player.force,cell.bounds,cell.center);cell.owners={}
     for _,ref in ipairs(cell.items) do
       for _,entity in ipairs((cell.groups[ref.id] or {}).entities or {}) do
         if entity.valid then local key=entity.name..'@'..(entity.position.x-cell.center.x)..','..(entity.position.y-cell.center.y);if not ref.neighbor or not cell.owners[key] then cell.owners[key]=ref.id end end
@@ -604,10 +635,11 @@ function M.add_reference(player,state,template_id,position,transform)
     preview_only=state.workspace=='collection' and state.placement and state.placement.preview_only or false,
     direction=transform and transform.direction or 0,flip_horizontal=transform and transform.flip_horizontal or false,flip_vertical=transform and transform.flip_vertical or false}
   db.next_ref=db.next_ref+1;M.record_usage(template_id)
+  local index;local preceding=0;for _,item in ipairs(state.placement and state.placement.order or {}) do if item.placement_draft then index=preceding+1;break end;preceding=preceding+(item.neighbor_group and #(item.members or {}) or 1) end
   if state.workspace=='collection' then
-    local own=M.capture(target);target.children[#target.children+1]=ref;target.draft_dirty=true
+    local own=M.capture(target);table.insert(target.children,math.min(index or (#target.children+1),#target.children+1),ref);target.draft_dirty=true
     M.render_editor(player,target,own)
-  else target.items[#target.items+1]=ref;M.rebuild_world(player) end
+  else table.insert(target.items,math.min(index or (#target.items+1),#target.items+1),ref);M.rebuild_world(player) end
   return ref
 end
 function M.remove_reference(player,state,id)
@@ -660,24 +692,35 @@ function M.create(player,options)
   Slots.configure(t,options.slot_count or 0,options.slot_eligible)
   M.ensure_area(player,t);return t
 end
-function M.assign_slot(player,state,ref_id,slot_index,template_id)
+function M.assign_slot(player,state,ref_id,index,id)
+  local target=state.parent_template or state.camera_area
+  for _,ref in ipairs(state.parent_template and target.children or target.items) do if ref.id==ref_id then
+    local assignments=S.copy(ref.slot_assignments or {});assignments[index]=id~=0 and id or nil
+    return M.assign_slots(player,state,ref_id,assignments)
+  end end
+end
+function M.assign_slots(player,state,ref_id,assignments)
   local target=state.parent_template or state.camera_area;assert(target,'Choose an instance or template.')
   local list=state.parent_template and target.children or target.items
   local ref;for _,entry in ipairs(list) do if entry.id==ref_id then ref=entry end end
   assert(ref and ref.template_id,'Missing host reference')
-  if (ref.slot_assignments and ref.slot_assignments[slot_index] or 0)==(template_id or 0) then return end
-  local host=M.template(ref.template_id);local slot=(host.slot_definitions or {})[slot_index]
-  assert(slot,'Missing slot')
-  if template_id and template_id~=0 then
-    local filler=M.template(template_id)
-    assert(Slots.compatible(host,slot,filler),'This template cannot fill this slot. Both anchors must exist and slot contents cannot have slots.')
-    if state.parent_template then assert(not M.depends(template_id,target.id),'This assignment would create a cycle.') end
-    M.record_usage(template_id)
+  if helpers.table_to_json(ref.slot_assignments or {})==helpers.table_to_json(assignments) then return end
+  local host=M.template(ref.template_id)
+  for index,id in pairs(assignments) do
+    assert(Slots.compatible(host,(host.slot_definitions or {})[index],M.template(id)),'This template cannot fill this slot.')
+    if state.parent_template then assert(not M.depends(id,target.id),'This assignment would create a cycle.') end
+    if not ref.slot_assignments or ref.slot_assignments[index]~=id then M.record_usage(id) end
   end
   local own=state.parent_template and M.capture(target)
-  ref.slot_assignments=ref.slot_assignments or {};ref.slot_assignments[slot_index]=template_id~=0 and template_id or nil
-  M.store().preview_cache={}
+  ref.slot_assignments=S.copy(assignments);M.store().preview_cache={}
   if own then target.draft_dirty=true;M.render_editor(player,target,own) else M.rebuild_world(player) end
+end
+function M.update_instance_tag(player,cell)
+  cell.icon=cell.icon or 'item/blueprint'
+  local kind,name=cell.icon:match('^([^/]+)/(.+)$')
+  local icon={type=kind=='virtual-signal' and 'virtual' or kind,name=name}
+  if cell.chart_tag and cell.chart_tag.valid then cell.chart_tag.icon=icon;cell.chart_tag.text=cell.name
+  else player.force.chart(M.store().world_surface,cell.bounds);cell.chart_tag=player.force.add_chart_tag(M.store().world_surface,{position=cell.center,text=cell.name,icon=icon}) end
 end
 function M.create_instance(player,position)
   local db=M.store();local w,h=db.world_width,db.world_height

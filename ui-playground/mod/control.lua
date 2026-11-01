@@ -14,6 +14,7 @@ local jobs=require('jobs')
 local usages=require('usages')
 local Slots=require('slots')
 Slots.bind_preview(world.clear)
+Slots.bind_picker(placement)
 local handle_click
 local pending=true
 local function state(p)
@@ -37,6 +38,7 @@ local function sandbox(p)
   game.tick_paused=false
 end
 local function open_editor(p,s)
+  s.pending_order=nil;s.pending_neighbors=nil;s.pending_slots=nil;s.drag=nil;world.clear(s)
   sandbox(p);library.close(p);sync(p,s);ui.build(p,s);p.gui.screen[ui.root].bring_to_front();ui.raise_rows(p,s)
 end
 local function tick_job()
@@ -63,6 +65,8 @@ script.on_event(defines.events.on_tick,function(e)
       if not script.active_mods['fabric-ui-test-driver'] and R.store().slots_fix_backup~=2 then R.store().slots_fix_backup=2;game.auto_save('fabric-slot-fixes') end
       if not script.active_mods['fabric-ui-test-driver'] and not R.store().slots_ui_backup then R.store().slots_ui_backup=true;game.auto_save('fabric-before-slots') end
       if not script.active_mods['fabric-ui-test-driver'] and not R.store().responsive_backup then R.store().responsive_backup=true;game.auto_save('fabric-responsive-backup') end
+      if not R.store().world_cell_cache_v2 and not storage.fabric_job then R.run_task(p,{kind='world',prime=true}) end
+      for _,cell in ipairs(R.store().cells) do R.update_instance_tag(p,cell) end
       if s.parent_template then R.underlay(p,s.parent_template);s.template_dirty=true end;components.meta_bar(p);navigation.show(p,s)
       if not storage.fabric_job and p.gui.screen[ui.root] then ui.build(p,s) end
       if storage.fabric_job then storage.fabric_job.error=nil end
@@ -87,6 +91,7 @@ script.on_event(defines.events.on_tick,function(e)
       end
       if e.tick%6==0 then safe(p,function() if W.select_camera(p,s) and p.gui.screen[ui.root] then ui.build(p,s) end end) end
       library.tick(p,s)
+      if e.tick%6==0 then navigation.instance_status(p,s) end
       if s.preview_pending and e.tick>=s.preview_pending.tick then
         local hover=s.preview_pending;s.preview_pending=nil
         if hover.element.valid then safe(p,function() if hover.slot_tags then Slots.preview(p,s,hover.slot_tags) else placement.preview(p,s,hover.id,hover.position) end;s.hover_element=hover.element.index end) end
@@ -100,7 +105,7 @@ script.on_event(defines.events.on_tick,function(e)
       end
       world.tick(s,e.tick)
       if s.drag and e.tick-s.drag.tick>=45 then
-        local drag=s.drag;s.drag=nil;s.pending_order=drag
+        local drag=s.drag;s.drag=nil;if s.placement then s.placement.order=drag.preview;placement.restore_preview(p,s) else s.pending_order=drag end
         safe(p,function() ui.layout(p,s,nil,true) end)
       end
       if e.tick%6==0 and s.workspace=='world' and not s.drag and not s.pending_order and not s.placement and s.world_dirty then
@@ -121,12 +126,13 @@ handle_click=function(e)
   local p=game.get_player(e.player_index)
   safe(p,function()
     local s=state(p);local t=e.element.tags
+    ui.raise_rows(p,s)
     local job=storage.fabric_job
     if job and not job.executing then return end
     if t.action=='slot_eligible' and not e.data then return end
     if t.action=='slot_assign' and not e.data then e.data={value=t.value} end
     local expensive={edit_commit=true,edit_discard=true,change_reset=true,patch_accept=true,patch_commit=true,patch_discard=true,
-      placement_confirm=true,apply_order=true,remove_confirm=true,metadata_save=true,rebuild_instance=true,toggle_neighbors=true,create_instance=true,slot_assign=true,slot_add=true,slot_delete=true,slot_eligible=true,anchor_apply=true}
+      placement_confirm=true,apply_order=true,remove_confirm=true,metadata_save=true,rebuild_instance=true,create_instance=true,slot_apply=true,slot_delete=true,anchor_apply=true}
     if not job and (t.action=='slot_add' or t.action=='slot_eligible') then local count=#(s.parent_template.slot_definitions or {})+(t.action=='slot_add' and 1 or 0);local eligible=t.action=='slot_eligible' and e.data.value or false;local ok,reason=Slots.can_configure(s.parent_template,count,eligible);if not ok then p.print(reason);refresh(p,s);return end end
     if t.action=='metadata_save' and not job then local ok,reason=metadata.validate(p);if not ok then p.print(reason);return end end
     if expensive[t.action] and not job then jobs.start(p,e.element,e.data);return end
@@ -134,7 +140,8 @@ handle_click=function(e)
       local el=e.element
       while el and el.valid do
         if el.tags.fabric_ui_row and e.element.name~='grip' then
-          world.focus(p,s,el.tags.id);review.show(p,s,el.tags.id);return
+          if s.placement and el.tags.id==placement.draft_id then return end
+          s.review_slot=nil;world.focus(p,s,el.tags.id);review.show(p,s,el.tags.id);return
         elseif el.tags.override_change then review.preview(p,s,el.tags.id,el.tags.change,true);return
         elseif el.name==ui.root then ui.raise_rows(p,s);return end
         el=el.parent
@@ -144,30 +151,39 @@ handle_click=function(e)
     local a=t.action
     if a=='neighbor_defaults' then R.neighbors();R.rebuild_world(p);R.store().neighbor_ui_revision=1
     elseif a=='reload' then game.reload_mods()
-    elseif a=='world' or a=='collection' then W.switch(p,s,a);ui.close(p)
+    elseif a=='world' or a=='collection' then placement.close(p,s);s.pending_slots=nil;s.pending_order=nil;s.pending_neighbors=nil;W.switch(p,s,a);ui.close(p)
     elseif a=='edit_current' then open_editor(p,s)
     elseif a=='fabric_controls_close' then navigation.close(p,s)
     elseif a=='anchor_cancel' then Slots.cancel(p,s)
     elseif a=='slot_anchor_pick' then Slots.pick(p,s,t.slot)
+    elseif a=='slot_patches' then s.reviewing_parent=nil;s.review_slot=t.slot;review.show(p,s,t.id)
     elseif a=='slot_open' then Slots.picker(p,s,t.id,t.slot)
-    elseif a=='slot_picker_close' then local panel=p.gui.screen.fabric_slot_picker;if panel then panel.destroy() end;world.clear(s)
+    elseif a=='slot_picker_close' then local panel=p.gui.screen.fabric_template_picker;if panel then panel.destroy() end;s.slot_picker=nil;Slots.preview_drafts(p,s)
     elseif a=='slot_assign' then
-      local panel=p.gui.screen.fabric_slot_picker;if panel then panel.destroy() end;world.clear(s)
-      R.assign_slot(p,s,t.id,t.slot,e.data.value);refresh(p,s)
-    elseif a=='slot_add' then Slots.configure(s.parent_template,#(s.parent_template.slot_definitions or {})+1,false);R.refresh_metadata(p,s.parent_template)
+      local panel=p.gui.screen.fabric_template_picker;if panel then panel.destroy() end;s.slot_picker=nil;world.clear(s)
+      Slots.draft(p,s,t.id,t.slot,e.data.value);ui.refresh_rows(p,s)
+    elseif a=='slot_apply' then
+      local draft=s.pending_slots and s.pending_slots[t.id];world.clear(s)
+      if draft then R.assign_slots(p,s,t.id,draft.assignments);s.pending_slots[t.id]=nil end
+    elseif a=='slot_add' then Slots.configure(s.parent_template,#(s.parent_template.slot_definitions or {})+1,false);R.store().slot_revision=(R.store().slot_revision or 0)+1;refresh(p,s)
     elseif a=='slot_delete' then Slots.remove(s.parent_template,t.slot);R.refresh_metadata(p,s.parent_template)
-    elseif a=='slot_eligible' then Slots.configure(s.parent_template,#(s.parent_template.slot_definitions or {}),e.data.value);R.refresh_metadata(p,s.parent_template)
+    elseif a=='slot_eligible' then Slots.configure(s.parent_template,#(s.parent_template.slot_definitions or {}),e.data.value);R.store().slot_revision=(R.store().slot_revision or 0)+1;refresh(p,s)
     elseif a=='anchor_apply' then R.refresh_metadata(p,R.template(e.data.id))
     elseif a=='create_instance' then R.create_instance(p,p.position);sync(p,s);refresh(p,s)
     elseif a=='show_usages' then usages.show(p,s)
     elseif a=='usages_close' then usages.close(p)
     elseif a=='usage_focus' then usages.focus(p,s,t.index);ui.build(p,s)
     elseif a=='toggle_neighbors' then
-      if s.pending_order then p.print('Apply the pending order before changing neighbor grouping.');return end
-      local cell=s.camera_area;if cell then cell.neighbors_expanded=not cell.neighbors_expanded;if not cell.neighbors_expanded then R.collapse_neighbors(cell);R.rebuild_world(p) end;sync(p,s);ui.refresh_rows(p,s) end
+      local cell=s.camera_area
+      if cell then
+        local current=s.pending_neighbors;if current==nil then current=cell.neighbors_expanded or false end
+        s.pending_neighbors=not current
+        if s.pending_neighbors==(cell.neighbors_expanded or false) then s.pending_neighbors=nil end
+        ui.refresh_rows(p,s)
+      end
     elseif a=='library' then library.show(p,s)
     elseif a=='library_close' then library.close(p)
-    elseif a=='library_select' then library.close(p);W.focus_template(p,s,t.id);ui.build(p,s)
+    elseif a=='library_select' then placement.close(p,s);s.pending_slots=nil;s.pending_order=nil;s.pending_neighbors=nil;library.close(p);W.focus_template(p,s,t.id);ui.build(p,s)
     elseif a=='template_new' then metadata.show(p,s,true)
     elseif a=='metadata_open' then metadata.show(p,s)
     elseif a=='metadata_close' then metadata.close(p)
@@ -192,20 +208,21 @@ handle_click=function(e)
     elseif a=='overrides_close' then review.close(p,s)
     elseif a=='patch_template' then
       for _,ref in ipairs(s.items) do if ref.id==t.id and ref.template_id then
-        review.close(p,s);W.focus_template(p,s,ref.template_id);ui.build(p,s);break
+        local source=s.review_slot and ref.slot_assignments and ref.slot_assignments[s.review_slot] or ref.template_id;review.close(p,s);W.focus_template(p,s,source);ui.build(p,s);break
       end end
     elseif a=='rebuild_instance' then R.rebuild_world(p);refresh(p,s)
     elseif a=='apply_order' then
       local order=s.pending_order;s.pending_order=nil;s.drag=nil
-      if order then R.apply_order(p,s,order.preview);refresh(p,s) end
+      if s.pending_neighbors~=nil and s.camera_area then s.camera_area.neighbors_expanded=s.pending_neighbors;s.pending_neighbors=nil;if not s.camera_area.neighbors_expanded then R.collapse_neighbors(s.camera_area) end end
+      if order then R.apply_order(p,s,order.preview) else R.rebuild_world(p) end;refresh(p,s)
     elseif a=='add' then
-      if s.parent_template or s.camera_area then placement.show(p,s) else p.print('Move the camera into an instance or template first.') end
+      if s.parent_template or s.camera_area then s.pending_order=nil;placement.show(p,s);ui.refresh_rows(p,s) else p.print('Move the camera into an instance or template first.') end
     elseif a=='placement_positions' then placement.positions(p,s)
     elseif a=='placement_position_pick' then placement.position_pick(p,s,t.index)
     elseif a=='placement_toggle_preview' then s.placement.preview_enabled=not s.placement.preview_enabled;placement.restore_preview(p,s)
-    elseif a=='placement_picker' then placement.picker(p,s)
-    elseif a=='placement_pick' then placement.pick(p,s,t.index)
-    elseif a=='placement_close' then placement.close(p,s)
+    elseif a=='placement_picker' then placement.picker(p,s);if not p.gui.screen.fabric_template_picker and s.pending_slots then Slots.preview_drafts(p,s) end
+    elseif a=='placement_pick' then placement.pick(p,s,t.index);ui.refresh_rows(p,s)
+    elseif a=='placement_close' then placement.close(p,s);ui.refresh_rows(p,s)
     elseif a=='placement_confirm' then if placement.confirm(p,s) then refresh(p,s) end
     elseif a=='remove' then
       local old=p.gui.screen.fabric_remove_confirm;if old then old.destroy() end
@@ -222,7 +239,7 @@ handle_click=function(e)
       R.remove_reference(p,s,t.id);sync(p,s);ui.refresh_rows(p,s)
     elseif a=='tuning' then ui.show_tuning(p,s)
     elseif a=='tune' then ui.adjust(p,s,e.element)
-    elseif a=='close' then s.location=p.gui.screen[ui.root].location;world.clear(s);ui.close(p)
+    elseif a=='close' then if s.placement then placement.close(p,s) end;s.pending_slots=nil;s.pending_order=nil;s.pending_neighbors=nil;s.drag=nil;s.location=p.gui.screen[ui.root].location;world.clear(s);ui.close(p)
     end
     ui.raise_rows(p,s)
   end)
@@ -236,6 +253,8 @@ script.on_event(defines.events.on_gui_hover,function(e)
   if el.tags.preview_slot or el.tags.preview_create then s.preview_pending={element=el,slot_tags=el.tags,tick=game.tick+20};return end
   if el.tags.preview_template then s.preview_pending={element=el,id=el.tags.preview_template,position=el.tags.preview_position,tick=game.tick+20};return end
   while el and el.valid do
+    if el.tags.fabric_ui_row and s.pending_slots and next(s.pending_slots) then Slots.preview_drafts(p,s);s.hover_element=e.element.index;return end
+    if el.tags.fabric_ui_row and s.placement then return end
     if el.tags.fabric_ui_row then safe(p,function() world.highlight(p,s,el.tags.id);s.hover_element=e.element.index end);return
     elseif el.tags.override_change then safe(p,function() review.preview(p,s,el.tags.id,el.tags.change,false);s.hover_element=e.element.index end);return
     elseif el.name==ui.root then ui.raise_rows(p,s);return end
@@ -249,7 +268,8 @@ script.on_event(defines.events.on_gui_leave,function(e)
     if s.hover_element==e.element.index then
       world.clear(s)
       local p=game.get_player(e.player_index)
-      if s.placement then placement.restore_preview(p,s)
+      if s.pending_slots and next(s.pending_slots) then Slots.preview_drafts(p,s)
+      elseif s.placement then placement.restore_preview(p,s)
       elseif s.override_selected then review.preview(p,s,s.override_selected) end
     end
   end
@@ -259,7 +279,7 @@ script.on_event(defines.events.on_gui_selection_state_changed,function(e)
   local p=game.get_player(e.player_index);safe(p,function()
     local s=state(p);local a=e.element.tags.action
     if a=='slot_assign' then jobs.start(p,e.element,{value=e.element.tags.ids[e.element.selected_index]})
-    elseif a=='placement_template' or a=='placement_position' then placement.refresh(p,s)
+    elseif a=='placement_template' or a=='placement_position' then placement.refresh(p,s);ui.refresh_rows(p,s)
     elseif a=='metadata_layout' then metadata.layout(p)
     elseif a=='tuning_target' then ui.select_tuning(p,s,e.element.selected_index)
     elseif a=='highlight_style' then world.set_style(p,s,e.element.selected_index) end
@@ -274,7 +294,7 @@ script.on_event(defines.events.on_gui_text_changed,function(e)
   end)
 end)
 script.on_event(defines.events.on_gui_checked_state_changed,function(e)
-  if e.element.valid and e.element.tags.action=='slot_eligible' then local p=game.get_player(e.player_index);jobs.start(p,e.element,{value=e.element.state}) end
+  if e.element.valid and e.element.tags.action=='slot_eligible' then local p=game.get_player(e.player_index);handle_click{player_index=p.index,element=e.element,data={value=e.element.state}} end
 end)
 script.on_event(defines.events.on_gui_opened,function(e)
   local s=storage.players and storage.players[e.player_index]
@@ -285,7 +305,7 @@ script.on_event(defines.events.on_gui_location_changed,function(e)
   local p=game.get_player(e.player_index);local s=storage.players and storage.players[p.index];if not s then return end
   safe(p,function()
     if e.element.name==ui.root then s.location=e.element.location;ui.layout(p,s,nil,true)
-    elseif e.element.tags.fabric_ui_row then s.drag=s.drag or {id=e.element.tags.id};s.drag.tick=game.tick;ui.move(p,s,e.element.tags.id,e.element.location.y) end
+    elseif e.element.tags.fabric_ui_row then if s.placement and e.element.tags.id~=placement.draft_id then ui.layout(p,s,nil,true);return end;s.drag=s.drag or {id=e.element.tags.id};s.drag.tick=game.tick;ui.move(p,s,e.element.tags.id,e.element.location.y) end
   end)
 end)
 script.on_event(defines.events.on_player_changed_surface,function(e)
@@ -368,7 +388,7 @@ if script.active_mods['fabric-ui-test-driver'] then
           origin_id=t.origin_id,is_origin=t.is_origin,entities=#(t.snapshot.entities or {}),refs=#t.children,committed_refs=#t.committed_refs,
           captures=t.capture_serial or 0,slot_count=#(t.slot_definitions or {}),slot_eligible=t.slot_eligible,slot_anchor=t.slot_anchor,slot_definitions=t.slot_definitions,preview_refs=(function() local n=0;for _,r in ipairs(t.children) do if r.preview_only then n=n+1 end end;return n end)(),version=t.version,dirty=R.dirty(t),underlay=t.area and #t.area.underlay or 0,center=t.area and t.area.center}
       end
-      for _,c in ipairs(db.cells) do local patches=0;for _,ref in ipairs(c.items) do patches=patches+#(ref.patches or {}) end;out.cells[#out.cells+1]={id=c.id,name=c.name,refs=#c.items,items=S.copy(c.items),center=c.center,patches=patches,first_ref_id=c.items[1] and c.items[1].id} end
+      for _,c in ipairs(db.cells) do local patches=0;for _,ref in ipairs(c.items) do patches=patches+#(ref.patches or {}) end;out.cells[#out.cells+1]={id=c.id,name=c.name,neighbors_expanded=c.neighbors_expanded or false,refs=#c.items,items=S.copy(c.items),center=c.center,patches=patches,first_ref_id=c.items[1] and c.items[1].id} end
       return out
     end
   })

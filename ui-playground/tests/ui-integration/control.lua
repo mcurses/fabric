@@ -47,7 +47,7 @@ local function test_slots(p)
   source(p,origin_id)
   local form
   local eligible=find(p.gui.screen,function(el)return el.tags.action=='slot_eligible' end);eligible.state=true
-  remote.call('fabric-ui-test','checked',p.index,eligible);remote.call('fabric-ui-test','drain',p.index)
+  remote.call('fabric-ui-test','checked',p.index,eligible);assert(not remote.call('fabric-ui-test','busy'),'Eligibility is metadata only');remote.call('fabric-ui-test','drain',p.index)
   action(p,'slot_anchor_pick')
   local filler=inspect(p).catalog[origin_id]
   local anchor=p.surface.find_entity('iron-chest',{filler.center.x+3.5,filler.center.y+3.5})
@@ -75,13 +75,16 @@ local function test_slots(p)
     local open=find(p.gui.screen,function(el)return el.tags.action=='slot_open' and el.tags.slot==i end)
     remote.call('fabric-ui-test','click',p.index,open)
     assert(not remote.call('fabric-ui-test','busy'),'Opening a slot picker must not rebuild')
-    local picker=p.gui.screen.fabric_slot_picker
+    local picker=p.gui.screen.fabric_template_picker
     local option=find(picker,function(el)return el.tags.action=='slot_assign' and el.tags.value==origin_id end)
     assert(option,'Anchored compatible filler offered')
     remote.call('fabric-ui-test','click',p.index,option);remote.call('fabric-ui-test','drain',p.index)
     local selected=find(p.gui.screen,function(el)return el.tags.action=='slot_open' and el.tags.slot==i end)
     assert(selected.caption:find('QA',1,true),'Selected filler remains visible after rebuild')
   end
+  assert(not remote.call('fabric-ui-test','busy'),'Selecting slots only stages previews')
+  assert(inspect(p).preview_count>0,'Draft slot ghosts remain visible')
+  action(p,'slot_apply')
   commit(p)
   assert(inspect(p).catalog[parent.id].entities==0,'Slot contents are excluded from parent own snapshot')
   action(p,'world');p.teleport({0,0},game.surfaces['Fabric World']);action(p,'edit_current')
@@ -110,6 +113,43 @@ local function test_slots(p)
   local matched=0
   for _,el in ipairs(picker.results.children) do if el.tags.preview_template then assert(el.caption:lower():find('universal',1,true));matched=matched+1 end end
   assert(matched>0,'Search filters templates');action(p,'placement_close')
+  action(p,'metadata_open')
+  local metadata=p.gui.screen.fabric_ui_metadata;metadata.template_name.text='QA Icon Instance';metadata.template_icon.elem_value={type='item',name='iron-chest'}
+  action(p,'metadata_save')
+  local tags=p.force.find_chart_tags(p.surface,{{1599,-1},{1601,1}})
+  assert(#tags==1 and tags[1].text=='QA Icon Instance' and tags[1].icon.name=='iron-chest','Instance icon is a chart tag at cell center')
+  p.teleport({1760,0},game.surfaces['Fabric World']);action(p,'edit_current');action(p,'create_instance')
+  local adjacent=p.surface.find_entities_filtered{area={{1680,-80},{1840,80}},type='electric-pole'}[1];assert(adjacent)
+  p.teleport({1600,0},game.surfaces['Fabric World']);action(p,'edit_current')
+  local untouched=game.surfaces['Fabric World'].find_entity('iron-chest',{3.5,9.5});assert(untouched)
+  action(p,'add');choose(p,p.gui.screen.fabric_ui_add_template.template_picker,host.id);action(p,'placement_confirm')
+  assert(untouched.valid,'Adding a template leaves other cells intact')
+  action(p,'slot_open')
+  local picker=p.gui.screen.fabric_template_picker
+  assert(picker.search and picker.results,'Slots reuse the searchable template picker')
+  local option=find(picker,function(el)return el.tags.action=='slot_assign' and el.tags.value==origin_id end)
+  assert(option);remote.call('fabric-ui-test','click',p.index,option)
+  assert(not remote.call('fabric-ui-test','busy'),'Slot selection does not build')
+  local ref=inspect(p).cells[5].items[#inspect(p).cells[5].items]
+  assert(not next(ref.slot_assignments or {}),'Draft selection does not mutate applied assignments')
+  action(p,'slot_apply')
+  assert(inspect(p).last_rebuilt_cells==1 and untouched.valid and adjacent.valid,'Applying slots preserves an adjacent connected cell as well as distant cells')
+  local entity=p.surface.find_entity('iron-chest',{1603.5,9.5});assert(entity);entity.destroy()
+  action(p,'slot_patches')
+  assert(inspect(p).review_count==1,'A slot owns its deleted entity patch')
+  action(p,'change_reset')
+  assert(p.surface.find_entity('iron-chest',{1603.5,9.5}),'Reset restores the slot entity')
+  action(p,'overrides_close')
+  local combinator=p.surface.find_entity('constant-combinator',{1612.5,18.5});assert(combinator);combinator.direction=4
+  action(p,'slot_patches');assert(inspect(p).review_count==1)
+  action(p,'patch_commit')
+  assert(game.surfaces['Fabric Templates'].find_entity('constant-combinator',{filler.center.x+12.5,filler.center.y+12.5}).direction==4,'Slot stitch maps changes back through the anchor transform')
+  action(p,'overrides_close')
+  local empty=find(p.gui.screen,function(el)return el.tags.action=='slot_assign' and el.tags.value==0 and el.tags.slot==1 end)
+  remote.call('fabric-ui-test','click',p.index,empty);assert(not remote.call('fabric-ui-test','busy'),'Clearing a slot is staged')
+  action(p,'slot_apply')
+  ref=inspect(p).cells[5].items[#inspect(p).cells[5].items];assert(not next(ref.slot_assignments or {}),'Apply empties the selected slot')
+  log('SLOT_DRAFT_PATCH_CELL_ISOLATION_ICON_PASS')
   log('SLOTS_ANCHORS_NESTING_CREATE_INSTANCE_SEARCH_PASS')
   return parent.id
 end
@@ -222,6 +262,26 @@ script.on_event(defines.events.on_tick,function(e)
     action(p,'toggle_neighbors')
     local combined=0;for _,el in ipairs(p.gui.screen.children) do if el.tags.fabric_ui_row and el.tags.id<0 then combined=combined+1 end end
     assert(combined==1,'Neighbors combine as one row')
+    action(p,'toggle_neighbors')
+    assert(not remote.call('fabric-ui-test','busy') and not inspect(p).cells[1].neighbors_expanded,'Grouping is staged until Apply')
+    assert(p.gui.screen.fabric_ui_playground_footer.apply_order.visible)
+    action(p,'close');action(p,'edit_current')
+    assert(not p.gui.screen.fabric_ui_playground_footer.apply_order.visible,'Closing cancels unapplied grouping')
+    action(p,'toggle_neighbors');action(p,'apply_order')
+    assert(inspect(p).cells[1].neighbors_expanded,'Apply saves expanded grouping')
+    action(p,'toggle_neighbors');action(p,'apply_order')
+    assert(not inspect(p).cells[1].neighbors_expanded)
+    local first=inspect(p).cells[1].first_ref_id
+    local row=find(p.gui.screen,function(el)return el.tags.fabric_ui_row and el.contents.remove.visible end)
+    row.location={x=p.gui.screen.fabric_ui_playground.location.x,y=p.gui.screen.fabric_ui_playground.location.y+400*p.display_scale}
+    remote.call('fabric-ui-test','move',p.index,row)
+    action(p,'close');action(p,'edit_current')
+    assert(inspect(p).cells[1].first_ref_id==first and not p.gui.screen.fabric_ui_playground_footer.apply_order.visible,'Reopening discards unapplied dragging')
+    for _,pair in ipairs({{'metadata_open','metadata_close'},{'add','placement_close'},{'fabric_settings','settings_close'}}) do
+      action(p,pair[1]);action(p,pair[2])
+      assert(p.gui.screen.fabric_ui_playground and p.gui.screen.fabric_ui_playground_footer,'Menu roundtrip retains the editor and controls')
+    end
+    log('MENU_ROUNDTRIPS_PENDING_GROUP_ORDER_PASS')
     action(p,'add');choose(p,p.gui.screen.fabric_ui_add_template.template_picker,child_id);action(p,'placement_confirm')
     source(p,child_id);action(p,'add')
     local form=p.gui.screen.fabric_ui_add_template
@@ -263,14 +323,14 @@ script.on_event(defines.events.on_tick,function(e)
     log('RESPONSIVE_PREVIEW_USAGES_LIVE_DIFF_ASYNC_PASS')
     local parent=test_slots(p)
     source(p,parent);action(p,'slot_open')
-    local option=find(p.gui.screen.fabric_slot_picker,function(el)return el.tags.preview_slot==origin_id end)
+    local option=find(p.gui.screen.fabric_template_picker,function(el)return el.tags.preview_slot==origin_id end)
     assert(option);remote.call('fabric-ui-test','hover',p.index,option)
     storage.preview_element=option;storage.preview_tick=e.tick;step=8
   elseif step==8 and e.tick>storage.preview_tick+25 then
     assert(inspect(p).preview_count>0,'Slot choice hover shows anchored ghosts')
     remote.call('fabric-ui-test','leave',p.index,storage.preview_element)
     assert(inspect(p).preview_count==0,'Slot hover ghosts clear on leave')
-    action(p,'slot_picker_close');action(p,'world');p.teleport({3200,0},game.surfaces['Fabric World']);action(p,'edit_current')
+    action(p,'placement_picker');action(p,'world');p.teleport({3200,0},game.surfaces['Fabric World']);action(p,'edit_current')
     local button=find(p.gui.screen,function(el)return el.tags.action=='create_instance' end)
     remote.call('fabric-ui-test','hover',p.index,button);storage.preview_element=button;storage.preview_tick=e.tick;step=9
   elseif step==9 and e.tick>storage.preview_tick+25 then
@@ -278,6 +338,42 @@ script.on_event(defines.events.on_tick,function(e)
     remote.call('fabric-ui-test','leave',p.index,storage.preview_element)
     assert(inspect(p).preview_count==0,'Instance preview clears on leave')
     log('SLOT_AND_INSTANCE_HOVER_PASS')
+    p.teleport({1600,0},game.surfaces['Fabric World']);action(p,'edit_current')
+    local before=inspect(p).cells[5].refs
+    action(p,'add')
+    local draft=find(p.gui.screen,function(el)return el.tags.fabric_ui_row and el.tags.id==-1000000 end)
+    assert(draft and draft.contents.item_name.caption:find('New template',1,true),'Add immediately shows a placeholder row')
+    choose(p,p.gui.screen.fabric_ui_add_template.template_picker,origin_id)
+    draft=find(p.gui.screen,function(el)return el.tags.fabric_ui_row and el.tags.id==-1000000 end)
+    assert(draft.contents.item_name.caption:find('Draft',1,true),'Selected row remains visibly a draft')
+    assert(inspect(p).cells[5].refs==before and not remote.call('fabric-ui-test','busy'),'Selecting a draft does not build')
+    storage.untouched=p.surface.find_entity('steel-chest',{1603.5,3.5});assert(storage.untouched)
+    local root=p.gui.screen.fabric_ui_playground
+    draft.location={x=root.location.x+12*p.display_scale,y=root.location.y+80*p.display_scale}
+    remote.call('fabric-ui-test','move',p.index,draft);storage.preview_tick=e.tick;step=10
+  elseif step==10 and e.tick>storage.preview_tick+50 then
+    assert(storage.untouched.valid and not remote.call('fabric-ui-test','busy'),'Dragging the draft never rebuilds')
+    assert(inspect(p).highlight_count>0,'Later rows mark conflicting draft entities in red')
+    action(p,'placement_confirm')
+    assert(inspect(p).cells[5].items[1].template_id==origin_id,'Add uses the chosen draft position')
+    assert(not find(p.gui.screen,function(el)return el.tags.fabric_ui_row and el.tags.id==-1000000 end),'Applied placeholder becomes a real row')
+    assert(p.surface.find_entity('steel-chest',{1603.5,3.5}),'Later template still wins after adding at the top')
+    log('DRAFT_PLACEMENT_PRIORITY_PREVIEW_PASS')
+    action(p,'slot_open')
+    local option=find(p.gui.screen.fabric_template_picker,function(el)return el.tags.preview_slot==origin_id end)
+    remote.call('fabric-ui-test','click',p.index,option)
+    storage.draft_ghost_count=inspect(p).preview_count;assert(storage.draft_ghost_count>0)
+    local second=find(p.gui.screen,function(el)return el.tags.action=='slot_open' and el.tags.slot==2 end)
+    remote.call('fabric-ui-test','hover',p.index,second)
+    assert(inspect(p).preview_count==storage.draft_ghost_count,'Hovering another slot retains all pending ghosts')
+    remote.call('fabric-ui-test','click',p.index,second)
+    option=find(p.gui.screen.fabric_template_picker,function(el)return el.tags.preview_slot==origin_id end)
+    remote.call('fabric-ui-test','hover',p.index,option);storage.preview_element=option;storage.preview_tick=e.tick;step=11
+  elseif step==11 and e.tick>storage.preview_tick+25 then
+    assert(inspect(p).preview_count>storage.draft_ghost_count,'Choice hover adds to the other pending slot previews')
+    remote.call('fabric-ui-test','leave',p.index,storage.preview_element)
+    assert(inspect(p).preview_count==storage.draft_ghost_count,'Leaving restores the persistent draft ghosts')
+    log('PERSISTENT_MULTI_SLOT_HOVER_PASS')
     log('UI_INTEGRATION_PASS');script.finish_test(true);step=100
   end
 end)

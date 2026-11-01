@@ -6,7 +6,7 @@ local components=require("__fabric-ui-playground__/components")
 local workspaces=require("__fabric-ui-playground__/workspaces")
 local ghosts=require('__fabric-ui-playground__/ghosts')
 local world=require('__fabric-ui-playground__/world')
-local M={name="fabric_ui_add_template",tool="blueprint"}
+local M={name="fabric_ui_add_template",tool="blueprint",draft_id=-1000000}
 function M.close(player,state)
   if storage.fabric_job and not storage.fabric_job.finishing then storage.fabric_job.close_panels[M.name]=true;return end
   local panel=player.gui.screen[M.name]
@@ -14,7 +14,7 @@ function M.close(player,state)
   local picker=player.gui.screen.fabric_template_picker;if picker then picker.destroy() end
   local positions=player.gui.screen.fabric_position_picker;if positions then positions.destroy() end
   world.clear(state)
-  state.placement=nil;state.preview_pending=nil
+  state.placement=nil;state.preview_pending=nil;state.drag=nil
 end
 function M.refresh(player,state)
   local panel=player.gui.screen[M.name]
@@ -22,6 +22,7 @@ function M.refresh(player,state)
   if not panel or not draft then return end
   local template=draft.catalog[panel.template_picker.selected_index]
   draft.template=template
+  draft.row={id=M.draft_id,name=template and template.name or "New template",icon=template and template.icon or "item/blueprint",placement_draft=true}
   panel.confirm.enabled=template~=nil
   panel.position_button.enabled=template~=nil
   if not template then panel.template_button.caption='Click to select';panel.hint.caption='';return end
@@ -43,7 +44,7 @@ end
 function M.show(player,state)
   M.close(player,state)
   state.placement={catalog=workspaces.catalog(player,state),items=state.items,
-    surface=player.surface,preview_enabled=true,parent=state.parent_template,cell=state.camera_area}
+    surface=player.surface,preview_enabled=true,parent=state.parent_template,cell=state.camera_area,row={id=M.draft_id,name="New template",icon="item/blueprint",placement_draft=true}}
   local panel=player.gui.screen.add{type="frame",name=M.name,direction="vertical"}
   panel.style.width=380
   components.titlebar(panel,{title=state.workspace=="collection" and "Reference a Template" or "Add a Template",
@@ -67,11 +68,11 @@ function M.show(player,state)
   panel.auto_center=true
 end
 function M.fill_picker(player,state)
-  local panel=player.gui.screen.fabric_template_picker;if not panel or not state.placement then return end
+  local panel=player.gui.screen.fabric_template_picker;if not panel or not (state.slot_picker or state.placement) then return end
   local list=panel.results;list.clear()
   local query=panel.search.text:lower()
   local candidates={};local categories={}
-  for i,t in ipairs(state.placement.catalog) do
+  for i,t in ipairs((state.slot_picker or state.placement).catalog) do
     if query=='' or t.name:lower():find(query,1,true) or (t.category or 'Other'):lower():find(query,1,true) then
       candidates[#candidates+1]={template=t,index=i};categories[t.category or 'Other']=true
     end
@@ -85,7 +86,7 @@ function M.fill_picker(player,state)
   local function heading(name) list.add{type='label',caption=name,style='caption_label'}.style.top_margin=12 end
   local function button(entry)
     local t=entry.template
-    local button=list.add{type='button',caption='[img='..t.icon..']  '..t.name,raise_hover_events=true,tags={action='placement_pick',index=entry.index,preview_template=t.id}}
+    local button=list.add{type='button',caption='[img='..t.icon..']  '..t.name,raise_hover_events=true,tags=state.slot_picker and {action='slot_assign',id=state.slot_picker.id,slot=state.slot_picker.slot,value=t.id,preview_slot=t.id} or {action='placement_pick',index=entry.index,preview_template=t.id}}
     button.style.width=306;button.style.horizontal_align='left'
   end
   if #common>0 then heading('Most common');for i=1,math.min(5,#common) do button(common[i]) end end
@@ -96,8 +97,9 @@ function M.fill_picker(player,state)
   end
   if #candidates==0 then list.add{type='label',caption='No matching templates'} end
 end
-function M.picker(player,state)
-  local old=player.gui.screen.fabric_template_picker;if old then old.destroy();return end
+function M.picker(player,state,slot)
+  local old=player.gui.screen.fabric_template_picker;if old then old.destroy();if not slot then state.slot_picker=nil;world.clear(state);return end end
+  state.slot_picker=slot
   local panel=player.gui.screen.add{type='frame',name='fabric_template_picker',direction='vertical'};panel.style.width=360
   components.titlebar(panel,{title='Select Template',close_tags={action='placement_picker'}})
   panel.add{type='label',caption='Hover for preview'}
@@ -121,7 +123,45 @@ function M.preview(player,state,id,preset_index)
   if preset_index and not preset then return end
   if target then
     local center={x=target.center.x+(preset and preset.x or 0),y=target.center.y+(preset and preset.y or 0)}
-    state.preview_ghosts=ghosts.show(player.surface,runtime.flatten(id),center)
+    local snapshot=runtime.flatten(id)
+    state.preview_ghosts=ghosts.show(player.surface,snapshot,center)
+    if draft.template and draft.template.id==id then M.conflicts(player,state,snapshot,center) end
+  end
+end
+-- Geometric conflict feedback only; previews never alter the World surface.
+function M.conflicts(player,state,snapshot,center)
+  local draft=state.placement;local later={};local after=false
+  for _,ref in ipairs(draft.order or {}) do
+    if ref.placement_draft then after=true
+    elseif after then
+      local data
+      if state.camera_area then data=runtime.reference_snapshot(state.camera_area,ref)
+      elseif ref.template_id then data=snapshots.transform(runtime.flatten(ref.template_id,ref.slot_assignments),ref) end
+      if data then for _,entity in ipairs(data.entities or {}) do later[#later+1]=entity end end
+    end
+  end
+  local function bounds(entity)
+    local proto=prototypes.entity[entity.name];local b=proto.collision_box
+    local lt={x=math.huge,y=math.huge};local rb={x=-math.huge,y=-math.huge}
+    for _,point in ipairs({b.left_top,{x=b.left_top.x,y=b.right_bottom.y},b.right_bottom,{x=b.right_bottom.x,y=b.left_top.y}}) do
+      local q=snapshots.point(point,{direction=entity.direction or 0});q.x=q.x+entity.position.x;q.y=q.y+entity.position.y
+      lt.x=math.min(lt.x,q.x);lt.y=math.min(lt.y,q.y);rb.x=math.max(rb.x,q.x);rb.y=math.max(rb.y,q.y)
+    end
+    return {left_top=lt,right_bottom=rb}
+  end
+  state.highlight_objects={}
+  for _,entity in ipairs(snapshot.entities or {}) do
+    local b=bounds(entity);local blocked=false
+    for _,other in ipairs(later) do
+      if snapshots.intersects(b,bounds(other)) then
+        local a=prototypes.entity[entity.name].collision_mask.layers;local c=prototypes.entity[other.name].collision_mask.layers
+        for layer in pairs(a) do if c[layer] then blocked=true;break end end
+      end
+      if blocked then break end
+    end
+    if blocked then state.highlight_objects[#state.highlight_objects+1]=rendering.draw_rectangle{surface=player.surface,
+      left_top={x=center.x+b.left_top.x,y=center.y+b.left_top.y},right_bottom={x=center.x+b.right_bottom.x,y=center.y+b.right_bottom.y},
+      color={1,.15,.1},width=3,draw_on_ground=false,players={player.index}} end
   end
 end
 function M.restore_preview(player,state)

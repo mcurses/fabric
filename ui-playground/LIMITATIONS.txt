@@ -65,6 +65,11 @@ Slots pass (2026-11-01)
 - Bay spine's imported blueprint has no train stops. It starts with three inactive
   slots. Add/select its anchor entities in the collection. Imported station
   templates with one train stop have that stop configured as their filler anchor.
-- Stitching world patches on a slot-filled host is disabled: edit the appropriate
-  filler source in the collection. Discard/reset remains available. Routing a
-  geometric patch to an individual slot source is not implemented.
+- Slot patch lists route geometric changes to the selected filler and support
+  reset/stitch. Ambiguous new entities are assigned by footprint; editing a nested
+  template through multiple reference levels remains limited.
+- Slot choices and newly added templates are drafts until Apply/Add. Conflict
+  squares use prototype collision boxes/masks; complex rail shapes can be approximate.
+- Rebuild checks compare ordered contributions inside each cell; unchanged cells
+  retain their entities. Outside extensions are rebuilt separately when changed.
+  Captures, native layer placement, and rewiring are still synchronous per step.

@@ -35,7 +35,7 @@ function M.show(player,state)
     if existing then existing.destroy() end
     return
   end
-  if existing and existing.tags.version==6 and existing.tags.complete then
+  if existing and existing.tags.version==7 and existing.tags.complete then
     pcall(function() existing.children[1].children[1].sprite="fabric-ui-brand" end)
     M.apply_tuning(player,state)
     return
@@ -60,13 +60,29 @@ function M.show(player,state)
   title.style.horizontally_stretchable=true
   title.add{type="sprite-button",sprite="utility/close",style="close_button",tags={action="fabric_controls_close"}}
   for _,spec in ipairs({
-    {"View Template Collection","library"},{"+ Sew new Template","template_new"},{"Edit on Map","edit_current"},{"Fabric Settings","fabric_settings"},
+    {"Library"},{"View Template Library","library"},{"+ Sew new Template","template_new"},{"Edit"},{"Edit on Map","edit_current"},{"Settings"},{"Fabric Settings","fabric_settings"},
   }) do
+    if not spec[2] then panel.add{type="label",caption=spec[1],style="caption_label"}.style.top_margin=8 else
     local button=panel.add{type="button",caption=spec[1],tags={action=spec[2]}}
     button.style.width=206; button.style.height=32
+    end
   end
-  panel.tags={complete=true,version=6}
+  panel.tags={complete=true,version=7}
   M.apply_tuning(player,state)
+end
+function M.instance_status(player,state)
+  local panel=player.gui.screen.fabric_instance_status
+  if state.workspace~='world' then if panel then panel.visible=false end;return end
+  if not panel then
+    panel=player.gui.screen.add{type='frame',name='fabric_instance_status',direction='vertical'};panel.style.width=244
+    panel.add{type='label',name='subject',caption='',style='bold_label'}.style.maximal_width=220
+    panel.add{type='button',name='edit',caption='Edit instance',raise_hover_events=true}.style.width=220
+  end
+  local cell=state.camera_area;panel.visible=true
+  panel.subject.caption=cell and ((cell.icon and ('[img='..cell.icon..'] ') or '')..cell.name) or 'No Instance'
+  panel.edit.caption=cell and 'Edit instance' or 'Create instance'
+  panel.edit.tags=cell and {action='edit_current'} or {action='create_instance',preview_create=true}
+  panel.location={x=math.max(0,player.display_resolution.width-248*player.display_scale),y=400*player.display_scale}
 end
 function M.close(player,state)
   state.navigation_closed=true

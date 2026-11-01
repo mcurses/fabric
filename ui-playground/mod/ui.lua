@@ -9,14 +9,18 @@ local ROW_HEIGHT, ROW_STEP, LIST_TOP = 36, 40, 52
 local Slots=require('__fabric-ui-playground__/slots')
 local function row_step(item)
   local t=item.template_id and runtime.template(item.template_id)
-  return ROW_STEP+(t and #(t.slot_definitions or {})>0 and (8+#t.slot_definitions*32) or 0)
+  return ROW_STEP+(t and #(t.slot_definitions or {})>0 and (8+#t.slot_definitions*32) or 0)+(item.pending_slots and 52 or 0)
 end
 local function total_height(items) local n=0;for _,item in ipairs(items) do n=n+row_step(item) end;return n end
 local function visible_items(state)
-  local items=(state.drag and state.drag.preview) or (state.pending_order and state.pending_order.preview) or state.items
+  local items=(state.drag and state.drag.preview) or (state.pending_order and state.pending_order.preview) or (state.placement and state.placement.order) or state.items
+  if state.placement then
+    local copy={};local found=false;for _,ref in ipairs(items) do if ref.placement_draft then copy[#copy+1]=state.placement.row;found=true else copy[#copy+1]=ref end end
+    if not found then copy[#copy+1]=state.placement.row end;items=copy
+  end
   local actual={};for _,ref in ipairs(state.items or {}) do actual[ref.id]=ref end
-  local resolved={};for _,ref in ipairs(items) do resolved[#resolved+1]=actual[ref.id] or ref end;items=resolved
-  if state.workspace=='world' and state.camera_area and not state.camera_area.neighbors_expanded then
+  local resolved={};for _,ref in ipairs(items) do local item=actual[ref.id] or ref;local draft=state.pending_slots and state.pending_slots[item.id];if draft then local copy={};for k,v in pairs(item) do copy[k]=v end;copy.slot_assignments=draft.assignments;copy.pending_slots=true;item=copy end;resolved[#resolved+1]=item end;items=resolved
+  if state.workspace=='world' and state.camera_area and not (state.pending_neighbors==true or (state.pending_neighbors==nil and state.camera_area.neighbors_expanded)) then
     local out={};local group
     for _,ref in ipairs(items) do
       if ref.neighbor and not ref.neighbor_group then
@@ -94,9 +98,10 @@ function M.layout(player, state, moving_id, raise_rows)
   end
   local footer=player.gui.screen[M.root.."_footer"]
   if footer then
-    footer.apply_order.visible=state.pending_order~=nil
-    footer.style.height=state.pending_order and 76 or 36
-    root.style.height=(list_top(state)+52)+total_height(visible_items(state))+(state.pending_order and 40 or 0)
+    footer.apply_order.visible=state.pending_order~=nil or state.pending_neighbors~=nil
+    footer.apply_order.caption=state.pending_neighbors~=nil and "Apply changes" or "Apply order"
+    footer.style.height=(state.pending_order or state.pending_neighbors~=nil) and 76 or 36
+    root.style.height=(list_top(state)+52)+total_height(visible_items(state))+((state.pending_order or state.pending_neighbors~=nil) and 40 or 0)
     footer.location={x=math.floor(origin.x+12*scale),
       y=math.floor(origin.y+(list_top(state)+4+total_height(visible_items(state)))*scale)}
   end
@@ -260,6 +265,7 @@ local function create_row(player,item)
     remove.style.width=16
     remove.style.height=28
     remove.visible=not item.neighbor and not item.origin
+    if item.placement_draft then name.style.font_color={1,.75,.25};name.tooltip='Not added yet · drag to choose priority';remove.tags={action='placement_close'} end
     if item.neighbor then name.style.font_color={0.55,0.8,1};name.tooltip="Neighbor contribution · reorder to control precedence inside this cell" end
     local function enable_hover(element)
       element.raise_hover_events=true
@@ -270,7 +276,8 @@ local function create_row(player,item)
       local slots=row.add{type='flow',name='slots',direction='vertical'};slots.style.left_margin=24;slots.style.vertical_spacing=4;slots.style.top_margin=4
       for i,slot in ipairs(host.slot_definitions) do
         local line=slots.add{type='flow',direction='horizontal'};line.style.height=28;line.style.vertical_align='center'
-        line.add{type='label',caption=slot.name or ('Slot '..i)}.style.width=56
+        local count=0;for _,patch in ipairs(item.patches or {}) do if patch.slot==i then count=count+1 end end
+        local label=line.add{type='label',raise_hover_events=true,caption=(slot.name or ('Slot '..i))..(count>0 and ' [color=1,0.72,0.3]•[/color]' or ''),tags={action='slot_patches',id=item.id,slot=i},tooltip=count..' slot patches · click to inspect'};label.style.width=66;label.style.height=28;label.style.vertical_align='center'
         local names={'Empty'};local ids={0};local selected=1
         local assignment=item.slot_assignments and item.slot_assignments[i]
         for _,t in ipairs(Slots.choices(host,slot)) do
@@ -280,9 +287,11 @@ local function create_row(player,item)
         if assignment and selected==1 then names[#names+1]='Unavailable · '..(runtime.template(assignment).name);ids[#ids+1]=assignment;selected=#ids end
         local active=Slots.anchor_exists(host,slot.anchor)
         if not active then names={slot.anchor and 'Commit or reselect the source anchor' or 'Select an anchor in the source template'};ids={0};selected=1 end
-        local picker=line.add{type='button',caption=names[selected]..'  ▾',enabled=active,raise_hover_events=true,tags={action='slot_open',id=item.id,slot=i}}
-        picker.style.width=280;picker.style.horizontal_align='left'
+        local picker=line.add{type='button',caption=names[selected],enabled=active,raise_hover_events=true,tags={action='slot_open',id=item.id,slot=i}}
+        picker.style.width=246;picker.style.horizontal_align='left'
+        line.add{type='sprite-button',sprite='utility/close',style='tool_button',enabled=assignment~=nil,tags={action='slot_assign',id=item.id,slot=i,value=0},tooltip='Empty this slot'}.style.size=28
       end
+      if item.pending_slots then local apply=slots.add{type='button',caption='Apply',tags={action='slot_apply',id=item.id}};apply.style.width=348;apply.style.height=36;apply.style.top_margin=8 end
     end
     enable_hover(contents)
 end
@@ -308,12 +317,12 @@ function M.refresh_rows(player,state)
     wanted[item.id]=true
     local row=player.gui.screen[row_name(item.id)]
     local host=item.template_id and runtime.template(item.template_id)
-    local revision=helpers.table_to_json({host and host.slot_definitions or {},item.slot_assignments or {},runtime.store().slot_revision or 0})
+    local revision=helpers.table_to_json({host and host.slot_definitions or {},item.slot_assignments or {},item.patches or {},item.pending_slots or false,item.name,item.placement_draft or false,runtime.store().slot_revision or 0})
     if row and row.tags.slot_revision~=revision then row.destroy();row=nil end
     if not row then create_row(player,item);row=player.gui.screen[row_name(item.id)];row.tags={fabric_ui_row=true,id=item.id,slot_revision=revision} end
     local count=overrides.count(item)
     local label=player.gui.screen[row_name(item.id)].contents.item_name
-    label.caption=item.name..(item.preview_only and " [color=0.55,0.8,1](Preview)[/color]" or "")..(count>0 and "  [color=1,0.72,0.3]•[/color]" or "")
+    label.caption=item.name..(item.placement_draft and " [color=1,0.75,0.25](Draft)[/color]" or "")..(item.preview_only and " [color=0.55,0.8,1](Preview)[/color]" or "")..(count>0 and "  [color=1,0.72,0.3]•[/color]" or "")
     label.tooltip=(item.neighbor and "Neighbor · cannot be removed · last row wins\n" or "")..item.name..(count>0 and (" · "..count.." patches") or " · No patches").."\nClick to locate and inspect"
   end
   for _, element in pairs(player.gui.screen.children) do
@@ -350,7 +359,7 @@ function M.build(player, state)
   if state.workspace=="world" and state.world_camera_mode then
     local subject=root.add{type="flow",direction="horizontal"}
     subject.style.height=24; subject.style.vertical_align="center"
-    subject.add{type="label",caption=state.camera_area and state.camera_area.name or "Outside instance areas",
+    subject.add{type="label",caption=state.camera_area and ((state.camera_area.icon and ("[img="..state.camera_area.icon.."] ") or "")..state.camera_area.name) or "Outside instance areas",
       style="bold_label"}
     if state.camera_area then
       subject.add{type="sprite-button",sprite="utility/rename_icon",

@@ -79,7 +79,7 @@ anchor the same way. A host cannot itself be a filler; subslots are not supporte
 Each placed host reference shows its slot pickers inline. Opening a picker does not rebuild; hovering a choice previews it at the anchor. Choose a compatible
 filler to align its anchor position and orientation with the slot anchor. These
 assignments belong to that placed reference. In a template, stitch the reference
-changes to publish them; in World, choosing a filler rebuilds that instance.
+changes to publish them; in World, choices remain ghost previews until the host’s Apply button commits them together.
 
 Bay spine starts with three inactive slots because its imported blueprint has no
 train stops. Its anchors must be added/selected. Bayspine Requester and Bayspine Provider start with filler anchors. Other templates can be enabled later. The old Left/Right placement
@@ -119,4 +119,8 @@ owns blueprint capture, transforms, placement, and wire restoration. Shared UI
 components remain in `components.lua`, `ui.lua`, `metadata.lua`, `placement.lua`,
 `library.lua`, `navigation.lua`, and `overrides.lua`.
 
-World rebuilds skip unchanged disconnected groups of cells. Intersecting cell and extension bounds rebuild together to preserve rails and neighbor precedence; a connected group may still rebuild in full. No entity identity tracking is used.
+World rebuilds compare the ordered content inside each cell and leave unchanged cells intact, including adjacent cells. Outside extensions are tracked separately. No entity identity tracking is used.
+
+Add Template inserts an amber draft row. Select and drag it to choose priority before adding; red squares preview geometric conflicts with later entries. Closing cancels the draft. Neighbor grouping and ordering also wait for Apply; reopening discards unapplied changes.
+
+Instance metadata includes an icon and updates a map tag at the cell center. The minimap status panel shows the current instance with Edit, or No Instance with Create.
