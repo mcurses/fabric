@@ -2,43 +2,54 @@
 
 What a player can do to a piece of an instance or an edit cell, and what Fabric makes of it. "Keeps" means the piece
 keeps its identity, so its overrides stay with it (D21, D23); "new" means delete plus a new piece (the old piece's
-overrides go, D25, D27). Anything not on this list is unsupported: Fabric does not promise identity, and it should at
-least tell the player when it notices (Max's lean, D26).
+overrides go). Anything not on this list is unsupported: Fabric does not promise identity, and it should at least tell
+the player when it notices (Max's lean, D26).
 
-Evidence: **real** = a real player or robots in the game (Seppi's Mac mini, Factorio 2.1.24); **script** = scripted
-engine checks (Seppi's v102 suite, or our S5 suite on 2.1.23); **none** = not tested. This list is a draft: the
-"Proposal" column is for the two of you to cut; it decides nothing open.
+Two result columns, kept apart on purpose:
 
-Still open across the list: whether a piece Fabric cannot place is asked at Commit or simply becomes new (Q10).
+- **Prototype now**: what Seppi's identity prototype does today, as his agent reports it. "Unresolved" means it
+  refuses to guess and Commit is blocked.
+- **Fabric (proposed)**: what Fabric would do under the decisions so far. Where this differs from the prototype, it is
+  Max's policy (D25, D27), not yet Seppi's acceptance and not current behaviour.
 
-| # | Operation | Fabric's result | Evidence | Proposal |
-|---|---|---|---|---|
-| 1 | Build a new entity | new piece | real, script | in |
-| 2 | Cut and paste, robots or the player build it | keeps (a move) | real | in |
-| 3 | Cut, save and reload, then paste | keeps | real | in |
-| 4 | Cut and paste a while later from the clipboard, where the origin proof fails | new (D27) | real (the limit) | in, as "new" |
-| 5 | Paste the same cut a second time | the second paste is new; the original id is never on two entities | script | in |
-| 6 | Copy and paste | new piece; the original is untouched | real, script | in |
-| 7 | Mine by hand, place again | new (D25) | script | in, as "new" |
-| 8 | Mine, then undo | keeps | real | in |
-| 9 | Undo and redo of placing and removing | keeps | real (ordinary sequences) | in; long or interrupted histories still tested |
-| 10 | Fast replace by hand (faster belt, assembler 2 to 3) | keeps; a replacement override (D23) | real (belts) | in; more types to test |
-| 11 | Upgrade planner, robots | keeps; a replacement override | real | in |
-| 12 | Rotate in place | keeps; a settings override | none clean (Commit diff still open) | in, once tested |
-| 13 | Change settings, paste settings | keeps; a settings override | none in the new prototype | in, once tested |
-| 14 | Paste partly over existing buildings | free pieces keep; unclear overlaps unresolved | script | in for the free pieces; overlaps per Q10 |
-| 15 | Piece destroyed (biters), rebuilt from its ghost | should keep (D13) | none | in; log a line if it does not |
-| 16 | Paste rotated or mirrored, ordinary grid | keeps | script | in |
-| 17 | Paste rotated or mirrored, unusual geometry (mixed grids, some tanks) | unsupported | script (the limit) | out |
-| 18 | Cut and paste ghosts (not yet built) | unknown | too little | later |
-| 19 | Blueprint library, import strings | copies are new; moves through the library unsupported | partial | in as copies; moves out |
-| 20 | Clipboard between two diverged copies of a save | unsupported | script (the limit) | out |
-| 21 | Two players working on the same pieces at once | unknown | none (needs two humans) | later; one joint session to test |
-| 22 | Editor mode cut | new | real | out of required scope (Seppi) |
-| 23 | Mine a car or wagon, place the same item again | keeps (unique item number) | script | later; trains in templates are a separate question |
-| 24 | Tiles; entities without a unit number | not tracked | script | out |
-| 25 | Fabric's own operations (Build now, template updates, free placement) | Fabric decides; keeps | design | in |
+Evidence labels: **native** = real player input and robots in the game; **hybrid** = native input plus scripted setup
+or movement; **scripted** = engine checks driven by script; **design** = from the design, untested; **none**. Version
+in brackets where it is not the latest build (v102, Factorio 2.1.24). Suite totals are not used as evidence for a row.
 
-Sources: `06-spike-results.md` (S5 and Seppi's real checks), Seppi's status reports of 2026-10-31 to 2026-11-02
-(v102), decisions D21, D23, D25 to D28. To be checked against Seppi's v102 source and remaining-task list once they are
-handed over.
+Still open across the list: whether an unresolved piece is asked at Commit or simply becomes new (Q10).
+
+| # | Operation | Prototype now | Fabric (proposed) | Evidence | Proposal |
+|---|---|---|---|---|---|
+| 1 | Build a new entity | new | new | native | in |
+| 2 | Cut and paste, robots build it | keeps | keeps (a move) | native | in |
+| 2b | Cut and paste, the player builds it by hand | to reconcile | keeps | to reconcile | in, once shown |
+| 3 | Cut, save and reload, then paste | keeps | keeps | native | in |
+| 4 | Cut or copy pasted later from the clipboard, where the origin proof fails | unresolved | new (D27) | native (the limit) | in, as "new" |
+| 5 | Paste the same cut again; repeated fresh copies | later pastes new; the original id never on two entities | same | native (Commit showed Moved 1, Added 1, v99); hybrid for 27 fresh copies (v102); the cold variant fails | in |
+| 6 | Copy and paste | new; original untouched | new | native | in |
+| 7 | Mine by hand, place again (anonymous stacked items) | unresolved | new (D25) | scripted | in, as "new" |
+| 8 | Mine, then undo | keeps | keeps | native | in |
+| 9 | Undo and redo of placing and removing | keeps | keeps | native (ordinary sequences) | in; long or interrupted histories still tested |
+| 10 | Fast replace by hand (faster belt) | keeps | keeps; a replacement override (D23) | native (belts) | in; other types to test |
+| 11 | Upgrade planner, robots | keeps | keeps; a replacement override | native | in |
+| 12 | Rotate in place | to reconcile | keeps; a settings override | to reconcile | in, once tested |
+| 13 | Change settings, paste settings | to reconcile | keeps; a settings override | to reconcile | in, once tested |
+| 14 | Cut and paste partly over existing buildings | free pieces keep; overlaps unresolved | same; overlaps per Q10 | native (one scenario) | in for free pieces |
+| 15 | Piece destroyed (biters), rebuilt from its ghost | untested | keeps (D13); log a line if not | none | in |
+| 16 | Paste rotated or mirrored, ordinary grid | to reconcile | keeps | to reconcile | in, once shown |
+| 17 | Paste rotated or mirrored, unusual geometry (mixed grids, some tanks) | unsupported | unsupported | scripted (the limit) | out |
+| 18 | Cut and paste ghosts (not yet built) | too little coverage | unknown | too little | later |
+| 19 | Blueprint library and import strings | copies new; API import plus native paste and nested books pass | copies new; moves through the library unsupported | hybrid; the native library and import dialog are unverified | in as copies |
+| 20 | Clipboard between two diverged copies of a save | fails in general; a repair covers new operations on controlled launches only | unsupported | hybrid (native cut and paste, scripted string import) | out |
+| 21 | Two players on the same pieces at once | second player isolated in scripted tests | unknown | hybrid; no two-human GUI test | later; a joint session is one way to test |
+| 22 | Editor mode cut | unresolved | new | native | out of required scope (Seppi) |
+| 23 | Mine a car, place the same item again | keeps (unique item number), also through undo and redo | keeps | native (v42) | later |
+| 23b | Wagons and trains | not established | unknown | none | out; trains in templates are a separate question |
+| 24 | Tiles; entities without a unit number | not tracked; tile build, undo, redo stay outside safely | not tracked | native (tiles) | out |
+| 25 | Fabric's own operations (Build now, template updates, free placement) | n/a | Fabric decides; keeps | design | in |
+
+"To reconcile": Seppi's agent will match these rows to exact test artifacts; general suite totals are not enough.
+
+Sources: `06-spike-results.md` (S5 and Seppi's real checks), Seppi's status reports and corrections of 2026-10-31 to
+2026-11-02 (v102), decisions D21, D23, D25 to D28. To be checked against the v102 source and remaining-task list once
+they are handed over.
