@@ -20,8 +20,8 @@ Still open across the list: whether an unresolved piece is asked at Commit or si
 
 | # | Operation | Prototype now | Fabric (proposed) | Evidence | Proposal |
 |---|---|---|---|---|---|
-| 1 | Build a new entity | new | new | native | in |
-| 2 | Cut and paste, robots build it | keeps | keeps (a move) | native | in |
+| 1 | Build a new entity | new; but after any mining of that item, unresolved (review 08 #5) | new | native | in |
+| 2 | Cut and paste, robots build it | keeps in character mode; map view not tracked (review 08 #4) | keeps (a move) | native | in |
 | 2b | Cut and paste, the player builds it by hand | to reconcile | keeps | to reconcile | in, once shown |
 | 3 | Cut, save and reload, then paste | keeps | keeps | native | in |
 | 4 | Cut or copy pasted later from the clipboard, where the origin proof fails | unresolved | new (D27) | native (the limit) | in, as "new" |
@@ -29,8 +29,8 @@ Still open across the list: whether an unresolved piece is asked at Commit or si
 | 6 | Copy and paste | new; original untouched | new | native | in |
 | 7 | Mine by hand, place again (anonymous stacked items) | unresolved | new (D25) | scripted | in, as "new" |
 | 8 | Mine, then undo | keeps | keeps | native | in |
-| 9 | Undo and redo of placing and removing | keeps | keeps | native (ordinary sequences) | in; long or interrupted histories still tested |
-| 10 | Fast replace by hand (faster belt) | keeps | keeps; a replacement override (D23) | native (belts) | in; other types to test |
+| 9 | Undo and redo of placing and removing | keeps when robots rebuild; hand-built restore ghosts unresolved (review 08 #7) | keeps | native (ordinary sequences) | in; long or interrupted histories still tested |
+| 10 | Fast replace by hand (faster belt) | keeps for a single click; dragging keeps only the first tile (review 08 #6) | keeps; a replacement override (D23) | native (belts) | in; other types to test |
 | 11 | Upgrade planner, robots | keeps | keeps; a replacement override | native | in |
 | 12 | Rotate in place | to reconcile | keeps; a settings override | to reconcile | in, once tested |
 | 13 | Change settings, paste settings | to reconcile | keeps; a settings override | to reconcile | in, once tested |
