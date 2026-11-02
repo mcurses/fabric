@@ -41,7 +41,7 @@ Still open across the list: whether an unresolved piece is asked at Commit or si
 | 18 | Cut and paste ghosts (not yet built) | too little coverage | unknown | too little | later |
 | 19 | Blueprint library and import strings | copies new; API import plus native paste and nested books pass | copies new; moves through the library unsupported | hybrid; the native library and import dialog are unverified | in as copies |
 | 20 | Clipboard between two diverged copies of a save | fails in general; a repair covers new operations on controlled launches only | unsupported | hybrid (native cut and paste, scripted string import) | out |
-| 21 | Two players on the same pieces at once | second player isolated in scripted tests | unknown | hybrid; no two-human GUI test | later; a joint session is one way to test |
+| 21 | Two players on the same pieces at once | second player isolated in scripted tests | unknown | hybrid; no two-human GUI test | **in from day one (D29)**; needs a real two-player test |
 | 22 | Editor mode cut | unresolved | new | native | out of required scope (Seppi) |
 | 23 | Mine a car, place the same item again | keeps (unique item number), also through undo and redo | keeps | native (v42) | later |
 | 23b | Wagons and trains | not established | unknown | none | out; trains in templates are a separate question |
