@@ -3,7 +3,7 @@
 Source review of `identity/handoff-v102` (commit a2bc9ca, source hash a98e38d1…), read-only, by two independent
 reviewers on Max's side; nothing was run. API checked against Factorio 2.1.23 docs (the source targets 2.1.24).
 "Checked" means the finding was re-read in the source after the review; "reported" means a reviewer's reading, not yet
-re-checked. No finding is a tested reproduction yet.
+re-checked. No finding is a tested reproduction yet; all runtime outcomes are hypotheses until run on 2.1.24.
 
 ## Wrong identity (worst class)
 
@@ -55,9 +55,10 @@ re-checked. No finding is a tested reproduction yet.
 15. **World namespace from `math.random`** (cut.lua:8) is probably the same in every new game; same-seed maps and forks
     share it. Reported, speculative.
 
-## Performance (likely causes of the earlier 15 ticks/s)
+## Performance
 
-All certain from the code, magnitudes estimated:
+All certain from the code, magnitudes estimated. Not attributed to the earlier 15 ticks/s episode (that case
+improved after world enumeration was removed); these need targeted scaling measurements:
 
 - whole-registry scans per transfer, per waiting restore per tick, per hand placement (runtime-owners.lua:12-16,
   mined-items.lua:163);
@@ -79,6 +80,9 @@ All certain from the code, magnitudes estimated:
 
 ## Claims the source does not support
 
+Seppi's agent agrees and narrows the handoff statement: temporary injected fixture hooks and autonomous input loops
+were removed; diagnostics and test interfaces remain registered.
+
 - "No fixture automation or hooks active": the coverage probe runs unconditionally (control.lua:277).
 - "No fixture remote interfaces survive": control.lua registers fixture, campaign, range, perf and probe interfaces
   (:259, :266-279, :300-304); range tests create surfaces and entities.
@@ -89,3 +93,15 @@ All certain from the code, magnitudes estimated:
   owner first.
 - History state is keyed per player; no same-tick crossing of one player's undo into another's was found.
 - No `on_load` mutation, no player-local data in game logic, no handler overwrites (shared events are chained).
+
+## Test order agreed with Seppi's agent (Max's side, two real clients, Factorio 2.1.24)
+
+1. Two clients join and reload with identical pinned mod bytes (issuer not regenerated between them); check that
+   `storage` does not diverge (#12, #13).
+2. Competing restores (#1) and a surface-wide Accept while the other player has a move in flight (#11); assert the
+   exact intended owner, not only uniqueness.
+3. Map-view cut and copy classification (#3, #4) and drag fast replace (#6).
+4. Hand-built restore and paste ghosts (#7, #8) and the read-only library blueprint (#14).
+
+#2 stays a defensive precondition test. Whether another player may cancel a move (#9) is a policy question, kept
+apart from lost provenance or wrong assignment.
