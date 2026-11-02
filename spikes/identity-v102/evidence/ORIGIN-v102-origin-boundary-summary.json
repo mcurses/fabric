@@ -1,0 +1,78 @@
+{
+  "outcome": "ENGINE_LIMIT",
+  "sourceversion": "653fba1d86c4b6eb7763a1aa066ffe4e2a810e982b3e49017def72f9a58382d6",
+  "claim": "Current public input/prebuild/built/history receipt tuple cannot certify the origin of a delayed birth merely by widening the age limit. Not a universal impossibility proof for every alternative mechanism.",
+  "native_positive": {
+    "linked": 10990173,
+    "pre": 10990200,
+    "age": 27,
+    "ghost": 62941,
+    "real": 62943,
+    "id": "U22305"
+  },
+  "API_negative": {
+    "linked": 10992717,
+    "pre": 10992744,
+    "age": 27,
+    "ghost": 62947,
+    "native_pre_later": 10992836,
+    "action": [
+      {
+        "id": 149468,
+        "player": 1,
+        "type": "built-entity",
+        "spec": {
+          "type": "built-entity",
+          "tags": {
+            "fabric_probe": 5577
+          },
+          "target": {
+            "entity_number": 0,
+            "name": "entity-ghost",
+            "position": {
+              "x": 40.5,
+              "y": 24.5
+            }
+          },
+          "surface_index": 218
+        },
+        "created_tick": 10992745,
+        "current_unit": 62949,
+        "name": "bulk-inserter",
+        "event_tick": 10992744,
+        "frame_receipt_version": 96,
+        "ghost_unit": 62947,
+        "ghost_expected": {
+          "unit": 62947,
+          "name": "bulk-inserter",
+          "surface": 218,
+          "position": {
+            "x": 40.5,
+            "y": 24.5
+          },
+          "event_tick": 10992745,
+          "ghost": true,
+          "quality": "normal"
+        }
+      }
+    ]
+  },
+  "shared_observations": [
+    "same current owned consumed-cut token/template",
+    "same player/surface/mode/transform",
+    "same linked-to-Pre age27",
+    "nonmoving Pre then Built",
+    "engine undo action with exact runtime birth frame receipt96",
+    "actual robot construction"
+  ],
+  "oracle_difference": "Fixture observer knows inside_api; production event payload has no origin field. Source file and observer are evidence, not a new production permission.",
+  "evidence": [
+    "ORIGIN-v102-cold-cut-reuse-result.json",
+    "ORIGIN-v102-cold-cut-reuse-capture.json",
+    "ORIGIN-v102-reuse-4tick-result.json",
+    "ORIGIN-v102-API-before-late-native-capture.json",
+    "ORIGIN-v102-equal-delay-27-result.json",
+    "ORIGIN-v102-equal-delay-27-capture.json"
+  ],
+  "limitation": "No new origin mechanism selected; strict production guard retained. Native delayed copy remains unresolved; API body stays unresolved. Later native merge is observable but is after the API birth; waiting for its absence is not proof for arbitrary delayed callbacks."
+}

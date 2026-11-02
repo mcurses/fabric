@@ -1,0 +1,18 @@
+{
+  "outcome": "PASS",
+  "sourceversion": "653fba1d86c4b6eb7763a1aa066ffe4e2a810e982b3e49017def72f9a58382d6",
+  "scenarios": 1,
+  "assertions": 6,
+  "source": {
+    "id": "F21259",
+    "old_unit": 62029,
+    "destination": 62909
+  },
+  "fresh_copies": 27,
+  "evidence": [
+    "RESCOPY-v102-native-moving-before-removal.json",
+    "RESCOPY-v102-pending-after-native-walk.json",
+    "RESCOPY-v102-real-bots.json"
+  ],
+  "provenance": "Native held mouse with API walking fixture, real robots. API walking NOT native keyboard; no scripted entity builds/deletes. Unique reserved first paste established earlier tick, then repeated held pastes while source remained live."
+}

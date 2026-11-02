@@ -1,0 +1,16 @@
+{
+  "outcome": "PASS",
+  "sourceversion": "653fba1d86c4b6eb7763a1aa066ffe4e2a810e982b3e49017def72f9a58382d6",
+  "scenarios": 1,
+  "assertions": 3,
+  "prepatch": "v101 actual native owner Cut180 invalidated by two player2 API-built receipts. Original failure never retroactively repaired.",
+  "repair": "v102 native owner Cut181 remains available; subsequent native paste + real bots transfers F21246 62013->62501. Player2 copies lack native birth proof and remain unresolved.",
+  "provenance": "Mixed: owner nativeGUI; player2 registered linked/pre callbacks synthetic followed by actual engine API build_blueprint. NOT two-human native multiplayer.",
+  "evidence": [
+    "P2-v101-engine-before-patch.json",
+    "P2-v101-engine-deferred-result.json",
+    "P2-v102-engine-after-patch.json",
+    "P2-v102-engine-deferred-result.json",
+    "P2-v102-owner-native-real-bots.json"
+  ]
+}

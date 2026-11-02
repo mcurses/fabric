@@ -1,0 +1,11 @@
+{
+  "outcome": "PASS",
+  "before": "653fba1d86c4b6eb7763a1aa066ffe4e2a810e982b3e49017def72f9a58382d6",
+  "after": "a98e38d1cdc50f308198a448cfea3d52341e54c8ca38b1c30f7ba2a394b881c7",
+  "changed_files": [
+    "session-issuer.lua",
+    "loaded-build.lua"
+  ],
+  "production_logic_unchanged": true,
+  "reason": "Controlled server reload regenerates launch issuer and immutable loaded manifest; settled saved operations retain stored issuers."
+}

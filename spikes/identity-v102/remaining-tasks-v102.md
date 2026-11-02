@@ -1,0 +1,15 @@
+# Remaining bounded work — parent / Max coordination
+
+GUI/process control remains exclusive to this mini agent. Parent owns Max communication and publishing. No peer messages sent. Current packet: campaign-v102-review.md; bounded repairs verified, delayed-input technical boundary and external review remain.
+
+Latest v102 loaded full `a98e38d1cdc50f308198a448cfea3d52341e54c8ca38b1c30f7ba2a394b881c7` (final reload changed generated issuer/manifest only), minimal `ade87fbee224438a8323c0f25f1d837375b7bdf975c96de2734803ad3ce5d363`. Each47module files,36core predicates +18engine Commit/Accept checks pass. Domain full705pass/30limits/1845assertions, minimal700pass/35limits/1831assertions. Profile executions, not distinct universal cases. Older matrix results remain historical.
+
+| Work | Acceptance | Current blocker / state |
+|---|---|---|
+| Recipient isolation (mini) | Other-player copies cannot invalidate owner cut; later proven-reservation moving copies fresh; initial same-tick ambiguous cut never first-wins | v101 module AND engine failure preserved. v102 module5scenarios20assertions pass; engine actor2 API receipts leave owner available; owner native paste+real bots F21246->62501. Native heldmouse/APIwalking yields27freshcopies and F21259 retains first destination. No two-human native proof. |
+| Delayed cold clipboard (mini) | Causal origin proof for late legitimate input, rejecting API-created bodies | Confirmed age116 native replay stays unresolved U21250. No age widening. Previous API probes skipped injections due nativePreT0; no matched indistinguishability proof. v102 actual native age27 staysU; independent API at equal age27 has exact stack action/frame96. Tested proof cannot distinguish birth origin by widening time; strict guard retained. |
+| Current save/reload (mini) | v102 consumed ledger and exact liveID/runtime pairs survive verified save/reload | PASS: actual v102 save/reload preserved39scratch +10user ID/runtime pairs and consumed/invalid ledger states; current save CRCverified. |
+| User restoration (mini) | Same SF212/char2669/position/zoom, baseline serialized inventory items and original user-building tuples; verified current ZIP; no fixture hooks/inputs | PASS: original10user building tuples and all inventory counts/serialized items match baseline; user view restored, all fixture hooks/inputs stopped. |
+| Read-only Max review (parent coordinates) | Review recipient scope and immediate history binding; no GUI/RCON collision | Await parent coordination; source/evidence local. |
+
+Explicit boundaries: anonymous merged stack lineage; no-unit entities/tiles unsupported by current runtime-key mechanism; mixed-grid negative-phase tank placement fails closed; native gamepad unavailable; library/wire native pointer routes and simultaneous keyboard/mouse not reliably exercised. Product scope/resolution policy remains Seppi/Max. Natural earliest-tick history-binding window not proved reachable; artificially delayed real native Undo/Redo passed both profiles v101.

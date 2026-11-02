@@ -1,0 +1,1 @@
+return {["value"]="a7eef10d6bbc4529be918f3705a4f7b4",["generated_at"]="2026-11-01T23:38:07.677983+00:00",["contract"]="Fresh controlled server launch issuer for NEW operations; saved operations retain their stored issuer. Manual loads without regeneration are not covered."}

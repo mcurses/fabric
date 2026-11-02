@@ -1,0 +1,21 @@
+{
+  "outcome": "PASS",
+  "sourceversion": "653fba1d86c4b6eb7763a1aa066ffe4e2a810e982b3e49017def72f9a58382d6",
+  "scenarios": 1,
+  "assertions": 4,
+  "before": [
+    "F22312",
+    62952
+  ],
+  "undo": "Removed by actual robots",
+  "redo": [
+    "F22312",
+    62956
+  ],
+  "provenance": "Native CommandC selection/click/paste/Q then F8/F9 and real robots; no artificial binding delay, no scripted build/destroy.",
+  "evidence": [
+    "H102-native-fresh-copy-before-undo.json",
+    "H102-native-after-undo.json",
+    "H102-native-after-redo.json"
+  ]
+}
