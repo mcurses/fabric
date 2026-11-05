@@ -1,0 +1,9 @@
+{
+  "name": "fabric-ui-playground",
+  "version": "0.0.1",
+  "title": "Fabric UI Playground",
+  "author": "Fabric",
+  "factorio_version": "2.1",
+  "dependencies": ["base >= 2.1.7"],
+  "description": "Standalone UI prototype with fixtures and script reload. No Fabric game logic."
+}
