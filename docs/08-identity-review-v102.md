@@ -105,3 +105,31 @@ were removed; diagnostics and test interfaces remain registered.
 
 #2 stays a defensive precondition test. Whether another player may cancel a move (#9) is a policy question, kept
 apart from lost provenance or wrong assignment.
+
+## Runtime results
+
+### Test 1: join, late join, reconnect, reload (2026-11-05, Factorio 2.1.24, one Mac)
+
+Setup: local headless server plus two real game clients, all loading one zip of the v102 source (identical bytes,
+sha256 1f4f70e8…; the issuer file unchanged between launches). Entities built by script with `raise_built` (hybrid, not
+native input); every machine then wrote its own copy of the mod's `storage` and compared hashes. Harness:
+`tools/mp-test/`.
+
+| Step | Result |
+|---|---|
+| Server plus client A | `storage` identical |
+| Client B joins after entities exist | **`storage` differs on B** |
+| B leaves and rejoins | differs again |
+| More building with both connected, 40 s | still differs; no engine desync reported |
+| Server saves and restarts, both rejoin | identical again |
+
+Reproduced twice. Cause confirmed as #13 `seeded`: a joining machine starts with `seeded=false` and, on its first
+eligibility check, overwrites every `fabric_blueprint_domain.positive` entry with the weaker
+`proof = "prior exact engine settings mapping"`; the server keeps `"exact unmarked engine mapping"` with tick and unit.
+The key set stayed the same, so no difference in behaviour was seen, and the engine did not report a desync in this
+run. It is still a silent difference in shared state: any later code that reads more than the key, or a case where the
+seed adds a key the server lacks, would make machines act differently. Fix direction: seed once in
+`on_init`/`on_configuration_changed`, or keep `seeded` in `storage`. `contextual` was not exercised (no entity marked
+before its prototype was proved).
+
+#12 was not hit because the issuer file was not regenerated between launches; the packaging problem stays as written.
