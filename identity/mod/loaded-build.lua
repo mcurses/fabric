@@ -1,0 +1,1 @@
+return {lineage='identity/handoff-v102', build='identity/completion', manifest_contract='Exact source and archive hashes are recorded by the isolated test runner; this source tree is not the historical v102 runtime.'}

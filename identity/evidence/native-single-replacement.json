@@ -1,0 +1,121 @@
+{
+  "kind": "native mouse input on scripted fixture; two real clients connected",
+  "changed": [
+    {
+      "id": "F136",
+      "before": {
+        "id": "F136",
+        "unit": 180,
+        "name": "transport-belt",
+        "ghost": false,
+        "reason": "initial",
+        "domain_unresolved": false,
+        "unresolved": false,
+        "position": {
+          "x": 3.5,
+          "y": 0.5
+        },
+        "direction": 0,
+        "quality": "normal",
+        "wires": {},
+        "wires_unverified": false,
+        "settings_unverified": false,
+        "settings": {
+          "name": "transport-belt"
+        }
+      },
+      "after": {
+        "id": "F136",
+        "unit": 209,
+        "name": "fast-transport-belt",
+        "ghost": false,
+        "reason": "history-restored",
+        "operation": "native fast replacement 180",
+        "domain_unresolved": false,
+        "unresolved": false,
+        "position": {
+          "x": 3.5,
+          "y": 0.5
+        },
+        "direction": 0,
+        "quality": "normal",
+        "wires": {},
+        "wires_unverified": false,
+        "settings_unverified": false,
+        "settings": {
+          "name": "fast-transport-belt"
+        }
+      }
+    }
+  ],
+  "replacement_ledger": {
+    "frames": [
+      {
+        "tick": 10714,
+        "player": 1,
+        "name": "fast-transport-belt",
+        "group": "transport-belt",
+        "surface": 4,
+        "candidates": {
+          "180": {
+            "unit": 180,
+            "id": "F136",
+            "name": "transport-belt",
+            "position": {
+              "x": 3.5,
+              "y": 0.5
+            }
+          }
+        },
+        "mined": [
+          {
+            "unit": 180,
+            "id": "F136",
+            "name": "transport-belt",
+            "position": {
+              "x": 3.5,
+              "y": 0.5
+            }
+          }
+        ]
+      }
+    ],
+    "trace": [
+      {
+        "seq": 1,
+        "tick": 10714,
+        "kind": "native-replacement-mined",
+        "data": {
+          "player": 1,
+          "source": {
+            "unit": 180,
+            "id": "F136",
+            "name": "transport-belt",
+            "position": {
+              "x": 3.5,
+              "y": 0.5
+            }
+          },
+          "target": "fast-transport-belt"
+        }
+      },
+      {
+        "seq": 2,
+        "tick": 10714,
+        "kind": "native-replacement-transferred",
+        "data": {
+          "id": "F136",
+          "source": 180,
+          "destination": 209,
+          "from": "transport-belt",
+          "to": "fast-transport-belt"
+        }
+      }
+    ],
+    "seq": 2
+  },
+  "limitations": [
+    "Held moving input not successfully exercised by CUA; module regression only.",
+    "Remote view entered natively, selection/paste continuity not completed; module regression only."
+  ]
+}

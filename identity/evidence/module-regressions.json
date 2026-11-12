@@ -1,0 +1,1764 @@
+{
+  "assertions": 201,
+  "failed": 0,
+  "kind": "production-module-simulation",
+  "limitations": [
+    "Mocked engine objects and callback order; no engine or GUI coverage.",
+    "Stale-removal test explicitly injects old action metadata.",
+    "Idle wire/tile action shapes come from installed official2.1.24 schema."
+  ],
+  "mined_pool_module_present": true,
+  "passed": 71,
+  "provenance": {
+    "files_sha256": {
+      "blueprint-area.lua": "cd90394d1ab1ecb81e7ce4620bfa8742fd96c2714f7296d18f869d02af71a8cd",
+      "campaign-tests.lua": "fc42d9f8266a6814bded6a320fc9c6b72646cee9c5350868551bd9b285ac20e6",
+      "control.lua": "2a3519296dbf20c00b28251de441a5283ffd5d8050116d07f7ea42e0ca9425a4",
+      "coverage-probe.lua": "08f4e420ba69f321bd1ba0d84358e5e85da64521a68ed05a42e373d0758882fd",
+      "cut.lua": "ae56f7f538e839f129c47b634dcb4c9cb18372addde684ad37d0ca096c640d72",
+      "data.lua": "8fc3ec7a277a409a913a73ce01081ac17ccc30b7b47044458f26da63b36f5010",
+      "death-ghost.lua": "9e5ecbda4037609dc164dce9850e352dbf673f18e1921b6c6119f7ee4a02cbe2",
+      "direct-placement.lua": "59a5e60d6b50f8acbd37bd8786549f1a3a2de4af687fc9425912ea30019ede53",
+      "eligibility.lua": "0a4cb188f25d9709866794d4247e24c57ed33fdf8ef8efe487ccd36d0170c7a8",
+      "engine-clone.lua": "2bb0210a0c0a6b659d0380318e409028374f2c5b80c3335218c468f1db6b0cf5",
+      "history.lua": "4767932497d0291ae0d552447c1b6c76b6b3a6812e12c5d9c1597581bec93495",
+      "loaded-build.lua": "cd92727f55c2caff7bb234d331071584ed389a40d817d5e0b81f8c47aeb4389b",
+      "mined-items.lua": "da6f7922131e1b21269d0a84787d86eb38b95b9dd7f3d1f86dea01ef9c73e81f",
+      "mod-settings.lua": "cc99d08ec0cb3c3fcc91742a9ba75039be87422e37ef3720dc7ac796988ea4c7",
+      "perf-tests.lua": "aaf7bdbed3648873722b2b478dcddd0dd4c4f24647feeb69bbfeaf5628b2f86a",
+      "placement-geometry.lua": "e6d37c4dc2cf2284296d0bc0e6224bb10652589cda3b1b01bbebc8b9dbdfacd7",
+      "range-tests.lua": "60dfedd339f5f55d35ca4dadf8c23ec270bced78fa88ae3735a92a22cb9379e6",
+      "replacement.lua": "5efc0a0e3b22e2acd73fd0d3a05bdbfd377c64ac2293760ebf8084e321449761",
+      "robot-jobs.lua": "f953e91c4b731d7fe237a5ec5e377157fb927c1f599b1f53b89de95ffcc12f17",
+      "runtime-owners.lua": "bd5bc0dfb9ce249bd649a792ec7b3e1fbacf11607a23273b18e1759b8985e8ec",
+      "runtime-registration.lua": "7b759120c38fbcd2268581fc926176324194c5f7a29fd1210c25916ced77ad6e",
+      "session-issuer.lua": "34e3635b03d4bec40d5e387191885f4f431ab5322c7e95450b497c2012f0c7bf",
+      "wires.lua": "e55daf3b9b947011c1c8af155caba0e21ce718a3f0bba5525504756b1ff5d2a5"
+    },
+    "loaded_engine_claim": false,
+    "source_concatenated_sha256": "72ceafb52e6913c934bff3419b204bc7345e444b10f3db2a571400b9681f35c8",
+    "source_files_unchanged_during_run": true,
+    "suite_sha256": "6633844b2197555af2029a143f4e479cf6e5aedd1c4686a34d489434de502d00"
+  },
+  "results": [
+    {
+      "assertions": [
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "initial A binding",
+          "pass": true
+        },
+        {
+          "actual": "F2",
+          "expected": "F2",
+          "label": "new B action binds its own ID",
+          "pass": true
+        },
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "old authoritative ledger record retained",
+          "pass": true
+        }
+      ],
+      "engine_shape_evidence": "H-rebuild-same-endpoint-v34-native-failure.json: old build spec loses surface_index after mining",
+      "id": "native_observed_shape_same_endpoint_rebuild",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "authoritative original tag retained while surface absent",
+          "pass": true
+        },
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "manual removal undo restores A",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "authoritative original tag retained after surface returns",
+          "pass": true
+        },
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "deep redo of original build restores original A",
+          "pass": true
+        }
+      ],
+      "engine_shape_evidence": "v34 deeper native artifacts: old built action temporarily loses surface, returns, then original-build redo loses F6604",
+      "id": "authoritative_action_survives_missing_surface_and_deep_redo",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "initial A binding",
+          "pass": true
+        },
+        {
+          "actual": "F2",
+          "expected": "F2",
+          "label": "new B action binds its own ID",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "old A action correlation unchanged",
+          "pass": true
+        },
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "old A action identity retained",
+          "pass": true
+        }
+      ],
+      "engine_reachability": "UNESTABLISHED: preserves old surface_index unlike observed native trial; this is not a reproduced ordinary native failure",
+      "id": "synthetic_preserved_old_surface_rebuild",
+      "pass": true
+    },
+    {
+      "acceptable_result": "F2 with independent causal binding, or explicit unresolved; never F1",
+      "assertions": [
+        {
+          "actual": false,
+          "expected": false,
+          "label": "new B restoration never receives old A ID",
+          "pass": true
+        },
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "original authoritative record preserved",
+          "pass": true
+        }
+      ],
+      "id": "stale_removal_tag_does_not_steal_identity",
+      "observed_restored_id": "U3",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_undo_built_tile",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_redo_built_tile",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_undo_removed_tile",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_redo_removed_tile",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_undo_wire_added",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_redo_wire_added",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_undo_wire_removed",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_redo_wire_removed",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_undo_invalid_targetless_action",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_redo_invalid_targetless_action",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_undo_supported_built_control",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "record count stable after initial observation",
+          "pass": true
+        },
+        {
+          "actual": 1,
+          "expected": 1,
+          "label": "opaque tag remains stable",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no identity manufactured without frame",
+          "pass": true
+        }
+      ],
+      "id": "idle_redo_supported_built_control",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_number",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_true",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_false",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_string",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_array",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_empty_object",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_missing_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_nested_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_ghost_boolean",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_ghost_number_only",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_observe_malformed_action",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_number",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_true",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_false",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_string",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_array",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_empty_object",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_missing_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_nested_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_ghost_boolean",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_ghost_number_only",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_robot_malformed_action",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_number",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_true",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_false",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_string",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_array",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_empty_object",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_missing_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_nested_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_ghost_boolean",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_ghost_number_only",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_cut_built_malformed_action",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_number",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_true",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_false",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_string",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_array",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_empty_object",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_missing_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_nested_fields",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_ghost_boolean",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_ghost_number_only",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "malformed metadata does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "foreign nested tag preserved",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "malformed metadata grants no F identity",
+          "pass": true
+        }
+      ],
+      "id": "metadata_history_migration_malformed_action",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": false,
+          "expected": false,
+          "label": "empty pool leaves ordinary path available",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no pool-derived assignment",
+          "pass": true
+        }
+      ],
+      "id": "mined_empty_pool_not_claimed",
+      "lifecycle_observation": {
+        "live_id_queries_with_empty_pool": 0
+      },
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no FIFO or LIFO old ID assignment",
+          "pass": true
+        }
+      ],
+      "id": "mined_merged_candidates_never_choose_old_id",
+      "lifecycle_observation": {
+        "candidates": [
+          "F1",
+          "F2"
+        ],
+        "reason": "mined-item-unresolved"
+      },
+      "pass": true,
+      "policy_sensitive": "Retaining unresolved versus another no-lineage convention is not decided by this test."
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "other-force direct placement does not throw",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "unsupported entity not registered by pool",
+          "pass": true
+        }
+      ],
+      "id": "mined_out_of_scope_force_no_crash",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "no-unit unsupported entity does not throw",
+          "pass": true
+        }
+      ],
+      "id": "mined_no_unit_entity_no_crash",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": false,
+          "expected": false,
+          "label": "already-live F1 is not offered as transferable identity",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "already-live F1 never assigned twice",
+          "pass": true
+        }
+      ],
+      "id": "mined_restored_live_id_not_transfer_candidate",
+      "lifecycle_observation": {
+        "candidates": []
+      },
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": true,
+          "expected": true,
+          "label": "same original runtime does not retire its pending candidate",
+          "pass": true
+        },
+        {
+          "actual": true,
+          "expected": true,
+          "label": "candidate remains available after actual source destruction",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "no old-ID assignment in either callback",
+          "pass": true
+        }
+      ],
+      "engine_reachability": "Actual API-interleaving still to test; official on_player_mined_entity occurs before destruction and LuaPlayer.build_from_cursor raises immediate build events.",
+      "id": "mined_pre_destruction_source_not_mistaken_for_restoration",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": "F99",
+          "expected": "F99",
+          "label": "accepted new label remains unchanged",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "later placement does not invent old ID",
+          "pass": true
+        }
+      ],
+      "id": "mined_acceptance_lifecycle_safety",
+      "lifecycle_observation": {
+        "later_candidates": [
+          "F1",
+          "F2"
+        ],
+        "pool": {
+          "candidate_lookup": {
+            "F1,F2": 1
+          },
+          "candidate_sets": [
+            {
+              "count": 2,
+              "ids": [
+                "F1",
+                "F2"
+              ]
+            }
+          ],
+          "history_cap_migration_v56": {
+            "ambiguous_same_tick": 0,
+            "marked": 0,
+            "tick": 100
+          },
+          "sources": {
+            "iron-chest/normal": {
+              "F1": {
+                "actor": "player",
+                "id": "F1",
+                "item": "iron-chest",
+                "output_count": 1,
+                "output_numbers": [],
+                "player": 1,
+                "quality": "normal",
+                "receipt": "1/100/1",
+                "surface": 1,
+                "tick": 100,
+                "unique_output": false,
+                "unit": 1,
+                "unnumbered": true
+              },
+              "F2": {
+                "actor": "player",
+                "id": "F2",
+                "item": "iron-chest",
+                "output_count": 1,
+                "output_numbers": [],
+                "player": 1,
+                "quality": "normal",
+                "receipt": "2/100/1",
+                "surface": 1,
+                "tick": 100,
+                "unique_output": false,
+                "unit": 2,
+                "unnumbered": true
+              }
+            }
+          }
+        }
+      },
+      "pass": true,
+      "policy_sensitive": "Direct row transition models accepted-new state, not full commit GUI. No assertion requires pool clearing after one or all Accept operations."
+    },
+    {
+      "assertions": [
+        {
+          "actual": false,
+          "expected": false,
+          "label": "cross-domain material possibility does not assign old ID",
+          "pass": true
+        }
+      ],
+      "id": "mined_cross_player_surface_safety",
+      "lifecycle_observation": {
+        "candidate_crosses_player_and_surface": true
+      },
+      "pass": true,
+      "policy_sensitive": "Inventory handoff can cross player/surface boundaries; test does not mandate filtering by source location/player."
+    },
+    {
+      "assertions": [
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "source logical ID survives plain storage roundtrip",
+          "pass": true
+        }
+      ],
+      "id": "mined_pool_plain_storage_roundtrip",
+      "pass": true,
+      "policy_sensitive": "Plain-storage simulation only; an actual saved-ZIP recovery remains an engine test."
+    },
+    {
+      "assertions": [
+        {
+          "actual": 12,
+          "expected": 12,
+          "label": "displayed candidate list capped at12",
+          "pass": true
+        },
+        {
+          "actual": 100,
+          "expected": 100,
+          "label": "total candidate count retained",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "large candidate pool never selects old F ID",
+          "pass": true
+        }
+      ],
+      "id": "mined_candidate_display_cap_keeps_true_count",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": false,
+          "expected": false,
+          "label": "different known item number not candidate",
+          "pass": true
+        },
+        {
+          "actual": false,
+          "expected": false,
+          "label": "different known item number never transfers old ID",
+          "pass": true
+        }
+      ],
+      "id": "mined_distinct_item_numbers_disqualify_source",
+      "pass": true
+    }
+  ],
+  "schema_version": 1,
+  "tests": 71
+}

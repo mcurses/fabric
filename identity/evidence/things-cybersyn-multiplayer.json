@@ -1,0 +1,83 @@
+{
+  "steps": [
+    {
+      "step": "core",
+      "pass": true,
+      "failures": 0,
+      "checks": 32
+    },
+    {
+      "step": "engine",
+      "pass": true,
+      "failures": 0,
+      "checks": 18
+    },
+    {
+      "step": "domain",
+      "pass": true,
+      "failures": 0,
+      "checks": 185
+    },
+    {
+      "step": "before-late-join",
+      "pass": true,
+      "hashes": {
+        "server": "539711366b0631db9bc93c0a4c4be84b7705cecef6e52bf6a29ce4070921930a",
+        "identityA": "539711366b0631db9bc93c0a4c4be84b7705cecef6e52bf6a29ce4070921930a"
+      }
+    },
+    {
+      "step": "late-join",
+      "pass": true,
+      "hashes": {
+        "server": "c184984df2ea424954157cc73d8339e54f9945f212ccc9c8db6748778440b6b2",
+        "identityA": "c184984df2ea424954157cc73d8339e54f9945f212ccc9c8db6748778440b6b2",
+        "identityB": "c184984df2ea424954157cc73d8339e54f9945f212ccc9c8db6748778440b6b2"
+      }
+    },
+    {
+      "step": "reconnect",
+      "pass": true,
+      "hashes": {
+        "server": "f062843aec6ab1a7f3a1ade0f084af81847e0e282d3d194e25407f690c1e3d7f",
+        "identityA": "f062843aec6ab1a7f3a1ade0f084af81847e0e282d3d194e25407f690c1e3d7f",
+        "identityB": "f062843aec6ab1a7f3a1ade0f084af81847e0e282d3d194e25407f690c1e3d7f"
+      }
+    },
+    {
+      "step": "save-reload",
+      "pass": true,
+      "hashes": {
+        "server": "e4b16ba2129466b016c0879d53f1afdd63552e84ed5e8a16ad9666d54570f65d",
+        "identityA": "e4b16ba2129466b016c0879d53f1afdd63552e84ed5e8a16ad9666d54570f65d",
+        "identityB": "e4b16ba2129466b016c0879d53f1afdd63552e84ed5e8a16ad9666d54570f65d"
+      }
+    }
+  ],
+  "source_sha256": {
+    "blueprint-area.lua": "cd90394d1ab1ecb81e7ce4620bfa8742fd96c2714f7296d18f869d02af71a8cd",
+    "campaign-tests.lua": "fc42d9f8266a6814bded6a320fc9c6b72646cee9c5350868551bd9b285ac20e6",
+    "control.lua": "2a3519296dbf20c00b28251de441a5283ffd5d8050116d07f7ea42e0ca9425a4",
+    "coverage-probe.lua": "08f4e420ba69f321bd1ba0d84358e5e85da64521a68ed05a42e373d0758882fd",
+    "cut.lua": "ae56f7f538e839f129c47b634dcb4c9cb18372addde684ad37d0ca096c640d72",
+    "data.lua": "8fc3ec7a277a409a913a73ce01081ac17ccc30b7b47044458f26da63b36f5010",
+    "death-ghost.lua": "9e5ecbda4037609dc164dce9850e352dbf673f18e1921b6c6119f7ee4a02cbe2",
+    "direct-placement.lua": "59a5e60d6b50f8acbd37bd8786549f1a3a2de4af687fc9425912ea30019ede53",
+    "eligibility.lua": "0a4cb188f25d9709866794d4247e24c57ed33fdf8ef8efe487ccd36d0170c7a8",
+    "engine-clone.lua": "2bb0210a0c0a6b659d0380318e409028374f2c5b80c3335218c468f1db6b0cf5",
+    "history.lua": "4767932497d0291ae0d552447c1b6c76b6b3a6812e12c5d9c1597581bec93495",
+    "info.json": "7b0552e70fe56c1bf28f7efe13b271aa2dff3572ba215bd345fa464b18a57791",
+    "loaded-build.lua": "cd92727f55c2caff7bb234d331071584ed389a40d817d5e0b81f8c47aeb4389b",
+    "mined-items.lua": "da6f7922131e1b21269d0a84787d86eb38b95b9dd7f3d1f86dea01ef9c73e81f",
+    "mod-settings.lua": "cc99d08ec0cb3c3fcc91742a9ba75039be87422e37ef3720dc7ac796988ea4c7",
+    "perf-tests.lua": "aaf7bdbed3648873722b2b478dcddd0dd4c4f24647feeb69bbfeaf5628b2f86a",
+    "placement-geometry.lua": "e6d37c4dc2cf2284296d0bc0e6224bb10652589cda3b1b01bbebc8b9dbdfacd7",
+    "range-tests.lua": "60dfedd339f5f55d35ca4dadf8c23ec270bced78fa88ae3735a92a22cb9379e6",
+    "replacement.lua": "5efc0a0e3b22e2acd73fd0d3a05bdbfd377c64ac2293760ebf8084e321449761",
+    "robot-jobs.lua": "f953e91c4b731d7fe237a5ec5e377157fb927c1f599b1f53b89de95ffcc12f17",
+    "runtime-owners.lua": "bd5bc0dfb9ce249bd649a792ec7b3e1fbacf11607a23273b18e1759b8985e8ec",
+    "runtime-registration.lua": "7b759120c38fbcd2268581fc926176324194c5f7a29fd1210c25916ced77ad6e",
+    "session-issuer.lua": "34e3635b03d4bec40d5e387191885f4f431ab5322c7e95450b497c2012f0c7bf",
+    "wires.lua": "e55daf3b9b947011c1c8af155caba0e21ce718a3f0bba5525504756b1ff5d2a5"
+  }
+}
