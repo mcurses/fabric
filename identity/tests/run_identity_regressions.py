@@ -24,6 +24,12 @@ try:
     contents = {f.name: f.read_bytes() for f in files}
     result = subprocess.run([executable, str(runner), str(root)], capture_output=True, text=True, timeout=60)
     data = json.loads(result.stdout)
+    data['supplemental'] = []
+    for name in ['eligibility-reload.lua', 'core-input.lua', 'player-revival.lua', 'library-copy.lua', 'bounded-trace.lua']:
+        test = runner.with_name(name)
+        extra = subprocess.run([executable, str(test), str(root)], capture_output=True, text=True, timeout=60)
+        data['supplemental'].append({'suite': name, 'pass': extra.returncode == 0, 'stdout': extra.stdout.strip(), 'stderr': extra.stderr.strip(), 'sha256': hashlib.sha256(test.read_bytes()).hexdigest()})
+    data['supplemental_failed'] = sum(not test['pass'] for test in data['supplemental'])
     data['provenance'] = {
         'lua_executable': executable,
         'source_concatenated_sha256': hashlib.sha256(b''.join(contents[f.name] for f in files)).hexdigest(),
@@ -35,7 +41,7 @@ try:
     if result.stderr:
         data['stderr'] = result.stderr
     print(json.dumps(data, indent=2, sort_keys=True))
-    sys.exit(1 if data['failed'] else 0)
+    sys.exit(1 if data['failed'] or data['supplemental_failed'] else 0)
 except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
     print(json.dumps({'schema_version': 1, 'fatal': str(exc), 'kind': 'harness-error'}))
     sys.exit(2)

@@ -1,3 +1,4 @@
+local Trace=require('bounded-trace')
 -- Engine-contained death revival only. A new object must have the exact original
 -- engine UID advertised by the exact on_post_entity_died ghost. No position or
 -- blueprint tag can mint this proof. Runtime refs never enter snapshot/log data.
@@ -6,7 +7,7 @@ local function S()
  storage.fabric_death=storage.fabric_death or{next=0,records={},by_unit={},tick_pending={},completed={},trace={},status='Death ghosts: exact engine-contained UID proof only.'}
  storage.fabric_death_refs=storage.fabric_death_refs or{};storage.fabric_death.denied_units=storage.fabric_death.denied_units or{};storage.fabric_death.ghost_objects=storage.fabric_death.ghost_objects or{};storage.fabric_death.reconcile_units=storage.fabric_death.reconcile_units or{};return storage.fabric_death
 end
-local function log(kind,data)local s=S();s.trace[#s.trace+1]={tick=game.tick,kind=kind,data=data};if #s.trace>512 then table.remove(s.trace,1);s.dropped=(s.dropped or 0)+1 end end
+local function log(kind,data)local s=S();Trace.push(s,'trace',{tick=game.tick,kind=kind,data=data},512,'dropped') end
 local function known(row)return row and type(row.id)=='string'and row.id:sub(1,1)=='F'end
 local function finish(r,state,why)
  local s=S();if state=='invalid'or state=='ambiguous'then s.denied_units[tostring(r.source_unit)]={id=r.logical_id,receipt=r.key,reason=why}end;r.state=state;r.result_tick=game.tick;r.reason=why;s.tick_pending[r.key]=nil;s.status='Death '..r.logical_id..': '..state..'. '..why

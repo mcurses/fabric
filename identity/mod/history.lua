@@ -1,6 +1,8 @@
+local Trace=require('bounded-trace')
 -- Native history correlation. Endpoint coordinates qualify an observed event batch;
 -- they are never used to discover or label arbitrary world entities.
 local Jobs=require('robot-jobs')
+local PlayerRevival=require('player-revival')
 local H={};local A;local TAG='fabric_pg_history_v1';local RECEIPT='fabric_pg_entity_v1'
 local function S()
  storage.fabric_history=storage.fabric_history or {next=0,next_restore=0,actions={},restores={},contexts={},frames={},objects={},trace={},seq=0,status='History: observing; unsupported actions remain unresolved.'}
@@ -12,7 +14,7 @@ local function plain(v,d)
  if t~='table'then return v end
  local r={}for k,x in pairs(v)do if type(k)=='number' or type(k)=='string'then r[k]=plain(x,d+1)end end;return r
 end
-local function log(k,d)local s=S();s.seq=s.seq+1;s.trace[#s.trace+1]={seq=s.seq,tick=game.tick,kind=k,data=plain(d)};if #s.trace>8192 then table.remove(s.trace,1);s.dropped_trace=(s.dropped_trace or 0)+1 end end
+local function log(k,d)local s=S();s.seq=s.seq+1;Trace.push(s,'trace',{seq=s.seq,tick=game.tick,kind=k,data=plain(d)},8192,'dropped_trace') end
 local function ref(e)
  if not(e and e.valid and e.unit_number)then return end
  storage.fabric_history_refs[e.unit_number]=e;S().objects[tostring(script.register_on_object_destroyed(e))]=e.unit_number
@@ -125,6 +127,7 @@ end
 function H.continued(unit,id,why)
  if A.on_continued then A.on_continued(unit,id,why)end
  local st=S()
+ st.continuations=st.continuations or{};st.continuations[id]={unit=unit,tick=game.tick,reason=why}
  for _,r in pairs(st.restores)do
   if r.state=='pending'and r.logical_id==id and r.unit~=unit then
    candidate(get(r.unit or r.ghost_unit),r.logical_id,'history candidate superseded by newer proof');r.state='invalid';r.reason='superseded by later proved continuation';r.superseded={unit=unit,tick=game.tick,proof=why}
@@ -206,7 +209,15 @@ function H.linked(kind,e)
  log('linked-history',{player=p.index,kind=kind,actions=actions})
 end
 local function assign_restore(r)
- if r.state~='pending'or not r.unit or (r.ghost_unit and not r.ghost_destroyed)then return end
+ if r.state~='pending' then return end
+ -- Arbitrate the completed event batch, including contenders still in ghost form.
+ local contenders={}
+ for _,other in pairs(S().restores)do if other.state=='pending' and other.logical_id==r.logical_id then contenders[#contenders+1]=other end end
+ if #contenders>1 then
+  for _,other in ipairs(contenders)do other.state='invalid';other.reason='competing history continuations';candidate(get(other.unit or other.ghost_unit),other.logical_id,other.reason)end
+  log('restore-contenders-rejected',{id=r.logical_id,count=#contenders});return
+ end
+ if not r.unit or (r.ghost_unit and not r.ghost_destroyed) or (r.tick and r.tick>=game.tick) or (r.built_tick and r.built_tick>=game.tick) then return end
  if r.ghost_unit and (not r.built_tick or math.abs(r.ghost_destroyed_tick-r.built_tick)>2) then r.state='invalid';r.reason='stale ghost receipt';log('receipt-rejected',r);return end
  local e=get(r.unit);if not e then r.state='invalid';r.reason='destination gone';return end
  local h=r.action and S().actions[tostring(r.action)]
@@ -225,15 +236,27 @@ local function assign_restore(r)
    return
   end
  end
+ local continuation=S().continuations and S().continuations[r.logical_id]
+ local source=r.source_unit or h and h.current_unit
+ if not r.manual_accept and continuation and continuation.tick>=(h.event_tick or h.created_tick or 0) and continuation.unit~=source and not continuation.released_by_history then
+  r.state='invalid';r.reason='source superseded by another proved continuation';candidate(e,r.logical_id,r.reason);return
+ end
+ local function owner_blocks(owner)
+  if not owner then return false end
+  if not r.manual_accept and source and owner.unit_number~=source then
+   r.state='invalid';r.reason='different current owner supersedes old restore';candidate(e,r.logical_id,r.reason)
+  else r.waiting_for=owner.unit_number end
+  return true
+ end
  local current=entry(e);if not current or known(current)then r.state='invalid';r.reason='already assigned / manually accepted';return end
  -- Global uniqueness, including pieces still waiting for construction-robot removal.
- if A.owner then local owner=A.owner(r.logical_id,e.unit_number);if owner then r.waiting_for=owner.unit_number;return end
+ if A.owner then if owner_blocks(A.owner(r.logical_id,e.unit_number))then return end
  else
  for _,surface in pairs(game.surfaces)do
   local scope=A.scope(surface)
   for _,other in pairs(surface.find_entities())do
    local row=other.unit_number and runtime_row(other)
-   if other~=e and other.type~='entity-ghost'and row and row.id==r.logical_id and known(row)then r.waiting_for=other.unit_number;return end
+   if other~=e and other.type~='entity-ghost'and row and row.id==r.logical_id and known(row)then owner_blocks(other);return end
   end
  end
  end
@@ -284,7 +307,7 @@ function H.applied(kind,e)
       if A.on_restore and A.on_restore(h.logical_id,en)==false then log('history-restore-causally-ambiguous',{action=h.id,id=h.logical_id});en=nil end
       if en then
       s.next_restore=s.next_restore+1;local n=s.next_restore
-      local r={id=n,action=h.id,logical_id=h.logical_id,state='pending',player=p.index,tick=game.tick,surface=en.surface.index}
+      local r={id=n,action=h.id,logical_id=h.logical_id,state='pending',source_unit=h.current_unit,player=p.index,tick=game.tick,surface=en.surface.index}
       s.restores[tostring(n)]=r;candidate(en,r.logical_id,'native history restoration pending causal checks')
       if en.type=='entity-ghost'then
        r.ghost_unit=en.unit_number;r.expected=info(en);local tags=en.tags or {};tags[RECEIPT]={world=A.world(),action=h.id,restore=n,ghost=en.unit_number};en.tags=tags
@@ -295,7 +318,11 @@ function H.applied(kind,e)
     elseif #list>1 then log('history-unresolved',{action=h.id,reason='multiple native creation candidates'})end
    elseif a.type=='built-entity'then
     local list={};for _,v in pairs(c.marked)do if v.event_tick==game.tick and matches(a,v)and h.current_unit==v.unit then list[#list+1]=v end end
-    if #list==1 then local en=get(list[1].unit);local r=en and entry(en);if known(r)and r.id~=h.logical_id then h.invalid=true;log('history-unresolved',{action=h.id,reason='removal identity changed'})elseif en and known(r)and A.on_redeconstruct then A.on_redeconstruct(h,en,kind)end end
+    if #list==1 then local en=get(list[1].unit);local r=en and entry(en);if known(r)and r.id~=h.logical_id then h.invalid=true;log('history-unresolved',{action=h.id,reason='removal identity changed'})elseif en and known(r)then
+     local continuation=s.continuations and s.continuations[r.id]
+     if continuation and continuation.unit==en.unit_number then continuation.released_by_history={action=h.id,player=p.index,tick=game.tick}end
+     if A.on_redeconstruct then A.on_redeconstruct(h,en,kind)end
+    end end
    end
   end
  end
@@ -323,7 +350,7 @@ function H.pending_robot_receipt(e,job)
  if not(r and r.state=='pending'and r.ghost_unit==tag.ghost and not r.unit and r.action==tag.action and(r.manual_accept or h and not h.invalid))then return false end
  local ok=revival_matches(r.expected,r.ghost_unit,e.entity);return ok and Jobs.matches(job,r.ghost_unit)or false
 end
-function H.robot_built(e,job)
+local function revived(e,job,matches)
  local tag=e.tags and e.tags[RECEIPT];if not(type(tag)=='table'and tag.world==A.world())then return end
  local s=S();local h=s.actions[tostring(tag.action)]
  if tag.restore then
@@ -331,18 +358,20 @@ function H.robot_built(e,job)
   local r=s.restores[tostring(tag.restore)]
   if r and r.ghost_unit==tag.ghost and not r.unit and r.action==tag.action then
    local ok,why=revival_matches(r.expected,r.ghost_unit,e.entity)
-   if ok then ok,why=Jobs.matches(job,r.ghost_unit)end
+   if ok then ok,why=matches(job,r.ghost_unit)end
    if not ok then log('restore-robot-rejected',{restore=r.id,ghost=tag.ghost,entity=info(e.entity),reason=why});return true end
    ref(e.entity);r.unit=e.entity.unit_number;r.built_tick=game.tick;candidate(e.entity,r.logical_id,r.state=='pending'and 'native history restoration pending causal checks'or 'invalidated native history candidate: '..tostring(r.reason));log('restore-robot-built',{restore=r.id,ghost=tag.ghost,entity=info(e.entity)});assign_restore(r)
   end
   return true
  elseif h and not h.invalid and h.ghost_unit==tag.ghost and h.current_unit==h.ghost_unit then
   local ok,why=revival_matches(h.ghost_expected,h.ghost_unit,e.entity)
-  if ok then ok,why=Jobs.matches(job,h.ghost_unit)end
+  if ok then ok,why=matches(job,h.ghost_unit)end
   if not ok then log('action-robot-rejected',{action=h.id,ghost=tag.ghost,entity=info(e.entity),reason=why});return end
   ref(e.entity);h.current_unit=e.entity.unit_number;log('action-robot-built',{action=h.id,ghost=tag.ghost,unit=e.entity.unit_number})
  end
 end
+function H.robot_built(e,job)return revived(e,job,Jobs.matches)end
+function H.player_built(e,proof)return revived(e,proof,PlayerRevival.matches)end
 function H.destroyed(e)
  local unit=S().objects[tostring(e.registration_number)];if not unit then return end;S().objects[tostring(e.registration_number)]=nil
  local current=storage.fabric_history_refs[unit]

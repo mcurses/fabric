@@ -1,8 +1,10 @@
+local Trace=require('bounded-trace')
 -- Narrow native cut extension. All authoritative ledger/log data are plain values.
 local M={};local A;local post;local unresolved_candidate;local finish_copy;local native_birth
 local issuer_ok,issuer_config=pcall(require,'session-issuer');local ISSUER=issuer_ok and type(issuer_config)=='table'and type(issuer_config.value)=='string'and #issuer_config.value>=32 and issuer_config.value or nil
 local Geometry=require('placement-geometry')
 local Jobs=require('robot-jobs')
+local PlayerRevival=require('player-revival')
 local TAG='fabric_playground_cut_v1'
 local function S()
  storage.vanilla_cut=storage.vanilla_cut or {next_op=0,next_place=0,ops={},places={},arms={},inputs={},latest={},sources={},objects={},trace={},sequence=0,namespace=tostring(math.random(1,2147483646))..':'..tostring(math.random(1,2147483646)),status='Native cut extension: experimental; native history experimental; unsupported actions unresolved.'}
@@ -23,7 +25,7 @@ local function copy_recipient(op,pc,actor,pl)
  return false
 end
 local function log(kind,data)
- local s=S();s.sequence=s.sequence+1;s.trace[#s.trace+1]={seq=s.sequence,tick=game.tick,kind=kind,data=data or {}};if #s.trace>8192 then table.remove(s.trace,1);s.dropped_trace=(s.dropped_trace or 0)+1 end
+ local s=S();s.sequence=s.sequence+1;Trace.push(s,'trace',{seq=s.sequence,tick=game.tick,kind=kind,data=data or {}},8192,'dropped_trace')
 end
 local function entity(e)
  return e and e.valid and {unit=e.unit_number,name=e.type=='entity-ghost' and e.ghost_name or e.name,ghost=e.type=='entity-ghost',surface=e.surface.index,position={x=e.position.x,y=e.position.y}} or nil
@@ -425,18 +427,18 @@ end
 -- operation labels at the actual observed native build input. Stale Fabric tags
 -- are not converted into permission; destination birth still needs full guards.
 function M.prepare_new_blueprint(p,bp,model)
- if bp and bp.object_name=='LuaRecord' and not bp.valid_for_write then return false end
+ local virtual=bp and bp.object_name=='LuaRecord'
  if not ISSUER or not bp or not model or not next(model.entities or{})or next(model.tiles or{})then return false end
- for _,be in pairs(model.entities)do local tags=be.tags or{};if tags[TAG]~=nil or tags.fabric_pg_entity_v1~=nil or tags.fabric_pg_history_v1~=nil then return false end end
+ for _,be in pairs(model.entities)do local tags=be.tags or{};if not virtual and (tags[TAG]~=nil or tags.fabric_pg_entity_v1~=nil or tags.fabric_pg_history_v1~=nil)then return false end end
  local st=S();st.next_op=st.next_op+1;local n=st.next_op
  local op={id=n,issuer=ISSUER,issuer_required=true,player=p.index,mode='copy',tick=game.tick,input_tick=game.tick,pieces={},introduced_by='observed native untagged template input',input_serial=st.next_input}
  st.ops[tostring(n)]=op
  for _,be in pairs(model.entities)do
   local idx=tostring(be.entity_number);local label='new-template:'..n..':'..idx
   local pc={op=n,index=be.entity_number,id=label,source_kind='new-template',source_unit=0,source_surface=p.surface.index,name=be.name,quality=be.quality or'normal',state='copy',selected_tick=game.tick}
-  op.pieces[idx]=pc;local tags=bp.get_blueprint_entity_tags(be.entity_number)or{};tags[TAG]={world=st.namespace,issuer=ISSUER,op=n,piece=be.entity_number,source=0,id=label};bp.set_blueprint_entity_tags(be.entity_number,tags)
+  op.pieces[idx]=pc;if not virtual then local tags=bp.get_blueprint_entity_tags(be.entity_number)or{};tags[TAG]={world=st.namespace,issuer=ISSUER,op=n,piece=be.entity_number,source=0,id=label};bp.set_blueprint_entity_tags(be.entity_number,tags)end
  end
- log('new-template-copy-operation',{op=n,player=p.index,input=st.next_input,pieces=#model.entities});return true
+ log('new-template-copy-operation',{op=n,player=p.index,input=st.next_input,pieces=#model.entities,virtual_record=virtual});return virtual and n or true
 end
 function M.init(api)
  A=api
@@ -450,7 +452,18 @@ function M.init(api)
   if c=='cut' or c=='copy'then
    s.arms[p.index]={kind=c,tick=game.tick}
   elseif c=='clear-cursor'then s.arms[p.index]=nil;log('cursor-cleared',{player=p.index,transfer_tokens_retained=true})
-  elseif c=='build'or c=='build-ghost'or c=='super-forced-build'then local cs=p.cursor_stack;local tool=cs and cs.valid_for_read and cs.name or nil;if not tool and p.cursor_record then tool='record:'..p.cursor_record.type end;s.cursor_epochs=s.cursor_epochs or {};s.next_input=(s.next_input or 0)+1;local bp=blueprint(p);local model,fingerprint=Geometry.capture(bp);if (tool=='blueprint'or tool=='blueprint-book'or tool=='record:blueprint'or tool=='record:blueprint-book')and M.prepare_new_blueprint(p,bp,model)then model,fingerprint=Geometry.capture(bp)end;local source_tags={};for _,be in pairs(model and model.entities or{})do local tag=be.tags and be.tags[TAG];if tag and tagpiece(tag)then source_tags[#source_tags+1]=tag end end;s.inputs[p.index]={serial=s.next_input,tick=game.tick,tool=tool,item_number=cs and cs.valid_for_read and cs.item_number or nil,kind=c,cursor={x=e.cursor_position.x,y=e.cursor_position.y},epoch=s.cursor_epochs[p.index]or 0,fingerprint=fingerprint,source_tags=source_tags};if tool=='cut-paste-tool'or tool=='copy-paste-tool'then local mode=tool=='cut-paste-tool'and'cut'or'copy';if not s.arms[p.index]or s.arms[p.index].kind~=mode then s.arms[p.index]={kind=mode,tick=game.tick,proof='observed native selection tool'}end end;log('build-tool',{player=p.index,tool=tool})
+  elseif c=='build'or c=='build-ghost'or c=='super-forced-build'then
+   local cs=p.cursor_stack;local tool=cs and cs.valid_for_read and cs.name or nil
+   if not tool and p.cursor_record then tool='record:'..p.cursor_record.type end
+   s.cursor_epochs=s.cursor_epochs or {};s.next_input=(s.next_input or 0)+1
+   local bp=blueprint(p);local model,fingerprint=Geometry.capture(bp);local prepared
+   if tool=='blueprint'or tool=='blueprint-book'or tool=='record:blueprint'or tool=='record:blueprint-book'then
+    prepared=M.prepare_new_blueprint(p,bp,model);if prepared then model,fingerprint=Geometry.capture(bp)end
+   end
+   local source_tags={};for _,be in pairs(model and model.entities or{})do local tag=be.tags and be.tags[TAG];if type(prepared)~='number' and tag and tagpiece(tag)then source_tags[#source_tags+1]=tag end end
+   s.inputs[p.index]={serial=s.next_input,tick=game.tick,tool=tool,item_number=cs and cs.valid_for_read and cs.item_number or nil,kind=c,cursor={x=e.cursor_position.x,y=e.cursor_position.y},epoch=s.cursor_epochs[p.index]or 0,fingerprint=fingerprint,source_tags=source_tags,virtual_op=type(prepared)=='number'and prepared or nil}
+   if tool=='cut-paste-tool'or tool=='copy-paste-tool'then local mode=tool=='cut-paste-tool'and'cut'or'copy';if not s.arms[p.index]or s.arms[p.index].kind~=mode then s.arms[p.index]={kind=mode,tick=game.tick,proof='observed native selection tool'}end end
+   log('build-tool',{player=p.index,tool=tool})
   end
  end)end
  script.on_event(defines.events.on_player_cursor_stack_changed,function(e)local s=S();s.cursor_epochs=s.cursor_epochs or {};s.cursor_epochs[e.player_index]=(s.cursor_epochs[e.player_index]or 0)+1 end)
@@ -495,6 +508,9 @@ function M.init(api)
      local old=s.latest[logical_id];if old and s.ops[tostring(old)]then for _,x in pairs(s.ops[tostring(old)].pieces)do if x.id==logical_id and not(ghost_proof and ghost_proof.kind=='owned-cut-ghost'and ghost_proof.op==old and tostring(x.index)==tostring(ghost_proof.piece))then invalidate(x,'new extraction of same logical piece')end end end
      local piece={op=n,index=tonumber(index),id=logical_id,source_kind=ghost_proof and ghost_proof.kind,ghost_proof=ghost_proof or nil,source_unit=src.unit_number,source_surface=src.surface.index,name=src.type=='entity-ghost'and src.ghost_name or src.name,quality=src.quality.name,state=arm.kind=='cut' and 'selected' or 'copy',pre_marked=src.to_be_deconstructed(),selected_tick=game.tick}
      op.pieces[index]=piece
+     if arm.kind=='cut'then for other_index,other in pairs(op.pieces)do if other_index~=index and other.id==logical_id then
+      other.ambiguous=true;piece.ambiguous=true;invalidate(other,'duplicate logical ID in one source selection');invalidate(piece,'duplicate logical ID in one source selection')
+     end end end
      if arm.kind=='cut'then s.latest[logical_id]=n;s.sources[tostring(src.unit_number)]={op=n,piece=index}end
      ref(src)
      local tags=bp.get_blueprint_entity_tags(tonumber(index))or {};if arm.kind=='copy'then tags.fabric_pg_entity_v1=nil;tags.fabric_pg_history_v1=nil end;tags[TAG]={world=s.namespace,issuer=ISSUER,op=n,piece=tonumber(index),source=src.unit_number,id=logical_id};bp.set_blueprint_entity_tags(tonumber(index),tags)
@@ -521,7 +537,7 @@ function M.init(api)
   if not piece then return end
   local r=entry(e.entity)
   if observes_source(piece,op)and piece.marked_tick and e.entity.to_be_deconstructed() and e.entity.force.name=='player' and e.robot.force==e.entity.force and r and r.id==piece.id then
-   piece.mined_tick=game.tick;log('source-robot-mined',{op=op.id,piece=piece.index,source=entity(e.entity),robot=e.robot.unit_number})
+   piece.mined_tick=game.tick;log('source-robot-mined',{op=op.id,piece=piece.index,source=entity(e.entity),robot=e.robot and e.robot.unit_number,player=e.player_index,actor=actor})
   else invalidate(piece,'removal not matching verified robot cut')end
  end)
  script.on_event(defines.events.on_object_destroyed,function(e)
@@ -588,6 +604,10 @@ function M.pre(e)
  frame.geometry=Geometry.project(model,e)
  if bp and frame.input_verified then for _,be in pairs(model.entities)do
   local tags=bp.get_blueprint_entity_tags(be.entity_number);local tag=tags and tags[TAG]
+  if input.virtual_op then
+   local op=s.ops[tostring(input.virtual_op)];local pc=op and op.pieces[tostring(be.entity_number)]
+   if pc then tag={world=s.namespace,issuer=op.issuer,op=op.id,piece=pc.index,source=0,id=pc.id};frame.virtual_tags=frame.virtual_tags or{};frame.virtual_tags[#frame.virtual_tags+1]=tag end
+  end
   if tag and tagpiece(tag)then local k=token_key(tag);frame.tokens[k]=(frame.tokens[k]or 0)+1;frame.expected[k]=frame.geometry.supported and frame.geometry.entities[tostring(be.entity_number)]or nil end
  end end
  s.next_frame=(s.next_frame or 0)+1;frame.id=s.next_frame
@@ -607,7 +627,17 @@ function M.built(e)
  M.migrate_legacy_merge_receipts()
  if not A.eligible(e.entity)then return false end
  local tags=e.entity.type=='entity-ghost' and e.entity.tags or e.tags
- local tag=tags and tags[TAG];if tag==nil then return false end
+ local tag=tags and tags[TAG]
+ local frame=S().prebuild and S().prebuild[e.player_index]
+ if frame and frame.tick==game.tick and frame.input_verified and frame.virtual_tags then
+  tag=nil -- library metadata never grants old move rights, even on a mismatched callback
+  local found={};local name=e.entity.type=='entity-ghost'and e.entity.ghost_name or e.entity.name
+  for _,v in ipairs(frame.virtual_tags)do local ex=frame.expected[token_key(v)]
+   if ex and frame.surface==e.entity.surface.index and ex.name==name and ex.quality==e.entity.quality.name and ex.position.x==e.entity.position.x and ex.position.y==e.entity.position.y then found[#found+1]=v end
+  end
+  if #found==1 then tag=found[1]end
+ end
+ if tag==nil then return false end
  if type(tag)~='table'then A.register(e.entity,'recreated-or-blueprint');if e.entity.type=='entity-ghost'then tags[TAG]=nil;e.entity.tags=tags end;log('malformed-cut-metadata',{unit=e.entity.unit_number,value_type=type(tag)});return true end
  if e.entity.type=='entity-ghost' and tag.placement then local clean={};for k,v in pairs(tag)do if k~='placement'then clean[k]=v end end;tags[TAG]=clean;e.entity.tags=tags;tag=clean end
  local op,piece=tagpiece(tag);A.register(e.entity,'recreated-or-blueprint')
@@ -618,7 +648,7 @@ function M.built(e)
  local input=S().inputs[e.player_index];-- Native input precedes the built callback by zero or one tick in measured 2.1.24.
  local frame=S().prebuild and S().prebuild[e.player_index]
  local expected=frame and frame.expected and frame.expected[token_key(tag)];local logical=e.entity.type=='entity-ghost'and e.entity.ghost_name or e.entity.name
- local native=frame and frame.tick==game.tick and frame.input_verified and not frame.input_ambiguity and not(S().ambiguous_input and S().ambiguous_input[e.player_index]==frame.input_serial) and frame.tokens[token_key(tag)]==1 and expected and expected.name==logical and expected.quality==e.entity.quality.name and expected.position.x==e.entity.position.x and expected.position.y==e.entity.position.y
+ local native=frame and frame.surface==e.entity.surface.index and frame.tick==game.tick and frame.input_verified and not frame.input_ambiguity and not(S().ambiguous_input and S().ambiguous_input[e.player_index]==frame.input_serial) and frame.tokens[token_key(tag)]==1 and expected and expected.name==logical and expected.quality==e.entity.quality.name and expected.position.x==e.entity.position.x and expected.position.y==e.entity.position.y
  if not native and frame and frame.tick==game.tick and frame.input_verified and frame.geometry and not frame.geometry.supported and op.mode=='cut'and piece.state=='available'and not copy_recipient(op,piece,e.player_index,{tick=game.tick})then piece.ambiguous=true;invalidate(piece,'native clipboard placement geometry unsupported: '..tostring(frame.geometry.reason))end
  if not native then log('placement-unverified',{reason='no matching position/mode/template prebuild receipt',unit=e.entity.unit_number});return true end
  local logical_name=e.entity.type=='entity-ghost'and e.entity.ghost_name or e.entity.name
@@ -652,6 +682,7 @@ function M.observe_merge(e)
  local bp=blueprint(game.get_player(e.player_index));if not bp then return end
  local name=en.type=='entity-ghost'and en.ghost_name or en.name
  for _,be in pairs(bp.get_blueprint_entities()or{})do local ts=bp.get_blueprint_entity_tags(be.entity_number);local tag=ts and ts[TAG];local op,pc=tagpiece(tag)
+  if frame.virtual_tags then for _,virtual in ipairs(frame.virtual_tags)do if virtual.piece==be.entity_number then tag=virtual;op,pc=tagpiece(tag);break end end end
   local expected=pc and frame.expected and frame.expected[token_key(tag)]
   local at_destination=expected and frame.surface==en.surface.index and expected.name==name and expected.quality==en.quality.name and expected.position.x==en.position.x and expected.position.y==en.position.y
   if pc and pc.name==name and pc.quality==en.quality.name and (at_destination or not(frame.geometry and frame.geometry.supported))then
@@ -692,17 +723,17 @@ function M.settings_pasted(e)
  end
  en.tags=tags
 end
-function M.robot_built(e,job)
+local function revived(e,job,matches,actor)
  M.migrate_legacy_merge_receipts()
  if not A.eligible(e.entity)then return false end
  local tag=e.tags and e.tags[TAG];if not tag then return false end
  A.register(e.entity,'robot-recreated');if type(tag)~='table'then log('malformed-robot-cut-metadata',{unit=e.entity.unit_number,value_type=type(tag)});return true end;local op,piece=tagpiece(tag);local pl=tag.placement and S().places[tostring(tag.placement)]
- log('robot-built',{entity=entity(e.entity),tag=tag,robot=e.robot.unit_number})
+ log('robot-built',{entity=entity(e.entity),tag=tag,robot=e.robot and e.robot.unit_number,player=e.player_index,actor=actor})
  if piece then revalidate_manual_source(op,piece)end
  if not piece or not pl or pl.op~=op.id or pl.piece~=piece.index or not pl.ghost_unit or pl.dest_unit then return true end
  -- Receipt is minted on this exact native-created ghost, then carried by engine revival.
- local expected=pl.expected;if not expected or expected.name~=e.entity.name or expected.quality~=e.entity.quality.name or expected.surface~=e.entity.surface.index or expected.position.x~=e.entity.position.x or expected.position.y~=e.entity.position.y then if Jobs.matches(job,pl.ghost_unit)then if not copy_recipient(op,piece,pl.player,pl)then piece.ambiguous=true;invalidate(piece,'exact owned ghost robot receipt changed prototype/quality without confirmed upgrade')end;pl.approved=false;pl.state='ambiguous';pl.lineage_ambiguous=true;unresolved_candidate(e.entity,piece,'exact ghost robot receipt: unconfirmed prototype/quality transition')end;log('revival-mismatch',{placement=pl.id,entity=entity(e.entity)});return true end
- local job_ok,job_reason=Jobs.matches(job,pl.ghost_unit);if not job_ok then log('revival-job-rejected',{placement=pl.id,reason=job_reason});return true end
+ local expected=pl.expected;if not expected or expected.name~=e.entity.name or expected.quality~=e.entity.quality.name or expected.surface~=e.entity.surface.index or expected.position.x~=e.entity.position.x or expected.position.y~=e.entity.position.y then if matches(job,pl.ghost_unit)then if not copy_recipient(op,piece,pl.player,pl)then piece.ambiguous=true;invalidate(piece,'exact owned ghost robot receipt changed prototype/quality without confirmed upgrade')end;pl.approved=false;pl.state='ambiguous';pl.lineage_ambiguous=true;unresolved_candidate(e.entity,piece,'exact ghost robot receipt: unconfirmed prototype/quality transition')end;log('revival-mismatch',{placement=pl.id,entity=entity(e.entity)});return true end
+ local job_ok,job_reason=matches(job,pl.ghost_unit);if not job_ok then log('revival-job-rejected',{placement=pl.id,reason=job_reason});return true end
  local ghost=get(pl.ghost_unit);if ghost then log('ghost-still-valid',{placement=pl.id});return true end
  pl.dest_unit=e.entity.unit_number;pl.built_tick=game.tick;ref(e.entity)
  if piece.ambiguous or pl.state=='ambiguous'then unresolved_candidate(e.entity,piece,'exact native ghost robot receipt; source identity unresolved')end
@@ -711,6 +742,8 @@ function M.robot_built(e,job)
  end
  return true
 end
+function M.robot_built(e,job)return revived(e,job,Jobs.matches,'robot')end
+function M.player_built(e,proof)return revived(e,proof,PlayerRevival.matches,'player')end
 function M.finalize_receipts()
  M.migrate_legacy_merge_receipts()
  local s=S();local counts={}

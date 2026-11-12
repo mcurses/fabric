@@ -1,0 +1,59 @@
+{
+  "kind": "actual engine isolated scripted surface, Factorio 2.1.24",
+  "limitations": [
+    "Single samples under concurrent local clients; no stable production throughput claim.",
+    "Does not prove arbitrarily large historical ledger scalability."
+  ],
+  "measurements_ms": {
+    "100": {
+      "ambiguous_diff": 3.105542,
+      "cached": 11.7125,
+      "forced": 15.970667,
+      "initial": 17.114083,
+      "unchanged_diff": 1.199375
+    },
+    "2000": {
+      "ambiguous_diff": 79.996125,
+      "cached": 234.881875,
+      "forced": 323.346875,
+      "initial": 365.573542,
+      "unchanged_diff": 26.285792
+    },
+    "500": {
+      "ambiguous_diff": 14.796625,
+      "cached": 58.801625,
+      "forced": 80.665084,
+      "initial": 85.57425,
+      "unchanged_diff": 6.236083
+    }
+  },
+  "response": "Disabled periodic full-surface debug snapshot; explicit refresh remains. These are snapshot costs, not per-tick identity costs.",
+  "source_sha256": {
+    "blueprint-area.lua": "cd90394d1ab1ecb81e7ce4620bfa8742fd96c2714f7296d18f869d02af71a8cd",
+    "bounded-trace.lua": "e87c89ad33612be5e8f964d99b06dd723eeefef6aca106f7b7d9aca551a258d8",
+    "campaign-tests.lua": "fc42d9f8266a6814bded6a320fc9c6b72646cee9c5350868551bd9b285ac20e6",
+    "control.lua": "fd980beb04d49a23a0c2e9a30013bd5c6c2a14dee86e387bed34a666881d61fb",
+    "coverage-probe.lua": "08f4e420ba69f321bd1ba0d84358e5e85da64521a68ed05a42e373d0758882fd",
+    "cut.lua": "5e5433693ad1d04441ccbb9c3d45f493ed0cdd81a1bee618d923c71cef30fb9c",
+    "data.lua": "8fc3ec7a277a409a913a73ce01081ac17ccc30b7b47044458f26da63b36f5010",
+    "death-ghost.lua": "a1ddb57ba5c06573fa244805fe2858a2b462b1e0d92f4be532f534e2656b1131",
+    "direct-placement.lua": "59a5e60d6b50f8acbd37bd8786549f1a3a2de4af687fc9425912ea30019ede53",
+    "eligibility.lua": "0a4cb188f25d9709866794d4247e24c57ed33fdf8ef8efe487ccd36d0170c7a8",
+    "engine-clone.lua": "2bb0210a0c0a6b659d0380318e409028374f2c5b80c3335218c468f1db6b0cf5",
+    "history.lua": "7aa70d16b0af1a63987cfbffc151fb6b794d5810d6d14ef62629c25c008e014b",
+    "info.json": "7b0552e70fe56c1bf28f7efe13b271aa2dff3572ba215bd345fa464b18a57791",
+    "loaded-build.lua": "cd92727f55c2caff7bb234d331071584ed389a40d817d5e0b81f8c47aeb4389b",
+    "mined-items.lua": "da6f7922131e1b21269d0a84787d86eb38b95b9dd7f3d1f86dea01ef9c73e81f",
+    "mod-settings.lua": "cc99d08ec0cb3c3fcc91742a9ba75039be87422e37ef3720dc7ac796988ea4c7",
+    "perf-tests.lua": "aaf7bdbed3648873722b2b478dcddd0dd4c4f24647feeb69bbfeaf5628b2f86a",
+    "placement-geometry.lua": "e6d37c4dc2cf2284296d0bc0e6224bb10652589cda3b1b01bbebc8b9dbdfacd7",
+    "player-revival.lua": "607fad39293d80e13e30f20b9ec3be54dca18db60f790866837d92be438babd3",
+    "range-tests.lua": "60dfedd339f5f55d35ca4dadf8c23ec270bced78fa88ae3735a92a22cb9379e6",
+    "replacement.lua": "5efc0a0e3b22e2acd73fd0d3a05bdbfd377c64ac2293760ebf8084e321449761",
+    "robot-jobs.lua": "f953e91c4b731d7fe237a5ec5e377157fb927c1f599b1f53b89de95ffcc12f17",
+    "runtime-owners.lua": "bd5bc0dfb9ce249bd649a792ec7b3e1fbacf11607a23273b18e1759b8985e8ec",
+    "runtime-registration.lua": "7b759120c38fbcd2268581fc926176324194c5f7a29fd1210c25916ced77ad6e",
+    "session-issuer.lua": "34e3635b03d4bec40d5e387191885f4f431ab5322c7e95450b497c2012f0c7bf",
+    "wires.lua": "e55daf3b9b947011c1c8af155caba0e21ce718a3f0bba5525504756b1ff5d2a5"
+  }
+}

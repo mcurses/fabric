@@ -119,6 +119,14 @@ try:
         print(json.dumps(results[-1]),flush=True)
         if failed: raise AssertionError('Engine suite failed: '+suite)
 
+    acceptance = pathlib.Path(__file__).with_name('engine-acceptance.lua').read_text()
+    # Remove whole-line Lua comments before flattening into one RCON command.
+    acceptance = ' '.join(line for line in acceptance.splitlines() if not line.lstrip().startswith('--'))
+    accepted = rcon('/sc __fabric-playground__ ' + acceptance)
+    if 'PASS 7 scoped acceptance checks' not in accepted: raise AssertionError(accepted)
+    results.append({'step': 'scoped-acceptance', 'pass': True, 'checks': 7})
+    print(json.dumps(results[-1]), flush=True)
+
     rcon('/sc local s=game.surfaces[1];s.create_entity{name="iron-chest",position={5,5},force="player",raise_built=true};remote.call("fabric-playground","commit",1)')
     dump('before-late-join',['server','identityA'])
     client('identityB');time.sleep(2);dump('late-join',['server','identityA','identityB'])

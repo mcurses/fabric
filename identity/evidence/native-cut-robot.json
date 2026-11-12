@@ -1,0 +1,445 @@
+{
+  "kind": "native cut and paste; actual robot mining and construction; scripted fixture setup and camera panning",
+  "limitations": [
+    "Intermediate source snapshot recorded here; final guards verified by module and engine suites separately.",
+    "One character-view player; not simultaneous native edits or remote view."
+  ],
+  "operation": {
+    "id": 1,
+    "input_tick": 20331,
+    "issuer": "a7eef10d6bbc4529be918f3705a4f7b4",
+    "issuer_required": true,
+    "mode": "cut",
+    "pieces": {
+      "1": {
+        "dest_unit": 175,
+        "history_action": 4,
+        "id": "F146",
+        "index": 1,
+        "marked_tick": 20340,
+        "mined_tick": 20542,
+        "name": "iron-chest",
+        "op": 1,
+        "placement": 1,
+        "pre_marked": false,
+        "quality": "normal",
+        "removed_tick": 20542,
+        "selected_tick": 20340,
+        "source_kind": false,
+        "source_removed": true,
+        "source_surface": 4,
+        "source_unit": 166,
+        "state": "transferred",
+        "transferred_tick": 21913
+      }
+    },
+    "player": 1,
+    "tick": 20340
+  },
+  "placement": {
+    "approved": true,
+    "built_tick": 21913,
+    "copy_merge_guard_version": 91,
+    "dest_unit": 175,
+    "expected": {
+      "name": "iron-chest",
+      "position": {
+        "x": 14.5,
+        "y": 4.5
+      },
+      "quality": "normal",
+      "surface": 4
+    },
+    "frame": 3,
+    "ghost_destroyed": true,
+    "ghost_destroyed_tick": 21913,
+    "ghost_unit": 173,
+    "history_action": 5,
+    "id": 1,
+    "input_serial": 6,
+    "lineage_ambiguous": false,
+    "merge_guard_version": 80,
+    "native_action_birth": {
+      "action": 5,
+      "event_tick": 21772,
+      "kind": "exact native stack built-action binding",
+      "player": 1,
+      "receipt_unit": 173,
+      "receipt_version": 96
+    },
+    "native_action_guard_version": 99,
+    "native_moving_pre": false,
+    "op": 1,
+    "piece": 1,
+    "player": 1,
+    "state": "transferred",
+    "tick": 21772,
+    "token": "1745983092:2067112971/1/1/166/F146@a7eef10d6bbc4529be918f3705a4f7b4"
+  },
+  "source_sha256": {
+    "blueprint-area.lua": "cd90394d1ab1ecb81e7ce4620bfa8742fd96c2714f7296d18f869d02af71a8cd",
+    "campaign-tests.lua": "fc42d9f8266a6814bded6a320fc9c6b72646cee9c5350868551bd9b285ac20e6",
+    "control.lua": "a2b2dc0b7eefce7fadc005a181d628087e237e80a873a8b911fb678a7fb15dab",
+    "coverage-probe.lua": "08f4e420ba69f321bd1ba0d84358e5e85da64521a68ed05a42e373d0758882fd",
+    "cut.lua": "d5bd71d25347b9521e350555f48c917e7e18174d5a33149112943b41a13d6599",
+    "data.lua": "8fc3ec7a277a409a913a73ce01081ac17ccc30b7b47044458f26da63b36f5010",
+    "death-ghost.lua": "9e5ecbda4037609dc164dce9850e352dbf673f18e1921b6c6119f7ee4a02cbe2",
+    "direct-placement.lua": "59a5e60d6b50f8acbd37bd8786549f1a3a2de4af687fc9425912ea30019ede53",
+    "eligibility.lua": "0a4cb188f25d9709866794d4247e24c57ed33fdf8ef8efe487ccd36d0170c7a8",
+    "engine-clone.lua": "2bb0210a0c0a6b659d0380318e409028374f2c5b80c3335218c468f1db6b0cf5",
+    "history.lua": "9a47f4efac5de4644190b93280560b638ea6ffa493ef1f315ba0427492885e7f",
+    "info.json": "7b0552e70fe56c1bf28f7efe13b271aa2dff3572ba215bd345fa464b18a57791",
+    "loaded-build.lua": "cd92727f55c2caff7bb234d331071584ed389a40d817d5e0b81f8c47aeb4389b",
+    "mined-items.lua": "da6f7922131e1b21269d0a84787d86eb38b95b9dd7f3d1f86dea01ef9c73e81f",
+    "mod-settings.lua": "cc99d08ec0cb3c3fcc91742a9ba75039be87422e37ef3720dc7ac796988ea4c7",
+    "perf-tests.lua": "aaf7bdbed3648873722b2b478dcddd0dd4c4f24647feeb69bbfeaf5628b2f86a",
+    "placement-geometry.lua": "e6d37c4dc2cf2284296d0bc0e6224bb10652589cda3b1b01bbebc8b9dbdfacd7",
+    "player-revival.lua": "607fad39293d80e13e30f20b9ec3be54dca18db60f790866837d92be438babd3",
+    "range-tests.lua": "60dfedd339f5f55d35ca4dadf8c23ec270bced78fa88ae3735a92a22cb9379e6",
+    "replacement.lua": "5efc0a0e3b22e2acd73fd0d3a05bdbfd377c64ac2293760ebf8084e321449761",
+    "robot-jobs.lua": "f953e91c4b731d7fe237a5ec5e377157fb927c1f599b1f53b89de95ffcc12f17",
+    "runtime-owners.lua": "bd5bc0dfb9ce249bd649a792ec7b3e1fbacf11607a23273b18e1759b8985e8ec",
+    "runtime-registration.lua": "7b759120c38fbcd2268581fc926176324194c5f7a29fd1210c25916ced77ad6e",
+    "session-issuer.lua": "34e3635b03d4bec40d5e387191885f4f431ab5322c7e95450b497c2012f0c7bf",
+    "wires.lua": "e55daf3b9b947011c1c8af155caba0e21ce718a3f0bba5525504756b1ff5d2a5"
+  },
+  "trace": [
+    {
+      "data": {
+        "cursor": {
+          "x": 19.96875,
+          "y": 4.4375
+        },
+        "display": {
+          "x": 2558,
+          "y": 1084
+        },
+        "in_gui": false,
+        "player": 1
+      },
+      "kind": "linked-cut",
+      "seq": 11,
+      "tick": 20331
+    },
+    {
+      "data": {
+        "cursor": {
+          "x": 19.96875,
+          "y": 4.4375
+        },
+        "display": {
+          "x": 2558,
+          "y": 1084
+        },
+        "in_gui": false,
+        "player": 1
+      },
+      "kind": "linked-build",
+      "seq": 12,
+      "tick": 20337
+    },
+    {
+      "data": {
+        "player": 1,
+        "tool": "cut-paste-tool"
+      },
+      "kind": "build-tool",
+      "seq": 13,
+      "tick": 20337
+    },
+    {
+      "data": {
+        "minimal_profile": true,
+        "source": "native mapping in audited minimal profile"
+      },
+      "kind": "extraction-mapping-source",
+      "seq": 14,
+      "tick": 20340
+    },
+    {
+      "data": {
+        "alt": true,
+        "mapping": {
+          "1": {
+            "name": "iron-chest",
+            "surface": 4,
+            "unit": 166
+          }
+        },
+        "observed": "cut",
+        "player": 1,
+        "selection_tool": "cut-paste-tool"
+      },
+      "kind": "native-selection",
+      "seq": 15,
+      "tick": 20340
+    },
+    {
+      "data": {
+        "id": "F146",
+        "mode": "cut",
+        "op": 1,
+        "other_tag_keys": {},
+        "piece": 1,
+        "source": {
+          "ghost": false,
+          "name": "iron-chest",
+          "position": {
+            "x": 19.5,
+            "y": 4.5
+          },
+          "surface": 4,
+          "unit": 166
+        }
+      },
+      "kind": "token-written",
+      "seq": 16,
+      "tick": 20340
+    },
+    {
+      "data": {
+        "op": 1,
+        "piece": 1,
+        "player": 1,
+        "unit": 166,
+        "verified": true
+      },
+      "kind": "source-marked",
+      "seq": 17,
+      "tick": 20340
+    },
+    {
+      "data": {
+        "action": 4,
+        "op": 1,
+        "piece": 1,
+        "unit": 166
+      },
+      "kind": "cut-history-bound",
+      "seq": 18,
+      "tick": 20340
+    },
+    {
+      "data": {
+        "op": 1,
+        "piece": 1,
+        "robot": 172,
+        "source": {
+          "ghost": false,
+          "name": "iron-chest",
+          "position": {
+            "x": 19.5,
+            "y": 4.5
+          },
+          "surface": 4,
+          "unit": 166
+        }
+      },
+      "kind": "source-robot-mined",
+      "seq": 19,
+      "tick": 20542
+    },
+    {
+      "data": {
+        "registration": 107,
+        "unit": 166
+      },
+      "kind": "object-destroyed",
+      "seq": 20,
+      "tick": 20542
+    },
+    {
+      "data": {
+        "cursor": {
+          "x": 14.96875,
+          "y": 4.4375
+        },
+        "display": {
+          "x": 2558,
+          "y": 1084
+        },
+        "in_gui": false,
+        "player": 1
+      },
+      "kind": "linked-build",
+      "seq": 21,
+      "tick": 21772
+    },
+    {
+      "data": {
+        "player": 1,
+        "tool": "blueprint"
+      },
+      "kind": "build-tool",
+      "seq": 22,
+      "tick": 21772
+    },
+    {
+      "data": {
+        "frame": {
+          "build_mode": 0,
+          "created_by_moving": false,
+          "direction": 0,
+          "flip_horizontal": false,
+          "flip_vertical": false,
+          "geometry_supported": true,
+          "id": 3,
+          "input_verified": true,
+          "position": {
+            "x": 14.96875,
+            "y": 4.4375
+          },
+          "template_matches": true,
+          "tick": 21772,
+          "token_count": 1,
+          "tokens": {
+            "1745983092:2067112971/1/1/166/F146@a7eef10d6bbc4529be918f3705a4f7b4": 1
+          }
+        },
+        "input": {
+          "cursor": {
+            "x": 14.96875,
+            "y": 4.4375
+          },
+          "epoch": 7,
+          "fingerprint_length": 467,
+          "kind": "build",
+          "serial": 6,
+          "tick": 21772,
+          "tool": "blueprint"
+        },
+        "player": 1
+      },
+      "kind": "prebuild-receipt",
+      "seq": 23,
+      "tick": 21772
+    },
+    {
+      "data": {
+        "entity": {
+          "ghost": true,
+          "name": "iron-chest",
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "surface": 4,
+          "unit": 173
+        },
+        "known_token": true,
+        "player": 1,
+        "tag": {
+          "id": "F146",
+          "issuer": "a7eef10d6bbc4529be918f3705a4f7b4",
+          "op": 1,
+          "piece": 1,
+          "source": 166,
+          "world": "1745983092:2067112971"
+        }
+      },
+      "kind": "tagged-built",
+      "seq": 24,
+      "tick": 21772
+    },
+    {
+      "data": {
+        "entity": {
+          "ghost": true,
+          "name": "iron-chest",
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "surface": 4,
+          "unit": 173
+        },
+        "id": 1,
+        "mode": "pending-receipt",
+        "op": 1,
+        "piece": 1
+      },
+      "kind": "placement",
+      "seq": 25,
+      "tick": 21772
+    },
+    {
+      "data": {
+        "op": 1,
+        "piece": 1,
+        "placement": 1,
+        "state": "reserved"
+      },
+      "kind": "receipt-approved",
+      "seq": 26,
+      "tick": 21773
+    },
+    {
+      "data": {
+        "action": 5,
+        "placement": 1,
+        "receipt_unit": 173
+      },
+      "kind": "clipboard-native-birth-bound",
+      "seq": 27,
+      "tick": 21773
+    },
+    {
+      "data": {
+        "actor": "robot",
+        "entity": {
+          "ghost": false,
+          "name": "iron-chest",
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "surface": 4,
+          "unit": 175
+        },
+        "robot": 174,
+        "tag": {
+          "id": "F146",
+          "issuer": "a7eef10d6bbc4529be918f3705a4f7b4",
+          "op": 1,
+          "piece": 1,
+          "placement": 1,
+          "source": 166,
+          "world": "1745983092:2067112971"
+        }
+      },
+      "kind": "robot-built",
+      "seq": 28,
+      "tick": 21913
+    },
+    {
+      "data": {
+        "registration": 112,
+        "unit": 173
+      },
+      "kind": "object-destroyed",
+      "seq": 29,
+      "tick": 21913
+    },
+    {
+      "data": {
+        "destination": {
+          "ghost": false,
+          "name": "iron-chest",
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "surface": 4,
+          "unit": 175
+        },
+        "id": "F146",
+        "op": 1,
+        "piece": 1,
+        "source": 166
+      },
+      "kind": "transferred",
+      "seq": 30,
+      "tick": 21913
+    }
+  ]
+}

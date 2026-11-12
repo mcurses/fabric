@@ -64,6 +64,7 @@ run('authoritative_action_survives_missing_surface_and_deep_redo',function(t,e)
  H.built{player_index=1,entity=restored,tags={fabric_pg_history_v1=mining_tag}}
  oldbuild[1].surface_index=1;e.undo={oldbuild};e.redo={{action('built-entity')}}
  H.applied('undo',{player_index=1,actions=mining_action});H.tick()
+ game.tick=105;H.tick()
  equal(t,'manual removal undo restores A','F1',e.rows['3'].id)
  equal(t,'authoritative original tag retained after surface returns',original_id,history_tag(oldbuild[1]).action)
  -- Undo original build, then redo that action.
@@ -72,6 +73,7 @@ run('authoritative_action_survives_missing_surface_and_deep_redo',function(t,e)
  game.tick=108;local redo=e.redo[1];H.linked('redo',{player_index=1});local tag=history_tag(redo[1])
  local final=e.entity(4);e.live={final};H.built{player_index=1,entity=final,tags={fabric_pg_history_v1=tag}}
  e.undo={{action('built-entity')}};e.redo={};H.applied('redo',{player_index=1,actions=redo})
+ game.tick=109;H.tick()
  equal(t,'deep redo of original build restores original A','F1',e.rows['4'].id)
 end)
 run('synthetic_preserved_old_surface_rebuild',function(t,e)
@@ -254,6 +256,49 @@ if Mined then
   equal(t,'different known item number never transfers old ID',false,old_assigned(e.rows['10']))
  end)
 end
+run('competing_pending_restores_never_first_wins',function(t,e)
+ local a=e.entity(11);local b=e.entity(12);e.live={a,b};e.rows['11']={id='U11'};e.rows['12']={id='U12'}
+ storage.fabric_history_refs[11]=a;storage.fabric_history_refs[12]=b
+ local st=H.snapshot();st.actions['1']={id=1,logical_id='F1'};st.actions['2']={id=2,logical_id='F1'}
+ st.restores['1']={id=1,action=1,logical_id='F1',state='pending',unit=11,tick=99,player=1}
+ st.restores['2']={id=2,action=2,logical_id='F1',state='pending',unit=12,tick=99,player=2}
+ H.tick()
+ equal(t,'first claimant remains unresolved','U11',e.rows['11'].id)
+ equal(t,'second claimant remains unresolved','U12',e.rows['12'].id)
+ equal(t,'first receipt invalidated','invalid',st.restores['1'].state)
+ equal(t,'second receipt invalidated','invalid',st.restores['2'].state)
+end)
+run('restore_cannot_wait_for_unrelated_new_owner_to_disappear',function(t,e)
+ local source=e.entity(1,'F1');local moved=e.entity(2,'F1');local dest=e.entity(3)
+ source.valid=false;e.live={moved,dest};e.rows['3']={id='U3'}
+ storage.fabric_history_refs[3]=dest
+ local st=H.snapshot();st.actions['1']={id=1,logical_id='F1',current_unit=1}
+ st.restores['1']={id=1,action=1,logical_id='F1',state='pending',unit=3,source_unit=1,tick=99,player=1}
+ H.tick();moved.valid=false;game.tick=101;H.tick()
+ equal(t,'old restore never steals identity after new owner disappears','U3',e.rows['3'].id)
+ equal(t,'old restore retired','invalid',st.restores['1'].state)
+end)
+run('restore_waits_for_complete_callback_tick',function(t,e)
+ local dest=e.entity(3);e.live={dest};e.rows['3']={id='U3'};storage.fabric_history_refs[3]=dest
+ local st=H.snapshot();st.actions['1']={id=1,logical_id='F1',current_unit=1}
+ st.restores['1']={id=1,action=1,logical_id='F1',state='pending',unit=3,tick=100}
+ H.tick();equal(t,'no same-tick first claim','U3',e.rows['3'].id)
+ game.tick=101;H.tick();equal(t,'unique complete batch restores','F1',e.rows['3'].id)
+end)
+run('proved_continuation_blocks_stale_restore_even_after_owner_gone',function(t,e)
+ H.continued(2,'F1','verified native cut transfer')
+ local dest=e.entity(3);e.live={dest};e.rows['3']={id='U3'};storage.fabric_history_refs[3]=dest
+ local st=H.snapshot();st.actions['1']={id=1,logical_id='F1',current_unit=1,event_tick=90}
+ st.restores['1']={id=1,action=1,logical_id='F1',state='pending',unit=3,tick=101}
+ game.tick=102;H.tick();equal(t,'absence is not release proof','U3',e.rows['3'].id)
+end)
+run('old_ghost_restore_waits_for_new_body_batch',function(t,e)
+ local dest=e.entity(3);e.live={dest};e.rows['3']={id='U3'};storage.fabric_history_refs[3]=dest
+ local st=H.snapshot();st.actions['1']={id=1,logical_id='F1',current_unit=1}
+ st.restores['1']={id=1,action=1,logical_id='F1',state='pending',unit=3,tick=10,built_tick=100}
+ H.tick();equal(t,'old ghost cannot claim during current body batch','U3',e.rows['3'].id)
+ game.tick=101;H.tick();equal(t,'completed body batch restores','F1',e.rows['3'].id)
+end)
 -- Minimal JSON serializer for this plain summary only.
 local function quote(s)return '"'..s:gsub('[%z\1-\31\\"]',function(c)local maps={['"']='\\"',['\\']='\\\\',['\n']='\\n',['\r']='\\r',['\t']='\\t'};return maps[c]or string.format('\\u%04x',string.byte(c))end)..'"'end
 local function json(v)

@@ -19,59 +19,66 @@
       "checks": 185
     },
     {
+      "step": "scoped-acceptance",
+      "pass": true,
+      "checks": 7
+    },
+    {
       "step": "before-late-join",
       "pass": true,
       "hashes": {
-        "server": "125e1371a2cdeb3f384bc2199a72cbd6fbbb16ff2dac9327354e8ecf4acc4ecf",
-        "identityA": "125e1371a2cdeb3f384bc2199a72cbd6fbbb16ff2dac9327354e8ecf4acc4ecf"
+        "server": "4d97901a71a07bfce9c9ddfba5a0071f5592350cf3e8553afd894266cf65aaba",
+        "identityA": "4d97901a71a07bfce9c9ddfba5a0071f5592350cf3e8553afd894266cf65aaba"
       }
     },
     {
       "step": "late-join",
       "pass": true,
       "hashes": {
-        "server": "bf975e34ddb85e527c003bd0ff8b4a05ebd8b4ddd86692e0b6a909fc7b15d764",
-        "identityA": "bf975e34ddb85e527c003bd0ff8b4a05ebd8b4ddd86692e0b6a909fc7b15d764",
-        "identityB": "bf975e34ddb85e527c003bd0ff8b4a05ebd8b4ddd86692e0b6a909fc7b15d764"
+        "server": "3f0cfb783335dbb4b3038ccab623470728c2975723297a920a13e4aabed7e415",
+        "identityA": "3f0cfb783335dbb4b3038ccab623470728c2975723297a920a13e4aabed7e415",
+        "identityB": "3f0cfb783335dbb4b3038ccab623470728c2975723297a920a13e4aabed7e415"
       }
     },
     {
       "step": "reconnect",
       "pass": true,
       "hashes": {
-        "server": "db228e08d67fd80e4d87b280e48dc953ed13f92e6ca28171ad40c632739d2286",
-        "identityA": "db228e08d67fd80e4d87b280e48dc953ed13f92e6ca28171ad40c632739d2286",
-        "identityB": "db228e08d67fd80e4d87b280e48dc953ed13f92e6ca28171ad40c632739d2286"
+        "server": "e0e8767a3c122ce631b60f3f542dad49523e6a806d2b39f6c0bb2fa87695a18b",
+        "identityA": "e0e8767a3c122ce631b60f3f542dad49523e6a806d2b39f6c0bb2fa87695a18b",
+        "identityB": "e0e8767a3c122ce631b60f3f542dad49523e6a806d2b39f6c0bb2fa87695a18b"
       }
     },
     {
       "step": "save-reload",
       "pass": true,
       "hashes": {
-        "server": "37504b90146c9a6d8c9029cf077ca885366007b8c4bf850dec5e3db76bf84a38",
-        "identityA": "37504b90146c9a6d8c9029cf077ca885366007b8c4bf850dec5e3db76bf84a38",
-        "identityB": "37504b90146c9a6d8c9029cf077ca885366007b8c4bf850dec5e3db76bf84a38"
+        "server": "2f0a54e534a2616fbb5e3a29806fbb0d5feeba27534844dcb701f2d64c333367",
+        "identityA": "2f0a54e534a2616fbb5e3a29806fbb0d5feeba27534844dcb701f2d64c333367",
+        "identityB": "2f0a54e534a2616fbb5e3a29806fbb0d5feeba27534844dcb701f2d64c333367"
       }
     }
   ],
   "source_sha256": {
     "blueprint-area.lua": "cd90394d1ab1ecb81e7ce4620bfa8742fd96c2714f7296d18f869d02af71a8cd",
+    "bounded-trace.lua": "e87c89ad33612be5e8f964d99b06dd723eeefef6aca106f7b7d9aca551a258d8",
     "campaign-tests.lua": "fc42d9f8266a6814bded6a320fc9c6b72646cee9c5350868551bd9b285ac20e6",
-    "control.lua": "2a3519296dbf20c00b28251de441a5283ffd5d8050116d07f7ea42e0ca9425a4",
+    "control.lua": "484702025b19ace7cd8184a07bf91a2a4621dd95c7feb066d8d95dfcbcf445d8",
     "coverage-probe.lua": "08f4e420ba69f321bd1ba0d84358e5e85da64521a68ed05a42e373d0758882fd",
-    "cut.lua": "ae56f7f538e839f129c47b634dcb4c9cb18372addde684ad37d0ca096c640d72",
+    "cut.lua": "2b307c3c6111a05d9e5737137654b799c3f05783f81c593c808cee32d7bdecb0",
     "data.lua": "8fc3ec7a277a409a913a73ce01081ac17ccc30b7b47044458f26da63b36f5010",
-    "death-ghost.lua": "9e5ecbda4037609dc164dce9850e352dbf673f18e1921b6c6119f7ee4a02cbe2",
+    "death-ghost.lua": "a1ddb57ba5c06573fa244805fe2858a2b462b1e0d92f4be532f534e2656b1131",
     "direct-placement.lua": "59a5e60d6b50f8acbd37bd8786549f1a3a2de4af687fc9425912ea30019ede53",
     "eligibility.lua": "0a4cb188f25d9709866794d4247e24c57ed33fdf8ef8efe487ccd36d0170c7a8",
     "engine-clone.lua": "2bb0210a0c0a6b659d0380318e409028374f2c5b80c3335218c468f1db6b0cf5",
-    "history.lua": "4767932497d0291ae0d552447c1b6c76b6b3a6812e12c5d9c1597581bec93495",
+    "history.lua": "3744f44482115a9f55fb86dfd5ed0fd305770a77d23a1f717601eccfb11c328d",
     "info.json": "7b0552e70fe56c1bf28f7efe13b271aa2dff3572ba215bd345fa464b18a57791",
     "loaded-build.lua": "cd92727f55c2caff7bb234d331071584ed389a40d817d5e0b81f8c47aeb4389b",
     "mined-items.lua": "da6f7922131e1b21269d0a84787d86eb38b95b9dd7f3d1f86dea01ef9c73e81f",
     "mod-settings.lua": "cc99d08ec0cb3c3fcc91742a9ba75039be87422e37ef3720dc7ac796988ea4c7",
     "perf-tests.lua": "aaf7bdbed3648873722b2b478dcddd0dd4c4f24647feeb69bbfeaf5628b2f86a",
     "placement-geometry.lua": "e6d37c4dc2cf2284296d0bc0e6224bb10652589cda3b1b01bbebc8b9dbdfacd7",
+    "player-revival.lua": "607fad39293d80e13e30f20b9ec3be54dca18db60f790866837d92be438babd3",
     "range-tests.lua": "60dfedd339f5f55d35ca4dadf8c23ec270bced78fa88ae3735a92a22cb9379e6",
     "replacement.lua": "5efc0a0e3b22e2acd73fd0d3a05bdbfd377c64ac2293760ebf8084e321449761",
     "robot-jobs.lua": "f953e91c4b731d7fe237a5ec5e377157fb927c1f599b1f53b89de95ffcc12f17",
@@ -79,5 +86,8 @@
     "runtime-registration.lua": "7b759120c38fbcd2268581fc926176324194c5f7a29fd1210c25916ced77ad6e",
     "session-issuer.lua": "34e3635b03d4bec40d5e387191885f4f431ab5322c7e95450b497c2012f0c7bf",
     "wires.lua": "e55daf3b9b947011c1c8af155caba0e21ce718a3f0bba5525504756b1ff5d2a5"
-  }
+  },
+  "extra_mod_sha256": {},
+  "engine_version": "Version: 2.1.24 (build 87808, mac-x64, full)\nVersion: 64\nMap input version: 1.0.0-0\nMap output version: 2.1.24-1",
+  "source_unchanged": true
 }

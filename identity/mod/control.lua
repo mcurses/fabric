@@ -54,10 +54,11 @@ local Cut=require('cut')
 local History=require('history')
 Death=require('death-ghost')
 local Direct=require('direct-placement')
+local PlayerRevival=require('player-revival')
 local MinedItems=require('mined-items');MinedItems.init{scope=scope,register=register,eligible=eligible,live_ids=live_ids,input=Cut.input,direct_ready=Direct.ready,direct_pending_birth=Direct.pending_birth,direct_fresh_birth=Direct.fresh_birth,on_transfer=function(source,en,id)Cut.invalidate_id(id,'unique mined item receipt consumed');History.claimed(en.unit_number,id)end}
 local Replace=require('replacement');Replace.init{owner=RuntimeOwners.find,row=runtime_row,scope=scope,register=register,eligible=eligible,input=Cut.input,epoch=Cut.cursor_epoch,upgraded=History.upgraded,continued=function(unit,id,why)History.continued(unit,id,why);local en=storage.fabric_runtime_refs and storage.fabric_runtime_refs[tostring(unit)];if en and en.valid then MinedItems.engine_continued(id,en)end end}
 History.init{source_ready=Cut.history_source_ready,owner=RuntimeOwners.find,row=runtime_row,scope=scope,register=register,eligible=eligible,world=function()return Cut.snapshot().namespace end,on_bound=function(h)Cut.history_bound(h)end,on_birth_scan=Cut.native_birth_scan_complete,on_redeconstruct=function(h,en,kind)Cut.history_redeconstructed(h,en,kind)end,on_ghost_recreated=function(h,en,kind)return Cut.history_recreated(h,en,kind)end,on_restore_claimed=function(id,unit,action,en)MinedItems.history_claimed(id,unit,action,en);Death.continued(unit,id,"proven native history restoration")end,on_continued=Death.continued,on_restore=function(id,en)Cut.invalidate_id(id,'native history restored this ID');return Death.history_reserved(id,en)end}
-Cut.init{owner=RuntimeOwners.find,row=runtime_row,scope=scope,register=register,eligible=eligible,alloc=alloc,state=state,ghost_source=function(en)return Death.ghost_source(en)or History.accepted_ghost_source(en)end,delegate_accepted_ghost=History.delegate_accepted_ghost,delegate_ghost=function(en,proof,op)return Death.delegate_ghost(en,proof,op)end,ghost_removed_history=History.proven_ghost_removed,ghost_upgrade_frame=History.upgrade,ghost_upgrade_claim=History.ghost_upgraded_claim,history_input=History.interrupted,history_continued=function(unit,id,why)History.continued(unit,id,why);local en=storage.fabric_runtime_refs and storage.fabric_runtime_refs[tostring(unit)];if en and en.valid then MinedItems.engine_continued(id,en)end end,history_reject_birth=History.reject_birth,history_tick=function()Direct.tick();MinedItems.tick();History.tick();Cut.retire_unverified_legacy_births();Death.tick()end,history_marked=History.marked,history_destroyed=History.destroyed,history_cancel=function(unit,why)History.invalidate_unit(unit,why);Death.invalidate_unit(unit,why)end}
+Cut.init{owner=RuntimeOwners.find,row=runtime_row,scope=scope,register=register,eligible=eligible,alloc=alloc,state=state,ghost_source=function(en)return Death.ghost_source(en)or History.accepted_ghost_source(en)end,delegate_accepted_ghost=History.delegate_accepted_ghost,delegate_ghost=function(en,proof,op)return Death.delegate_ghost(en,proof,op)end,ghost_removed_history=History.proven_ghost_removed,ghost_upgrade_frame=History.upgrade,ghost_upgrade_claim=History.ghost_upgraded_claim,history_input=History.interrupted,history_continued=function(unit,id,why)History.continued(unit,id,why);local en=storage.fabric_runtime_refs and storage.fabric_runtime_refs[tostring(unit)];if en and en.valid then MinedItems.engine_continued(id,en)end end,history_reject_birth=History.reject_birth,history_tick=function()PlayerRevival.tick();Direct.tick();MinedItems.tick();History.tick();Cut.retire_unverified_legacy_births();Death.tick()end,history_marked=History.marked,history_destroyed=History.destroyed,history_cancel=function(unit,why)History.invalidate_unit(unit,why);Death.invalidate_unit(unit,why)end}
 Death.init{row=runtime_row,reference=function(unit)return storage.fabric_runtime_refs and storage.fabric_runtime_refs[tostring(unit)]end,eligible=eligible,register=Registration.register,owner=RuntimeOwners.find,history_conflicts=History.pending_conflict,history_inflight=History.inflight_restore,history_ambiguous=History.ambiguous,invalidate_cut=Cut.invalidate_id,on_claim=function(id,en)Cut.invalidate_id(id,'engine-contained death revival');History.continued(en.unit_number,id,'engine-contained death revival');MinedItems.engine_continued(id,en)end,on_manual_alias=function(unit)Cut.invalidate_unit(unit,'manual accepted engine ghost');History.invalidate_unit(unit,'manual accepted engine ghost')end}
 local function json_canonical(x)
  if type(x)~='table' then return helpers.table_to_json({value=x}) end
@@ -144,13 +145,31 @@ local function commit(surface)
  s.revision=s.revision+1;s.baseline=live;s.last={title='Committed revision '..s.revision..' at tick '..game.tick,lines=lines(d),diff=d};return d
 end
 -- Explicit human acceptance resets uncertain lineage; it never proves a move.
-local function accept_unresolved(surface,player_index)
+local function pending_identity(unit)
+ for _,pl in pairs(Cut.snapshot().places)do
+  if (pl.ghost_unit==unit or pl.dest_unit==unit)and(pl.state=='pending-receipt'or pl.state=='reserved'or pl.state=='delegated'or(pl.state=='copy'and not pl.dest_unit))then return 'clipboard construction pending' end
+ end
+ for _,r in pairs(History.snapshot().restores)do if r.state=='pending'and(r.ghost_unit==unit or r.unit==unit)then return 'native history restoration pending'end end
+ for _,r in pairs(Death.snapshot().records)do if not r.finished and(r.ghost_unit==unit or r.source_unit==unit)then return 'engine death revival pending'end end
+end
+-- Optional exact runtime selection. Never reset another unfinished operation.
+local function accept_unresolved(surface,player_index,selected_units)
  local s=initialize(surface);local before=snapshot(surface,true);local preview=diff(s,before)
  if not preview.blocked then return commit(surface) end
  if preview.readout_unverified then s.last={title='Preview — historical mod settings were not captured. Baseline unchanged; no baseline-reset policy selected.',lines=lines(preview),diff=preview};return preview end
  for _,r in pairs(before)do if r.settings_unverified or r.domain_unresolved then s.last={title='Preview — current engine state cannot verify settings/domain. Baseline unchanged.',lines=lines(preview),diff=preview};return preview end end
- local accepted={};local keys={}
- for id,r in pairs(before)do if r.unresolved then keys[#keys+1]=id end end
+ local selected
+ if selected_units~=nil then
+  assert(type(selected_units)=='table','selected_units must be an array of runtime unit numbers')
+  selected={};for _,unit in pairs(selected_units)do assert(type(unit)=='number','invalid selected runtime unit');selected[unit]=true end
+  for unit in pairs(selected)do local found=false;for _,r in pairs(before)do if r.unit==unit then found=true end end;assert(found,'selected unit is no longer in this surface snapshot')end
+ end
+ local accepted,protected,keys={},{},{}
+ for id,r in pairs(before)do if r.unresolved and(not selected or selected[r.unit])then
+  local pending=pending_identity(r.unit)
+  if pending then protected[#protected+1]={unit=r.unit,id=id,reason=pending}else keys[#keys+1]=id end
+ end end
+ table.sort(protected,function(a,b)return a.unit<b.unit end)
  table.sort(keys)
  for _,id in ipairs(keys)do
   local r=before[id];Cut.invalidate_unit(r.unit,'manual acceptance as fresh ID');History.invalidate_unit(r.unit,'manual acceptance as fresh ID');Death.invalidate_unit(r.unit,'manual acceptance as fresh ID');local entry=s.units[tostring(r.unit)];local newid=alloc('F')
@@ -159,13 +178,13 @@ local function accept_unresolved(surface,player_index)
   if r.ghost then for _,en in pairs(surface.find_entities_filtered{type='entity-ghost'})do if en.unit_number==r.unit then Death.accept_ghost(en,newid);History.accept_ghost(en,newid);break end end end
  end
  local live=snapshot(surface,true);local d=diff(s,live)
- assert(not d.blocked,'Acceptance left unresolved entries')
- s.revision=s.revision+1;s.baseline=live
+ if not d.blocked and #accepted>0 then s.revision=s.revision+1;s.baseline=live end
+ d.accepted=accepted;d.protected=protected
  s.acceptance_history=s.acceptance_history or {}
- s.acceptance_history[#s.acceptance_history+1]={tick=game.tick,player_index=player_index,revision=s.revision,unresolved_preview=preview,accepted=accepted,diff=d}
+ s.acceptance_history[#s.acceptance_history+1]={tick=game.tick,player_index=player_index,revision=s.revision,unresolved_preview=preview,accepted=accepted,protected=protected,selected_units=selected_units,diff=d}
  local text=lines(d)
- table.insert(text,1,'Manual acceptance: unresolved pieces received NEW IDs; missing old pieces are removed. No move identity proven.')
- s.last={title='Accepted revision '..s.revision..' — unresolved treated as new',lines=text,diff=d}
+ table.insert(text,1,d.blocked and 'Selected pieces accepted as NEW; unresolved operations remain. Baseline retained.'or'Manual acceptance: unresolved pieces received NEW IDs; missing old pieces are removed. No move identity proven.')
+ s.last={title=d.blocked and 'Partial acceptance — baseline retained' or 'Accepted revision '..s.revision..' — unresolved treated as new',lines=text,diff=d}
  return d
 end
 local function label(parent,text)
@@ -192,7 +211,7 @@ local function render(p)
  local readout_blocked=d.readout_unverified or false;for _,r in pairs(live)do if r.settings_unverified or r.domain_unresolved then readout_blocked=true end end
  local flow=f.add{type='flow'};local b=flow.add{type='button',name='fabric_pg_commit',caption=d.blocked and 'Commit blocked' or 'Commit'};b.enabled=not d.blocked
  flow.add{type='button',name='fabric_pg_refresh',caption='Refresh / preview'}
- if d.blocked then local accept=f.add{type='button',name='fabric_pg_accept',caption='Accept unresolved as new'};accept.enabled=not readout_blocked;accept.tooltip=readout_blocked and 'Current or historical settings/domain coverage is unavailable. Assigning a new ID does not recover missing settings.'or'Accept this entire diff. Unresolved pieces get new IDs; missing old pieces count as removed. This does not preserve move identity.' end
+ if d.blocked then local accept=f.add{type='button',name='fabric_pg_accept',caption='Accept idle unresolved as new'};accept.enabled=not readout_blocked;accept.tooltip=readout_blocked and 'Current or historical settings/domain coverage is unavailable. Assigning a new ID does not recover missing settings.'or'Accept unresolved pieces without pending construction as new IDs. Pending cut/history/death operations remain protected; the baseline stays unchanged until all unresolved pieces are resolved.' end
  label(f,readout_blocked and 'Current/historical settings or wire coverage unavailable. Baseline retained; assigning new IDs cannot recover missing settings.'or d.blocked and 'Unresolved candidates below. Commit is blocked; you may explicitly accept them as new pieces.' or 'Direct placements get provisional new IDs. Commit accepts only unambiguous changes.')
  local ids={} for id in pairs(live)do ids[#ids+1]=id end;table.sort(ids,function(a,b)return tonumber(a:sub(2))<tonumber(b:sub(2))end)
  local page=state().pages[p.index] or 1;local total=math.max(1,math.ceil(#ids/8));page=math.min(page,total);state().pages[p.index]=page
@@ -212,20 +231,23 @@ script.on_init(function()for _,p in pairs(game.players)do initialize(p.surface)e
 script.on_configuration_changed(function()state().rendered={};for _,p in pairs(game.players)do initialize(p.surface);render(p)end end)
 script.on_event(defines.events.on_player_joined_game,function(e)render(game.get_player(e.player_index))end)
 script.on_event(defines.events.on_player_changed_surface,function(e)render(game.get_player(e.player_index))end)
-script.on_nth_tick(60,function()for _,p in pairs(game.connected_players)do render(p)end end)
+-- Full-surface snapshots cost hundreds of milliseconds on large test surfaces.
+-- Diagnostics refresh explicitly; identity event processing remains continuous.
 local function history(p)return p and state().history and state().history[p] == game.tick end
 for _,name in ipairs({'undo','redo'})do
  script.on_event('fabric-pg-'..name,function(e)state().history=state().history or {};state().history[e.player_index]=game.tick;History.linked(name,e) end)
  -- The independent probe has linked controls. Applied events mark construction this tick too.
  script.on_event(defines.events['on_'..name..'_applied'],function(e)state().history=state().history or {};state().history[e.player_index]=game.tick;History.applied(name,e) end)
 end
+PlayerRevival.init{input=Cut.input,epoch=Cut.cursor_epoch,register=register,revive=function(e,proof)if not History.player_built(e,proof)then Cut.player_built(e,proof)end end}
 Direct.init{eligible=eligible,row=runtime_row,register=register,alloc=alloc,input=Cut.input,epoch=Cut.cursor_epoch,mined=MinedItems.built}
 script.on_event(defines.events.on_pre_build,function(e)
- Cut.pre(e);Replace.pre(e);MinedItems.pre(e);Direct.pre(e)
+ Cut.pre(e);Replace.pre(e);MinedItems.pre(e);Direct.pre(e);PlayerRevival.pre(e)
 end)
 script.on_event(defines.events.on_built_entity,function(e)
  if History.built(e)then return end
  if Replace.built(e)then return end
+ if PlayerRevival.built(e)then return end
  if Cut.built(e)then return end
  if not history(e.player_index)and Direct.built(e)then return end
  register(e.entity,'recreated-or-blueprint')
@@ -248,7 +270,7 @@ script.on_event(defines.events.on_gui_click,function(e)
 end)
 remote.add_interface('fabric-playground',{
  loaded_build=function()return LoadedBuild end,
- runtime_context=function()local mods={};for n,v in pairs(script.active_mods)do mods[n]=v end;return {active_mods=mods,mod_name=script.mod_name,current_cut_issuer=Cut.issuer(),issuer_contract='Controlled server launches refresh issuer for NEW operations; manual loads bypassing launcher are not fork-protected.'}end,
+ runtime_context=function()local mods={};for n,v in pairs(script.active_mods)do mods[n]=v end;return {active_mods=mods,mod_name=script.mod_name,current_cut_issuer=Cut.issuer(),issuer_contract='Static package issuer shared by peers; save forks are not distinguished. No general fork portability claim.'}end,
  robot_jobs=function()return RobotJobs.snapshot()end,
  mined_items=function()return MinedItems.snapshot()end,
  cut_snapshot=Cut.snapshot,
@@ -259,7 +281,7 @@ remote.add_interface('fabric-playground',{
  fixture_register=function(unit,reason) local sf=game.surfaces['fabric-playground-scratch'];assert(sf,'scratch only');for _,e in pairs(sf.find_entities())do if e.unit_number==unit then register(e,reason);return end end end,
  snapshot=function(surface)local sf=game.surfaces[surface or 1];local s=initialize(sf);return {state=s,live=snapshot(sf,true),preview=diff(s,snapshot(sf,true))}end,
  commit=function(surface)return commit(game.surfaces[surface or 1])end,
- accept_unresolved=function(surface,player_index)return accept_unresolved(game.surfaces[surface or 1],player_index)end,
+ accept_unresolved=function(surface,player_index,selected_units)return accept_unresolved(game.surfaces[surface or 1],player_index,selected_units)end,
  refresh=function()for _,p in pairs(game.connected_players)do render(p)end end
 })
 

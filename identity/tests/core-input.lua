@@ -14,7 +14,8 @@ C.snapshot().inputs[1]={tool='blueprint',tick=1}
 handlers.on_player_setup_blueprint{player_index=1,item='blueprint',mapping={valid=true,get=function()return{}end}}
 assert(C.snapshot().next_op==0,'stale blueprint input minted a false copy operation')
 local readonly={object_name='LuaRecord',valid_for_write=false,get_blueprint_entity_tags=function()return{}end,set_blueprint_entity_tags=function()error('read-only write attempted')end}
-assert(C.prepare_new_blueprint(p,readonly,{entities={{entity_number=1,name='iron-chest'}}})==false,'library record must fail closed without writes')
+local virtual=C.prepare_new_blueprint(p,readonly,{entities={{entity_number=1,name='iron-chest'}}})
+assert(type(virtual)=='number'and C.snapshot().ops[tostring(virtual)].mode=='copy','library must mint copy-only ledger without writes')
 local R=require('replacement');local rows={['1']={id='F1',reason='direct'}}
 local old={valid=true,unit_number=1,name='transport-belt',type='transport-belt',position={x=.5,y=.5},prototype={fast_replaceable_group='belt'}}
 local sf={index=1,find_entities_filtered=function()return{old}end};old.surface=sf;p.surface=sf

@@ -1,0 +1,557 @@
+{
+  "kind": "native undo, actual robot removal, native redo, native manual ghost construction; scripted robot/item fixture setup",
+  "row": {
+    "id": "F143",
+    "unit": 222,
+    "name": "iron-chest",
+    "ghost": false,
+    "reason": "history-restored",
+    "operation": "history 4",
+    "domain_unresolved": false,
+    "unresolved": false,
+    "position": {
+      "x": 14.5,
+      "y": 4.5
+    },
+    "direction": 0,
+    "quality": "normal",
+    "wires": {},
+    "wires_unverified": false,
+    "settings_unverified": false,
+    "settings": {
+      "name": "iron-chest"
+    }
+  },
+  "restoration": {
+    "id": 2,
+    "action": 4,
+    "logical_id": "F143",
+    "state": "restored",
+    "source_unit": 217,
+    "player": 1,
+    "tick": 20153,
+    "surface": 5,
+    "ghost_unit": 220,
+    "expected": {
+      "unit": 220,
+      "name": "iron-chest",
+      "surface": 5,
+      "position": {
+        "x": 14.5,
+        "y": 4.5
+      },
+      "event_tick": 20153,
+      "ghost": true,
+      "quality": "normal"
+    },
+    "ghost_destroyed": true,
+    "ghost_destroyed_tick": 20753,
+    "unit": 222,
+    "built_tick": 20754,
+    "restored_tick": 20755
+  },
+  "trace": [
+    {
+      "seq": 1,
+      "tick": 0,
+      "kind": "opaque-history-churn-cleanup",
+      "data": {
+        "tick": 0,
+        "removed_unreferenced_unknown_labels": 0,
+        "retained": 0,
+        "sample_removed": {},
+        "rule": "No live engine stack, restore or cut history reference; no entity/id/ghost ownership. Monotonic next counter retained."
+      }
+    },
+    {
+      "seq": 2,
+      "tick": 1969,
+      "kind": "accepted-ghost-receipt",
+      "data": {
+        "id": 1,
+        "logical_id": "F140",
+        "state": "pending",
+        "manual_accept": true,
+        "ghost_unit": 148,
+        "tick": 1969,
+        "surface": 4,
+        "expected": {
+          "unit": 148,
+          "name": "iron-chest",
+          "surface": 4,
+          "position": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "event_tick": 1969,
+          "ghost": true,
+          "quality": "normal"
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "tick": 13932,
+      "kind": "action-bound",
+      "data": {
+        "action": 2,
+        "kind": "removed-entity",
+        "entity": {
+          "unit": 210,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 19.5,
+            "y": 4.5
+          },
+          "event_tick": 13932,
+          "ghost": false,
+          "quality": "normal",
+          "kind": "removed-entity",
+          "logical_id": "F143"
+        },
+        "id": "F143"
+      }
+    },
+    {
+      "seq": 4,
+      "tick": 15799,
+      "kind": "action-bound",
+      "data": {
+        "action": 3,
+        "kind": "built-entity",
+        "entity": {
+          "unit": 215,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "event_tick": 15799,
+          "ghost": true,
+          "quality": "normal",
+          "kind": "built-entity"
+        }
+      }
+    },
+    {
+      "seq": 5,
+      "tick": 16416,
+      "kind": "action-bound",
+      "data": {
+        "action": 4,
+        "kind": "built-entity",
+        "entity": {
+          "unit": 217,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "event_tick": 16416,
+          "ghost": false,
+          "quality": "normal",
+          "kind": "built-entity"
+        }
+      }
+    },
+    {
+      "seq": 6,
+      "tick": 16417,
+      "kind": "action-robot-built",
+      "data": {
+        "action": 3,
+        "ghost": 215,
+        "unit": 217
+      }
+    },
+    {
+      "seq": 7,
+      "tick": 16417,
+      "kind": "action-identity-bound",
+      "data": {
+        "action": 3,
+        "id": "F143",
+        "unit": 217
+      }
+    },
+    {
+      "seq": 8,
+      "tick": 16417,
+      "kind": "action-identity-bound",
+      "data": {
+        "action": 4,
+        "id": "F143",
+        "unit": 217
+      }
+    },
+    {
+      "seq": 9,
+      "tick": 17902,
+      "kind": "linked-history",
+      "data": {
+        "player": 1,
+        "kind": "undo",
+        "actions": [
+          {
+            "type": "built-entity",
+            "tags": {
+              "fabric_pg_history_v1": {
+                "world": "1719527939:1063699522",
+                "action": 4
+              }
+            },
+            "target": {
+              "entity_number": 0,
+              "name": "iron-chest",
+              "position": {
+                "x": 14.5,
+                "y": 4.5
+              }
+            },
+            "surface_index": 5
+          }
+        ]
+      }
+    },
+    {
+      "seq": 10,
+      "tick": 17902,
+      "kind": "history-native-marked",
+      "data": {
+        "player": 1,
+        "entity": {
+          "unit": 217,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "event_tick": 17902,
+          "ghost": false,
+          "quality": "normal"
+        }
+      }
+    },
+    {
+      "seq": 11,
+      "tick": 17902,
+      "kind": "applied",
+      "data": {
+        "player": 1,
+        "kind": "undo",
+        "actions": [
+          {
+            "type": "built-entity",
+            "tags": {
+              "fabric_pg_history_v1": {
+                "world": "1719527939:1063699522",
+                "action": 4
+              }
+            },
+            "target": {
+              "entity_number": 0,
+              "name": "iron-chest",
+              "position": {
+                "x": 14.5,
+                "y": 4.5
+              }
+            },
+            "surface_index": 5
+          }
+        ],
+        "context": {
+          "tick": 17902,
+          "kind": "undo",
+          "before": [
+            {
+              "type": "built-entity",
+              "tags": {
+                "fabric_pg_history_v1": {
+                  "world": "1719527939:1063699522",
+                  "action": 4
+                }
+              },
+              "target": {
+                "entity_number": 0,
+                "name": "iron-chest",
+                "position": {
+                  "x": 14.5,
+                  "y": 4.5
+                }
+              },
+              "surface_index": 5
+            }
+          ],
+          "built": {},
+          "marked": [
+            {
+              "unit": 217,
+              "name": "iron-chest",
+              "surface": 5,
+              "position": {
+                "x": 14.5,
+                "y": 4.5
+              },
+              "event_tick": 17902,
+              "ghost": false,
+              "quality": "normal"
+            }
+          ],
+          "blocked": {}
+        }
+      }
+    },
+    {
+      "seq": 12,
+      "tick": 17902,
+      "kind": "inverse-mirrored",
+      "data": {
+        "player": 1,
+        "side": "redo",
+        "mapping": [
+          1
+        ]
+      }
+    },
+    {
+      "seq": 13,
+      "tick": 20153,
+      "kind": "linked-history",
+      "data": {
+        "player": 1,
+        "kind": "redo",
+        "actions": [
+          {
+            "type": "removed-entity",
+            "tags": {
+              "fabric_pg_history_v1": {
+                "world": "1719527939:1063699522",
+                "action": 4
+              }
+            },
+            "target": {
+              "entity_number": 0,
+              "name": "iron-chest",
+              "position": {
+                "x": 14.5,
+                "y": 4.5
+              }
+            },
+            "insert_plan": {},
+            "surface_index": 5
+          }
+        ]
+      }
+    },
+    {
+      "seq": 14,
+      "tick": 20153,
+      "kind": "history-native-built",
+      "data": {
+        "player": 1,
+        "entity": {
+          "unit": 220,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "event_tick": 20153,
+          "ghost": true,
+          "quality": "normal"
+        }
+      }
+    },
+    {
+      "seq": 15,
+      "tick": 20153,
+      "kind": "applied",
+      "data": {
+        "player": 1,
+        "kind": "redo",
+        "actions": [
+          {
+            "type": "removed-entity",
+            "tags": {
+              "fabric_pg_history_v1": {
+                "world": "1719527939:1063699522",
+                "action": 4
+              }
+            },
+            "target": {
+              "entity_number": 0,
+              "name": "iron-chest",
+              "position": {
+                "x": 14.5,
+                "y": 4.5
+              }
+            },
+            "insert_plan": {},
+            "surface_index": 5
+          }
+        ],
+        "context": {
+          "tick": 20153,
+          "kind": "redo",
+          "before": [
+            {
+              "type": "removed-entity",
+              "tags": {
+                "fabric_pg_history_v1": {
+                  "world": "1719527939:1063699522",
+                  "action": 4
+                }
+              },
+              "target": {
+                "entity_number": 0,
+                "name": "iron-chest",
+                "position": {
+                  "x": 14.5,
+                  "y": 4.5
+                }
+              },
+              "insert_plan": {},
+              "surface_index": 5
+            }
+          ],
+          "built": [
+            {
+              "unit": 220,
+              "name": "iron-chest",
+              "surface": 5,
+              "position": {
+                "x": 14.5,
+                "y": 4.5
+              },
+              "event_tick": 20153,
+              "ghost": true,
+              "quality": "normal",
+              "action_tag": {
+                "world": "1719527939:1063699522",
+                "action": 4
+              }
+            }
+          ],
+          "marked": {},
+          "blocked": {}
+        }
+      }
+    },
+    {
+      "seq": 16,
+      "tick": 20153,
+      "kind": "inverse-mirrored",
+      "data": {
+        "player": 1,
+        "side": "undo",
+        "mapping": [
+          1
+        ]
+      }
+    },
+    {
+      "seq": 17,
+      "tick": 20153,
+      "kind": "restore-reserved",
+      "data": {
+        "id": 2,
+        "action": 4,
+        "logical_id": "F143",
+        "state": "pending",
+        "source_unit": 217,
+        "player": 1,
+        "tick": 20153,
+        "surface": 5,
+        "ghost_unit": 220,
+        "expected": {
+          "unit": 220,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "event_tick": 20153,
+          "ghost": true,
+          "quality": "normal"
+        }
+      }
+    },
+    {
+      "seq": 18,
+      "tick": 20754,
+      "kind": "restore-robot-built",
+      "data": {
+        "restore": 2,
+        "ghost": 220,
+        "entity": {
+          "unit": 222,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "event_tick": 20754,
+          "ghost": false,
+          "quality": "normal"
+        }
+      }
+    },
+    {
+      "seq": 19,
+      "tick": 20755,
+      "kind": "history-restored",
+      "data": {
+        "restore": 2,
+        "action": 4,
+        "id": "F143",
+        "entity": {
+          "unit": 222,
+          "name": "iron-chest",
+          "surface": 5,
+          "position": {
+            "x": 14.5,
+            "y": 4.5
+          },
+          "event_tick": 20755,
+          "ghost": false,
+          "quality": "normal"
+        }
+      }
+    }
+  ],
+  "source_sha256": {
+    "blueprint-area.lua": "cd90394d1ab1ecb81e7ce4620bfa8742fd96c2714f7296d18f869d02af71a8cd",
+    "bounded-trace.lua": "e87c89ad33612be5e8f964d99b06dd723eeefef6aca106f7b7d9aca551a258d8",
+    "campaign-tests.lua": "fc42d9f8266a6814bded6a320fc9c6b72646cee9c5350868551bd9b285ac20e6",
+    "control.lua": "484702025b19ace7cd8184a07bf91a2a4621dd95c7feb066d8d95dfcbcf445d8",
+    "coverage-probe.lua": "08f4e420ba69f321bd1ba0d84358e5e85da64521a68ed05a42e373d0758882fd",
+    "cut.lua": "2b307c3c6111a05d9e5737137654b799c3f05783f81c593c808cee32d7bdecb0",
+    "data.lua": "8fc3ec7a277a409a913a73ce01081ac17ccc30b7b47044458f26da63b36f5010",
+    "death-ghost.lua": "a1ddb57ba5c06573fa244805fe2858a2b462b1e0d92f4be532f534e2656b1131",
+    "direct-placement.lua": "59a5e60d6b50f8acbd37bd8786549f1a3a2de4af687fc9425912ea30019ede53",
+    "eligibility.lua": "0a4cb188f25d9709866794d4247e24c57ed33fdf8ef8efe487ccd36d0170c7a8",
+    "engine-clone.lua": "2bb0210a0c0a6b659d0380318e409028374f2c5b80c3335218c468f1db6b0cf5",
+    "history.lua": "3744f44482115a9f55fb86dfd5ed0fd305770a77d23a1f717601eccfb11c328d",
+    "info.json": "7b0552e70fe56c1bf28f7efe13b271aa2dff3572ba215bd345fa464b18a57791",
+    "loaded-build.lua": "cd92727f55c2caff7bb234d331071584ed389a40d817d5e0b81f8c47aeb4389b",
+    "mined-items.lua": "da6f7922131e1b21269d0a84787d86eb38b95b9dd7f3d1f86dea01ef9c73e81f",
+    "mod-settings.lua": "cc99d08ec0cb3c3fcc91742a9ba75039be87422e37ef3720dc7ac796988ea4c7",
+    "perf-tests.lua": "aaf7bdbed3648873722b2b478dcddd0dd4c4f24647feeb69bbfeaf5628b2f86a",
+    "placement-geometry.lua": "e6d37c4dc2cf2284296d0bc0e6224bb10652589cda3b1b01bbebc8b9dbdfacd7",
+    "player-revival.lua": "607fad39293d80e13e30f20b9ec3be54dca18db60f790866837d92be438babd3",
+    "range-tests.lua": "60dfedd339f5f55d35ca4dadf8c23ec270bced78fa88ae3735a92a22cb9379e6",
+    "replacement.lua": "5efc0a0e3b22e2acd73fd0d3a05bdbfd377c64ac2293760ebf8084e321449761",
+    "robot-jobs.lua": "f953e91c4b731d7fe237a5ec5e377157fb927c1f599b1f53b89de95ffcc12f17",
+    "runtime-owners.lua": "bd5bc0dfb9ce249bd649a792ec7b3e1fbacf11607a23273b18e1759b8985e8ec",
+    "runtime-registration.lua": "7b759120c38fbcd2268581fc926176324194c5f7a29fd1210c25916ced77ad6e",
+    "session-issuer.lua": "34e3635b03d4bec40d5e387191885f4f431ab5322c7e95450b497c2012f0c7bf",
+    "wires.lua": "e55daf3b9b947011c1c8af155caba0e21ce718a3f0bba5525504756b1ff5d2a5"
+  }
+}

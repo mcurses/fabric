@@ -1,5 +1,5 @@
 {
-  "assertions": 201,
+  "assertions": 212,
   "failed": 0,
   "kind": "production-module-simulation",
   "limitations": [
@@ -8,25 +8,27 @@
     "Idle wire/tile action shapes come from installed official2.1.24 schema."
   ],
   "mined_pool_module_present": true,
-  "passed": 71,
+  "passed": 76,
   "provenance": {
     "files_sha256": {
       "blueprint-area.lua": "cd90394d1ab1ecb81e7ce4620bfa8742fd96c2714f7296d18f869d02af71a8cd",
+      "bounded-trace.lua": "e87c89ad33612be5e8f964d99b06dd723eeefef6aca106f7b7d9aca551a258d8",
       "campaign-tests.lua": "fc42d9f8266a6814bded6a320fc9c6b72646cee9c5350868551bd9b285ac20e6",
-      "control.lua": "2a3519296dbf20c00b28251de441a5283ffd5d8050116d07f7ea42e0ca9425a4",
+      "control.lua": "484702025b19ace7cd8184a07bf91a2a4621dd95c7feb066d8d95dfcbcf445d8",
       "coverage-probe.lua": "08f4e420ba69f321bd1ba0d84358e5e85da64521a68ed05a42e373d0758882fd",
-      "cut.lua": "ae56f7f538e839f129c47b634dcb4c9cb18372addde684ad37d0ca096c640d72",
+      "cut.lua": "2b307c3c6111a05d9e5737137654b799c3f05783f81c593c808cee32d7bdecb0",
       "data.lua": "8fc3ec7a277a409a913a73ce01081ac17ccc30b7b47044458f26da63b36f5010",
-      "death-ghost.lua": "9e5ecbda4037609dc164dce9850e352dbf673f18e1921b6c6119f7ee4a02cbe2",
+      "death-ghost.lua": "a1ddb57ba5c06573fa244805fe2858a2b462b1e0d92f4be532f534e2656b1131",
       "direct-placement.lua": "59a5e60d6b50f8acbd37bd8786549f1a3a2de4af687fc9425912ea30019ede53",
       "eligibility.lua": "0a4cb188f25d9709866794d4247e24c57ed33fdf8ef8efe487ccd36d0170c7a8",
       "engine-clone.lua": "2bb0210a0c0a6b659d0380318e409028374f2c5b80c3335218c468f1db6b0cf5",
-      "history.lua": "4767932497d0291ae0d552447c1b6c76b6b3a6812e12c5d9c1597581bec93495",
+      "history.lua": "3744f44482115a9f55fb86dfd5ed0fd305770a77d23a1f717601eccfb11c328d",
       "loaded-build.lua": "cd92727f55c2caff7bb234d331071584ed389a40d817d5e0b81f8c47aeb4389b",
       "mined-items.lua": "da6f7922131e1b21269d0a84787d86eb38b95b9dd7f3d1f86dea01ef9c73e81f",
       "mod-settings.lua": "cc99d08ec0cb3c3fcc91742a9ba75039be87422e37ef3720dc7ac796988ea4c7",
       "perf-tests.lua": "aaf7bdbed3648873722b2b478dcddd0dd4c4f24647feeb69bbfeaf5628b2f86a",
       "placement-geometry.lua": "e6d37c4dc2cf2284296d0bc0e6224bb10652589cda3b1b01bbebc8b9dbdfacd7",
+      "player-revival.lua": "607fad39293d80e13e30f20b9ec3be54dca18db60f790866837d92be438babd3",
       "range-tests.lua": "60dfedd339f5f55d35ca4dadf8c23ec270bced78fa88ae3735a92a22cb9379e6",
       "replacement.lua": "5efc0a0e3b22e2acd73fd0d3a05bdbfd377c64ac2293760ebf8084e321449761",
       "robot-jobs.lua": "f953e91c4b731d7fe237a5ec5e377157fb927c1f599b1f53b89de95ffcc12f17",
@@ -36,9 +38,10 @@
       "wires.lua": "e55daf3b9b947011c1c8af155caba0e21ce718a3f0bba5525504756b1ff5d2a5"
     },
     "loaded_engine_claim": false,
-    "source_concatenated_sha256": "72ceafb52e6913c934bff3419b204bc7345e444b10f3db2a571400b9681f35c8",
+    "lua_executable": "/opt/homebrew/bin/lua",
+    "source_concatenated_sha256": "4f6a9ed1aec3623633f0f6bb710d4366c16df21423dfe0bd05f5fd9af2900673",
     "source_files_unchanged_during_run": true,
-    "suite_sha256": "6633844b2197555af2029a143f4e479cf6e5aedd1c4686a34d489434de502d00"
+    "suite_sha256": "4f85504d8b39324a06c4c75e1dc0c7b1969c1a658d3d1b3155e28b20c118bde4"
   },
   "results": [
     {
@@ -1757,8 +1760,143 @@
       ],
       "id": "mined_distinct_item_numbers_disqualify_source",
       "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": "U11",
+          "expected": "U11",
+          "label": "first claimant remains unresolved",
+          "pass": true
+        },
+        {
+          "actual": "U12",
+          "expected": "U12",
+          "label": "second claimant remains unresolved",
+          "pass": true
+        },
+        {
+          "actual": "invalid",
+          "expected": "invalid",
+          "label": "first receipt invalidated",
+          "pass": true
+        },
+        {
+          "actual": "invalid",
+          "expected": "invalid",
+          "label": "second receipt invalidated",
+          "pass": true
+        }
+      ],
+      "id": "competing_pending_restores_never_first_wins",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": "U3",
+          "expected": "U3",
+          "label": "old restore never steals identity after new owner disappears",
+          "pass": true
+        },
+        {
+          "actual": "invalid",
+          "expected": "invalid",
+          "label": "old restore retired",
+          "pass": true
+        }
+      ],
+      "id": "restore_cannot_wait_for_unrelated_new_owner_to_disappear",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": "U3",
+          "expected": "U3",
+          "label": "no same-tick first claim",
+          "pass": true
+        },
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "unique complete batch restores",
+          "pass": true
+        }
+      ],
+      "id": "restore_waits_for_complete_callback_tick",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": "U3",
+          "expected": "U3",
+          "label": "absence is not release proof",
+          "pass": true
+        }
+      ],
+      "id": "proved_continuation_blocks_stale_restore_even_after_owner_gone",
+      "pass": true
+    },
+    {
+      "assertions": [
+        {
+          "actual": "U3",
+          "expected": "U3",
+          "label": "old ghost cannot claim during current body batch",
+          "pass": true
+        },
+        {
+          "actual": "F1",
+          "expected": "F1",
+          "label": "completed body batch restores",
+          "pass": true
+        }
+      ],
+      "id": "old_ghost_restore_waits_for_new_body_batch",
+      "pass": true
     }
   ],
   "schema_version": 1,
-  "tests": 71
+  "source_directory": "/Users/seppi/Documents/factorio-saves/Axos/fabric-identity/identity/mod",
+  "supplemental": [
+    {
+      "pass": true,
+      "sha256": "6e4e28b51c9de19dc9731ddcf7a7b4aa959b8401db3bd1e8655aeae8e50b6cbd",
+      "stderr": "",
+      "stdout": "PASS eligibility reload and migration",
+      "suite": "eligibility-reload.lua"
+    },
+    {
+      "pass": true,
+      "sha256": "3d4e83a927425251233ea74632c8dcaa08cd6c8bb7851df4195812bdda421d87",
+      "stderr": "",
+      "stdout": "PASS remote input, read-only library, held replacement, stale-input rejection",
+      "suite": "core-input.lua"
+    },
+    {
+      "pass": true,
+      "sha256": "7c04d7ce5448e6cd806c98471df91ab657dfa0496c29c56ba7ccbe43a6919524",
+      "stderr": "",
+      "stdout": "PASS 10 player revival receipt cases",
+      "suite": "player-revival.lua"
+    },
+    {
+      "pass": true,
+      "sha256": "7adeb8152133b0df85ee0f355a853357f645f315f8e8a88446d4b49836e6120c",
+      "stderr": "",
+      "stdout": "PASS library copy: immutable record, stale move tags isolated, repeated fresh IDs, cross-surface rejection\nPASS duplicate logical ID selection: all claimants invalidated",
+      "suite": "library-copy.lua"
+    },
+    {
+      "pass": true,
+      "sha256": "951fc4721994a85717b8045292c33ee5535335999d0a6e0213c53a1964eeade6",
+      "stderr": "",
+      "stdout": "PASS 100000 trace events: bounded, ordered, exact dropped count",
+      "suite": "bounded-trace.lua"
+    }
+  ],
+  "supplemental_failed": 0,
+  "tests": 76
 }
